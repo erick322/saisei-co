@@ -60,6 +60,26 @@ create policy "admin categorias" on public.categorias for all to authenticated u
 create policy "ver productos"    on public.productos  for select using (activo or public.es_admin());
 create policy "admin productos"  on public.productos  for all to authenticated using (public.es_admin()) with check (public.es_admin());
 
+-- 3b) Apariencia de la página (una sola fila, se edita en /gestion) -----
+create table if not exists public.ajustes (
+  id             int primary key default 1 check (id = 1),
+  colores        jsonb default '{}'::jsonb,   -- paleta: {"pine":"#0E3B2E","salmon":"#EE7A4F",...}
+  logo           text default '',             -- URL del logo (vacío = círculo con "S")
+  foto_portada   text default '',             -- foto redonda de la portada
+  foto_destacada text default '',             -- foto de la franja destacada
+  portada        jsonb default '[]'::jsonb,   -- carrusel: [{"src":"...","txt":"...","ir":"Shari"}] (vacío = cartas originales)
+  agotado        boolean default false,       -- aviso "Agotamos stock": solo se muestra si está activado
+  agotado_titulo text default 'Agotamos stock',
+  agotado_texto  text default 'Gracias por tanto, puerto querido. Pide con tiempo y asegura tu tabla.',
+  actualizado    timestamptz default now()
+);
+insert into public.ajustes (id) values (1) on conflict do nothing;
+alter table public.ajustes enable row level security;
+drop policy if exists "ver ajustes" on public.ajustes;
+drop policy if exists "admin ajustes" on public.ajustes;
+create policy "ver ajustes"   on public.ajustes for select using (true);
+create policy "admin ajustes" on public.ajustes for update to authenticated using (public.es_admin()) with check (public.es_admin());
+
 -- 4) Fotos (Storage) ----------------------------------------------------
 insert into storage.buckets (id, name, public) values ('fotos', 'fotos', true) on conflict (id) do nothing;
 

@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Saisei & Co · Gestión</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg:#0b2b22; --bg2:#0f3529; --line:#245244; --cream:#f6f7ee; --ink:#0b2b22; --ink2:#4b6a5f;
+         --text:#f6f7ee; --muted:#b7c8bf; --accent:#F3C552; --ok:#3fb27f; --bad:#ff8a7a; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:Figtree,system-ui,sans-serif;line-height:1.45}
+  a{color:var(--accent)}
+  h1,h2,h3{font-family:Marcellus,Georgia,serif;font-weight:400;letter-spacing:.5px;margin:0}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .top h1{font-size:22px}
+  .top h1 small{font-family:Figtree,sans-serif;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-left:8px;vertical-align:middle}
+  .top .r{display:flex;gap:10px;align-items:center;font-size:14px;color:var(--muted);flex-wrap:wrap}
+  .wrap{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+  .card{background:var(--bg2);border:1px solid var(--line);border-radius:18px;padding:20px}
+  .card + .card{margin-top:16px}
+  .card h2{font-size:22px}
+  .login{max-width:380px;margin:60px auto}
+  label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px}
+  input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text);font:inherit}
+  textarea{min-height:70px;resize:vertical}
+  input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
+  input[type=file]{padding:6px;font-size:13px}
+  .b{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border-radius:10px;border:1px solid var(--line);
+     background:transparent;color:var(--text);font:inherit;font-weight:600;cursor:pointer;text-decoration:none}
+  .b.pri{background:var(--cream);color:var(--ink);border-color:var(--cream)}
+  .b.del{color:var(--bad);border-color:#5a2f2a}
+  .b.sm{padding:6px 10px;font-size:13px}
+  .b:disabled{opacity:.5;cursor:not-allowed}
+  .full{width:100%;margin-top:16px}
+  .msg{font-size:14px;margin-top:10px;min-height:20px}
+  .msg.err{color:var(--bad)} .msg.ok{color:var(--ok)}
+  .hint{font-size:13px;color:var(--muted);margin:4px 0 0}
+
+  /* Pestañas del panel */
+  .seccs{display:flex;gap:6px;overflow-x:auto;margin-bottom:20px;border-bottom:1px solid var(--line)}
+  .seccs button{flex:none;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);font:inherit;font-weight:600;padding:10px 14px;cursor:pointer}
+  .seccs button.on{color:var(--text);border-bottom-color:var(--accent)}
+
+  /* Carta */
+  .layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:20px}
+  @media (max-width:800px){.layout{grid-template-columns:1fr}}
+  .cats{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+  @media (max-width:800px){.cats{flex-direction:row;overflow-x:auto}}
+  .cat{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);cursor:pointer;flex:none}
+  .cat.on{background:var(--cream);color:var(--ink);border-color:var(--cream);font-weight:600}
+  .cat small{color:inherit;opacity:.7}
+  .head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .head p{margin:4px 0 0;color:var(--muted);font-size:14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+  .prod{background:var(--cream);color:var(--ink);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:6px}
+  .prod.off{opacity:.55}
+  .prod h4{margin:0;font-size:15px;text-transform:uppercase}
+  .prod p{margin:0;font-size:13px;color:var(--ink2);flex:1}
+  .prod .acts{display:flex;gap:6px;flex-wrap:wrap}
+  .prod .b{color:var(--ink);border-color:#c9d3cc}
+  .ph{width:96px;aspect-ratio:1;border-radius:50%;margin:0 auto;background:#dfe5dc center/cover no-repeat;display:grid;place-items:center;color:var(--ink2);font-size:12px;border:3px solid #fff;flex:none}
+  .tag{align-self:flex-start;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--accent);color:#2a1a00}
+  .tag.gray{background:#c9d3cc;color:var(--ink)}
+  .empty{color:var(--muted);text-align:center;padding:30px 0}
+
+  /* Apariencia */
+  .cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+  @media (max-width:860px){.cols{grid-template-columns:1fr}}
+  .cols .card + .card{margin-top:0}
+  .presets{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .preset{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:999px;border:1px solid var(--line);background:none;color:var(--text);font:inherit;font-size:14px;cursor:pointer}
+  .preset i{display:flex;border-radius:999px;overflow:hidden}
+  .preset i b{width:14px;height:22px}
+  .colors{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+  .col{display:flex;align-items:center;gap:12px;margin:0;padding:8px 10px;border:1px solid var(--line);border-radius:12px;cursor:pointer;color:var(--text)}
+  .col input{width:44px;height:36px;padding:0;border:0;background:none;cursor:pointer;flex:none}
+  .col span{flex:1;min-width:0;font-size:14px}
+  .col small{display:block;color:var(--muted);font-size:12px}
+  .col code{font-size:12px;color:var(--muted)}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .acts-end{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px}
+
+  /* Vista previa de la paleta (usa los mismos nombres de color que la página) */
+  .pv{border-radius:16px;overflow:hidden;margin-top:12px;background:var(--rice);color:var(--ink);font-size:13px;border:1px solid var(--line)}
+  .pv-nav{background:var(--pine);color:var(--rice);display:flex;align-items:center;gap:8px;padding:10px 12px}
+  .pv-logo{width:30px;height:30px;border-radius:50%;background:var(--rice) center/cover no-repeat;color:var(--pine);border:2px solid var(--mango);display:grid;place-items:center;font-family:Marcellus,serif}
+  .pv-nav b{font-family:Marcellus,serif;font-weight:400;font-size:17px;letter-spacing:.06em}
+  .pv-nav .pv-btn{margin-left:auto}
+  .pv-hero{background:var(--pine);color:var(--rice);padding:14px 14px 22px}
+  .pv-hero h3{font-size:22px;line-height:1.1}
+  .pv-hero h3 em{font-style:normal;color:var(--mango)}
+  .pv-hero p{color:var(--bamboo);margin:6px 0 10px}
+  .pv-btn{display:inline-block;background:var(--salmon);color:#fff;border-radius:999px;padding:6px 12px;font-weight:700;font-size:12px}
+  .pv-body{padding:14px;display:flex;gap:10px;align-items:stretch}
+  .pv-card{background:#fff;border-radius:14px;padding:12px;flex:1;display:flex;flex-direction:column;gap:6px;box-shadow:0 1px 0 var(--rice-2)}
+  .pv-card h4{margin:0;font-family:Marcellus,serif;font-weight:400;font-size:16px}
+  .pv-card small{color:var(--ink-soft)}
+  .pv-chips{display:flex;gap:4px}
+  .pv-chips span{border:1.5px solid var(--rice-2);background:var(--rice);border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600}
+  .pv-chips span.on{background:var(--pine);border-color:var(--pine);color:var(--rice)}
+  .pv-card .pr{color:var(--pine);font-weight:800}
+  .pv-sold{background:var(--pine);color:var(--rice);border-radius:14px;padding:12px;flex:.8}
+  .pv-sold b{display:block;font-family:Marcellus,serif;font-weight:400;font-size:17px;color:var(--mango)}
+  .pv-foot{background:var(--pine-deep);color:var(--bamboo);padding:8px 14px;font-size:12px}
+
+  .slot{display:flex;gap:14px;align-items:center;margin-top:14px}
+  .slot .ph{width:96px;margin:0;color:var(--ink2)}
+  .slot .ph.logo{border-color:var(--accent)}
+  .slot h3{font-size:17px}
+  .slot .btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .filebtn{position:relative;overflow:hidden}
+  .filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+
+  /* Avisos */
+  .switch{display:flex;align-items:center;gap:12px;margin:14px 0 0;padding:12px 14px;border:1px solid var(--line);border-radius:12px;cursor:pointer;color:var(--text);font-size:15px;font-weight:600}
+  .switch input{appearance:none;width:46px;height:26px;border-radius:999px;background:var(--line);position:relative;flex:none;cursor:pointer;transition:.2s}
+  .switch input::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--cream);transition:.2s}
+  .switch input:checked{background:var(--ok)}
+  .switch input:checked::after{left:23px}
+  .state{font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--line);color:var(--muted);margin-left:auto}
+  .state.on{background:var(--ok);color:#06210f}
+  .slides-ed{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+  .sl{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:14px}
+  .sl .th{width:72px;aspect-ratio:4/5;border-radius:10px;background:#dfe5dc center/cover no-repeat}
+  .sl .f{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:8px}
+  .sl .f input,.sl .f select{padding:8px}
+  .sl .mv{display:flex;flex-direction:column;gap:4px}
+  @media (max-width:600px){.sl{grid-template-columns:60px minmax(0,1fr)}.sl .f{grid-template-columns:1fr}.sl .mv{grid-column:1/-1;flex-direction:row}}
+
+  /* Ventanas */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
+  .overlay[hidden]{display:none}
+  .modal{background:var(--bg2);border:1px solid var(--line);border-radius:18px;padding:20px;width:100%;max-width:560px;max-height:92vh;overflow:auto}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .chk{display:flex;align-items:center;gap:8px;margin:12px 0 0;color:var(--text);font-size:14px;cursor:pointer}
+  .photo-edit{display:flex;gap:14px;align-items:center}
+  .photo-edit .ph{width:110px;margin:0}
+  .var{display:grid;grid-template-columns:1fr 120px 36px;gap:6px;margin-top:6px}
+  .seg{display:flex;gap:6px;margin-top:4px}
+  .seg label{flex:1;margin:0;text-align:center;border:1px solid var(--line);border-radius:10px;padding:8px;cursor:pointer;color:var(--text);font-size:14px}
+  .seg input{display:none}
+  .seg label:has(input:checked){background:var(--cream);color:var(--ink);font-weight:600}
+  .x{background:none;border:0;color:var(--text);font-size:28px;cursor:pointer;line-height:1}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ok);color:#06210f;padding:10px 16px;border-radius:10px;font-weight:600;opacity:0;transition:.3s;pointer-events:none;z-index:40;max-width:calc(100% - 32px)}
+  .toast.show{opacity:1} .toast.bad{background:var(--bad)}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>Saisei &amp; Co <small>Gestión</small></h1>
+  <div class="r" id="who" hidden><span id="email"></span><a class="b sm" href="../" target="_blank" rel="noopener">Ver página</a><button class="b sm" id="logout">Salir</button></div>
+</div>
+
+<!-- Sin configurar -->
+<div class="wrap" id="noConfig" hidden>
+  <div class="card login" style="max-width:560px">
+    <h2>Falta conectar Supabase</h2>
+    <p style="color:var(--muted)">Completa <b>config.js</b> con la URL y la anon key de tu proyecto de Supabase, y ejecuta <b>supabase/setup.sql</b> en el SQL Editor. Luego recarga esta página.</p>
+  </div>
+</div>
+
+<!-- Login -->
+<div class="wrap" id="loginView" hidden>
+  <form class="card login" id="loginForm">
+    <h2>Ingresar</h2>
+    <p style="color:var(--muted);margin:6px 0 0;font-size:14px">Acceso exclusivo para la administración de Saisei &amp; Co.</p>
+    <label for="lEmail">Correo</label>
+    <input id="lEmail" type="email" autocomplete="username" required>
+    <label for="lPass">Contraseña</label>
+    <input id="lPass" type="password" autocomplete="current-password" required>
+    <button class="b pri full" id="lBtn">Ingresar</button>
+    <div class="msg err" id="lMsg"></div>
+  </form>
+</div>
+
+<!-- Panel -->
+<div class="wrap" id="panel" hidden>
+  <nav class="seccs" id="seccs">
+    <button data-s="sCarta" class="on">Carta y productos</button>
+    <button data-s="sApariencia">Apariencia</button>
+    <button data-s="sAvisos">Avisos y portada</button>
+  </nav>
+
+  <!-- ===== Carta ===== -->
+  <div id="sCarta">
+    <div class="layout">
+      <div>
+        <div class="head" style="margin:0"><h2 style="font-size:20px">Categorías</h2><button class="b sm pri" id="addCat">+ Nueva</button></div>
+        <div class="cats" id="cats"></div>
+      </div>
+      <div>
+        <div class="head">
+          <div><h2 id="catTitle"></h2><p id="catSub"></p></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="b sm" id="editCat">Editar categoría</button>
+            <button class="b sm pri" id="addProd">+ Nuevo producto</button>
+          </div>
+        </div>
+        <div class="grid" id="prods"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Apariencia ===== -->
+  <div id="sApariencia" hidden>
+    <div class="cols">
+      <section class="card">
+        <h2>Paleta de colores</h2>
+        <p class="hint">Elige una paleta lista o ajusta cada color. La vista previa cambia al instante; la página cambia al guardar.</p>
+        <div class="presets" id="presets"></div>
+        <div class="colors" id="colors"></div>
+        <div class="acts-end">
+          <button class="b" id="colReset">Volver a los originales</button>
+          <button class="b pri" id="colSave">Guardar colores</button>
+        </div>
+      </section>
+      <section class="card" style="position:sticky;top:12px">
+        <h2>Vista previa</h2>
+        <div class="pv" id="pv">
+          <div class="pv-nav"><span class="pv-logo" id="pvLogo">S</span><b>SAISEI</b><span class="pv-btn">Pedir ahora</span></div>
+          <div class="pv-hero"><h3>Sabores nuevos, en <em>buena compañía.</em></h3><p>Tablas, promos y rolls Furea.</p><span class="pv-btn">Ver la carta y pedir</span></div>
+          <div class="pv-body">
+            <div class="pv-card"><h4>Tabla 20 piezas</h4><small>Elige 2 rolls de 10 piezas.</small><div class="pv-chips"><span class="on">Chicken</span><span>Mixta</span></div><div class="row"><span class="pr">$12.000</span><span class="pv-btn">Agregar</span></div></div>
+            <div class="pv-sold"><b>Agotamos stock</b>Pide con tiempo.</div>
+          </div>
+          <div class="pv-foot">Puerto Cisnes · Patagonia</div>
+        </div>
+      </section>
+    </div>
+
+    <section class="card" style="margin-top:16px">
+      <h2>Logo e imágenes</h2>
+      <p class="hint">Los cambios se publican apenas subes o quitas una imagen.</p>
+      <div class="cols" style="margin-top:4px">
+        <div class="slot">
+          <div class="ph logo" id="imgLogo"></div>
+          <div><h3>Logo</h3><p class="hint">Va en la barra superior, el pie de página y la pestaña del navegador. Usa una imagen cuadrada (PNG).</p>
+            <div class="btns"><span class="b sm pri filebtn">Subir logo<input type="file" accept="image/*" data-up="logo"></span><button class="b sm del" data-quitar="logo">Quitar</button></div></div>
+        </div>
+        <div class="slot">
+          <div class="ph" id="imgPortada"></div>
+          <div><h3>Foto redonda de la portada</h3><p class="hint">El círculo que flota sobre el carrusel.</p>
+            <div class="btns"><span class="b sm pri filebtn">Cambiar foto<input type="file" accept="image/*" data-up="foto_portada"></span><button class="b sm del" data-quitar="foto_portada">Usar la original</button></div></div>
+        </div>
+        <div class="slot">
+          <div class="ph" id="imgDestacada"></div>
+          <div><h3>Foto de la franja destacada</h3><p class="hint">La foto grande junto al topping de centolla.</p>
+            <div class="btns"><span class="b sm pri filebtn">Cambiar foto<input type="file" accept="image/*" data-up="foto_destacada"></span><button class="b sm del" data-quitar="foto_destacada">Usar la original</button></div></div>
+        </div>
+      </div>
+      <p class="hint" style="margin-top:14px">Las fotos de cada producto se cambian en <b>Carta y productos</b> → Editar.</p>
+    </section>
+  </div>
+
+  <!-- ===== Avisos y portada ===== -->
+  <div id="sAvisos" hidden>
+    <section class="card">
+      <div class="row"><h2>Aviso "Agotamos stock"</h2><span class="state" id="soState">Oculto</span></div>
+      <p class="hint">Los clientes solo ven este aviso mientras esté activado. Apágalo cuando vuelvas a tener stock.</p>
+      <label class="switch"><input type="checkbox" id="soOn"> Mostrar el aviso en la página</label>
+      <div class="two">
+        <div><label for="soTit">Título</label><input id="soTit" maxlength="60"></div>
+        <div><label for="soTxt">Mensaje</label><input id="soTxt" maxlength="160"></div>
+      </div>
+      <div class="acts-end"><button class="b pri" id="soSave">Guardar aviso</button></div>
+    </section>
+
+    <section class="card">
+      <h2>Carrusel de la portada</h2>
+      <p class="hint">Imágenes que rotan arriba de la página. El texto aparece como etiqueta y, al tocarla, el cliente va a la categoría elegida. Si lo dejas vacío se muestran las 3 cartas originales.</p>
+      <div class="slides-ed" id="slEd"></div>
+      <div class="row" style="margin-top:14px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <span class="b sm filebtn">+ Agregar imagen<input type="file" accept="image/*" id="slAdd"></span>
+          <button class="b sm" id="slOrig">Cargar las cartas originales</button>
+        </div>
+        <button class="b pri" id="slSave">Guardar carrusel</button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- Modal categoría -->
+<div class="overlay" id="catModal" hidden>
+  <form class="modal" id="catForm">
+    <div class="row"><h3 id="catModalT">Categoría</h3><button type="button" class="x" data-close>×</button></div>
+    <div class="two">
+      <div><label for="cNombre">Nombre *</label><input id="cNombre" required></div>
+      <div><label for="cEmoji">Emoji</label><input id="cEmoji" placeholder="🍣" maxlength="8"></div>
+    </div>
+    <label for="cDesc">Descripción (se muestra bajo el título)</label>
+    <textarea id="cDesc"></textarea>
+    <label for="cOrden">Orden (menor = aparece primero)</label>
+    <input id="cOrden" type="number" value="0">
+    <div class="row" style="margin-top:18px">
+      <button type="button" class="b del" id="cDel">Eliminar</button>
+      <button class="b pri">Guardar</button>
+    </div>
+  </form>
+</div>
+
+<!-- Modal producto -->
+<div class="overlay" id="prodModal" hidden>
+  <form class="modal" id="prodForm">
+    <div class="row"><h3 id="prodModalT">Producto</h3><button type="button" class="x" data-close>×</button></div>
+
+    <label>Foto</label>
+    <div class="photo-edit">
+      <div class="ph" id="pFotoPrev">Sin foto</div>
+      <div>
+        <input type="file" id="pFotoFile" accept="image/*">
+        <p class="hint">JPG o PNG. Se ajusta automáticamente a 900 px.</p>
+        <button type="button" class="b sm" id="pFotoQuitar" style="margin-top:6px">Quitar foto</button>
+      </div>
+    </div>
+
+    <div class="two">
+      <div><label for="pCat">Categoría *</label><select id="pCat"></select></div>
+      <div><label for="pBadge">Etiqueta (opcional)</label><input id="pBadge" placeholder="Nuevo, Favorita…"></div>
+    </div>
+    <label for="pNombre">Nombre *</label>
+    <input id="pNombre" required>
+    <label for="pDesc">Descripción</label>
+    <textarea id="pDesc"></textarea>
+
+    <label>Precio</label>
+    <div class="seg">
+      <label><input type="radio" name="ptipo" value="unico" checked>Precio único</label>
+      <label><input type="radio" name="ptipo" value="var">Con opciones</label>
+    </div>
+    <div id="pUnico"><label for="pPrecio">Precio ($)</label><input id="pPrecio" type="number" min="0" step="100"></div>
+    <div id="pVarBox" hidden>
+      <p class="hint">Cada opción tiene su propio precio (ej. Chicken $12.000 / Mixta $15.500).</p>
+      <div id="pVars"></div>
+      <button type="button" class="b sm" id="pVarAdd" style="margin-top:8px">+ Agregar opción</button>
+    </div>
+
+    <div class="two">
+      <div><label for="pRolls">Rolls a elegir (tablas)</label><input id="pRolls" type="number" min="0" max="20" value="0">
+        <p class="hint">0 = no aplica. Si eliges una opción llamada "Chicken", solo se muestran rolls de pollo.</p></div>
+      <div><label for="pOrden">Orden</label><input id="pOrden" type="number" value="0"></div>
+    </div>
+    <label class="chk"><input type="checkbox" id="pSalsa"> Elegir salsa (Teriyaki / Acevichada / Sin salsa)</label>
+    <label class="chk"><input type="checkbox" id="pTop"> Es un topping (el cliente elige a qué roll de su pedido agregarlo)</label>
+    <label class="chk"><input type="checkbox" id="pActivo" checked> Visible en la página</label>
+
+    <div class="msg err" id="pMsg"></div>
+    <div class="row" style="margin-top:12px">
+      <button type="button" class="b del" id="pDel">Eliminar</button>
+      <button class="b pri" id="pSave">Guardar</button>
+    </div>
+  </form>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+// Recortes de las cartas usados por la carta inicial (mismos que en la página), solo para la vista previa.
+const FOTO = {
+  nigiri:{src:"img/carta-shari.png",x:800,y:1180,s:160}, rollA:{src:"img/carta-shari.png",x:22,y:655,s:120},
+  rollB:{src:"img/carta-shari.png",x:905,y:112,s:85},    panda:{src:"img/carta-promos.png",x:815,y:1160,s:180},
+  rollP:{src:"img/carta-promos.png",x:22,y:655,s:120},   ebi:{src:"img/carta-furea.webp",x:586,y:262,s:252},
+  sake:{src:"img/carta-furea.webp",x:627,y:584,s:256},   aburi:{src:"img/carta-furea.webp",x:688,y:914,s:258},
+};
+// Carrusel original de la página
+const PORTADA_ORIGINAL = [
+  { src:"img/carta-shari.png",  txt:"Tablas desde $12.000", ir:"Shari" },
+  { src:"img/carta-promos.png", txt:"Promos desde $10.000", ir:"Promos" },
+  { src:"img/carta-furea.webp", txt:"Furea desde $6.500",   ir:"Furea" },
+];
+// Colores que se pueden cambiar (mismos nombres que usa la página)
+const COLORES = [
+  { k:"pine",     n:"Principal",           d:"Barra superior, portada, opciones elegidas", def:"#0E3B2E" },
+  { k:"pineDeep", n:"Principal oscuro",    d:"Pie de página y barra del pedido en celular", def:"#062419" },
+  { k:"rice",     n:"Fondo",               d:"Fondo general de la página",                 def:"#F4F6EE" },
+  { k:"rice2",    n:"Fondo suave",         d:"Bordes, separadores y recuadros",            def:"#E8EDE1" },
+  { k:"ink",      n:"Texto",               d:"Títulos y texto principal",                  def:"#13261F" },
+  { k:"inkSoft",  n:"Texto secundario",    d:"Descripciones y ayudas",                     def:"#4A5E55" },
+  { k:"salmon",   n:"Botones",             d:"Botones de pedir y etiquetas",               def:"#EE7A4F" },
+  { k:"mango",    n:"Resaltado",           d:"Palabras destacadas, sticker y detalles",    def:"#F3C552" },
+  { k:"bamboo",   n:"Texto sobre oscuro",  d:"Textos suaves sobre la portada y el pie",    def:"#A9BDA4" },
+];
+const PRESETS = [
+  { n:"Original",  c:{} },
+  { n:"Océano",    c:{ pine:"#0B3954", pineDeep:"#062236", rice:"#F3F7F9", rice2:"#E1EBF0", ink:"#10242F", inkSoft:"#4B606B", salmon:"#FF7F50", mango:"#FFD166", bamboo:"#9DB8C7" } },
+  { n:"Sakura",    c:{ pine:"#5B2333", pineDeep:"#3A1420", rice:"#FBF5F3", rice2:"#F1E3E0", ink:"#2A1418", inkSoft:"#6E5257", salmon:"#E56B6F", mango:"#F4C095", bamboo:"#C9A9A6" } },
+  { n:"Noche",     c:{ pine:"#1C1C1E", pineDeep:"#0E0E10", rice:"#F5F3EE", rice2:"#E6E2D9", ink:"#1A1A1A", inkSoft:"#5A5752", salmon:"#E4572E", mango:"#F2C14E", bamboo:"#A8A39A" } },
+  { n:"Bosque",    c:{ pine:"#2F4A2A", pineDeep:"#1B2D18", rice:"#F7F4EA", rice2:"#E9E3D0", ink:"#1F2A1C", inkSoft:"#5C6655", salmon:"#C8553D", mango:"#E9B44C", bamboo:"#B3BFA0" } },
+];
+const CSSVAR = { pine:"--pine", pineDeep:"--pine-deep", rice:"--rice", rice2:"--rice-2", ink:"--ink", inkSoft:"--ink-soft", salmon:"--salmon", mango:"--mango", bamboo:"--bamboo" };
+const DEF = Object.fromEntries(COLORES.map(c => [c.k, c.def]));
+
+const $ = id => document.getElementById(id);
+const fmt = n => "$" + Number(n||0).toLocaleString("es-CL");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const rel = src => /^(https?:|blob:|data:)/.test(src) ? src : "../" + src;   // imágenes de la página vistas desde /gestion
+function fotoStyle(key){
+  if(!key) return "";
+  const f = FOTO[key];
+  if(!f) return `background-image:url('${encodeURI(rel(key))}');background-size:cover;background-position:center`;
+  return `background-image:url('${rel(f.src)}');background-size:${1080/f.s*100}% auto;background-position:${f.x/(1080-f.s)*100}% ${f.y/(1350-f.s)*100}%`;
+}
+function toast(t, bad){ const el=$("toast"); el.textContent=t; el.classList.toggle("bad", !!bad); el.classList.add("show"); clearTimeout(toast.t); toast.t=setTimeout(()=>el.classList.remove("show"),2600); }
+function show(id){ ["noConfig","loginView","panel"].forEach(v => $(v).hidden = v !== id); }
+function openM(id){ $(id).hidden = false; }
+function closeM(id){ $(id).hidden = true; }
+document.querySelectorAll("[data-close]").forEach(b => b.onclick = () => closeM(b.closest(".overlay").id));
+document.querySelectorAll(".overlay").forEach(o => o.addEventListener("mousedown", e => { if(e.target === o) closeM(o.id); }));
+
+const cfg = window.SUPABASE || {};
+let sb, cats = [], prods = [], curCat = null, editCat = null, editProd = null, newFoto = undefined;
+let aj = null, colorsEd = {}, slEd = [];
+
+if(!cfg.url || !cfg.anonKey || !window.supabase){ show("noConfig"); }
+else {
+  sb = window.supabase.createClient(cfg.url, cfg.anonKey);
+  sb.auth.getSession().then(({data}) => data.session ? enter(data.session) : show("loginView"));
+}
+
+// ---------- Sesión ----------
+$("loginForm").onsubmit = async e => {
+  e.preventDefault();
+  $("lBtn").disabled = true; $("lMsg").textContent = "";
+  const { data, error } = await sb.auth.signInWithPassword({ email: $("lEmail").value.trim(), password: $("lPass").value });
+  $("lBtn").disabled = false;
+  if(error) return $("lMsg").textContent = "Correo o contraseña incorrectos.";
+  enter(data.session);
+};
+$("logout").onclick = async () => { await sb.auth.signOut(); location.reload(); };
+
+async function enter(session){
+  const { data: ok } = await sb.rpc("es_admin");
+  if(!ok){
+    await sb.auth.signOut();
+    show("loginView"); $("lMsg").textContent = "Esta cuenta no tiene permisos de administrador.";
+    return;
+  }
+  $("email").textContent = session.user.email; $("who").hidden = false;
+  show("panel");
+  await Promise.all([load(), loadAj()]);
+}
+
+// Pestañas
+$("seccs").onclick = e => {
+  const b = e.target.closest("button"); if(!b) return;
+  [...$("seccs").children].forEach(x => { x.classList.toggle("on", x === b); $(x.dataset.s).hidden = x !== b; });
+  if(b.dataset.s === "sAvisos") renderSlEd();   // por si cambiaron las categorías
+};
+
+// ---------- Imágenes ----------
+// Achica la imagen en el navegador antes de subirla
+function resize(file, max = 900, tipo = "image/jpeg"){
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas"); c.width = Math.round(img.width*k); c.height = Math.round(img.height*k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      c.toBlob(b => b ? res(b) : rej(new Error("No se pudo procesar la imagen")), tipo, 0.85);
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = () => rej(new Error("Archivo de imagen no válido"));
+    img.src = URL.createObjectURL(file);
+  });
+}
+async function subir(file, carpeta, max = 900, tipo = "image/jpeg"){
+  const blob = await resize(file, max, tipo);
+  const path = `${carpeta}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${tipo === "image/png" ? "png" : "jpg"}`;
+  const up = await sb.storage.from("fotos").upload(path, blob, { contentType:tipo, upsert:false });
+  if(up.error) throw up.error;
+  return sb.storage.from("fotos").getPublicUrl(path).data.publicUrl;
+}
+
+// ---------- Datos de la carta ----------
+async function load(){
+  const [c, p] = await Promise.all([
+    sb.from("categorias").select("*").order("orden").order("id"),
+    sb.from("productos").select("*").order("orden").order("id"),
+  ]);
+  if(c.error || p.error) return toast("Error al cargar: " + (c.error||p.error).message, true);
+  cats = c.data; prods = p.data;
+  if(!cats.find(x => x.id === curCat)) curCat = cats[0]?.id ?? null;
+  renderCats(); renderProds();
+}
+function renderCats(){
+  $("cats").innerHTML = cats.length ? cats.map(c => `
+    <div class="cat${c.id===curCat?' on':''}" data-id="${c.id}"><span>${esc(c.emoji)} ${esc(c.nombre)}</span><small>${prods.filter(p=>p.categoria_id===c.id).length}</small></div>`).join("")
+    : `<p class="empty" style="padding:10px 0">Aún no hay categorías.</p>`;
+}
+function renderProds(){
+  const c = cats.find(x => x.id === curCat);
+  $("editCat").hidden = $("addProd").hidden = !c;
+  $("catTitle").textContent = c ? `${c.emoji||""} ${c.nombre}` : "Crea tu primera categoría";
+  $("catSub").textContent = c ? (c.descripcion || "") : "";
+  const list = prods.filter(p => p.categoria_id === curCat);
+  $("prods").innerHTML = !c ? "" : list.length ? list.map(p => `
+    <div class="prod${p.activo?'':' off'}">
+      <div class="ph" style="${fotoStyle(p.foto)}">${p.foto?'':'Sin foto'}</div>
+      ${p.badge ? `<span class="tag">${esc(p.badge)}</span>` : ""}${p.activo ? "" : `<span class="tag gray">Oculto para los clientes</span>`}
+      <h4>${esc(p.nombre)}</h4>
+      <p>${esc(p.descripcion)}</p>
+      <b>${p.variantes?.length ? p.variantes.map(v=>`${esc(v.n)} ${fmt(v.p)}`).join(" · ") : fmt(p.precio)}</b>
+      <div class="acts">
+        <button class="b sm" data-edit="${p.id}">Editar</button>
+        <button class="b sm" data-toggle="${p.id}">${p.activo?'Ocultar':'Mostrar'}</button>
+      </div>
+    </div>`).join("") : `<p class="empty" style="grid-column:1/-1">No hay productos en esta categoría.</p>`;
+}
+$("cats").onclick = e => { const el = e.target.closest(".cat"); if(!el) return; curCat = +el.dataset.id; renderCats(); renderProds(); };
+$("prods").onclick = async e => {
+  const ed = e.target.closest("[data-edit]"), tg = e.target.closest("[data-toggle]");
+  if(ed) openProd(prods.find(p => p.id === +ed.dataset.edit));
+  if(tg){
+    const p = prods.find(x => x.id === +tg.dataset.toggle);
+    const { error } = await sb.from("productos").update({ activo: !p.activo }).eq("id", p.id);
+    if(error) return toast(error.message, true);
+    toast(p.activo ? "Producto oculto" : "Producto visible"); load();
+  }
+};
+
+// ---------- Categorías ----------
+function openCat(c){
+  editCat = c || null;
+  $("catModalT").textContent = c ? "Editar categoría" : "Nueva categoría";
+  $("cNombre").value = c?.nombre || ""; $("cEmoji").value = c?.emoji || ""; $("cDesc").value = c?.descripcion || "";
+  $("cOrden").value = c?.orden ?? (cats.length ? Math.max(...cats.map(x=>x.orden||0)) + 1 : 1);
+  $("cDel").hidden = !c;
+  openM("catModal"); $("cNombre").focus();
+}
+$("addCat").onclick = () => openCat();
+$("editCat").onclick = () => openCat(cats.find(c => c.id === curCat));
+$("catForm").onsubmit = async e => {
+  e.preventDefault();
+  const row = { nombre:$("cNombre").value.trim(), emoji:$("cEmoji").value.trim(), descripcion:$("cDesc").value.trim(), orden:+$("cOrden").value||0 };
+  const q = editCat ? sb.from("categorias").update(row).eq("id", editCat.id).select() : sb.from("categorias").insert(row).select();
+  const { data, error } = await q;
+  if(error) return toast(error.message, true);
+  curCat = data[0].id; closeM("catModal"); toast("Categoría guardada"); load();
+};
+$("cDel").onclick = async () => {
+  const n = prods.filter(p => p.categoria_id === editCat.id).length;
+  if(!confirm(`¿Eliminar la categoría "${editCat.nombre}"${n ? ` y sus ${n} productos` : ""}? No se puede deshacer.`)) return;
+  const { error } = await sb.from("categorias").delete().eq("id", editCat.id);
+  if(error) return toast(error.message, true);
+  closeM("catModal"); toast("Categoría eliminada"); load();
+};
+
+// ---------- Productos ----------
+function varRow(v = {n:"",p:""}){
+  const d = document.createElement("div"); d.className = "var";
+  d.innerHTML = `<input placeholder="Nombre (ej. Mixta)" value="${esc(v.n)}"><input type="number" min="0" step="100" placeholder="Precio" value="${esc(v.p)}"><button type="button" class="b sm del" aria-label="Quitar opción">×</button>`;
+  d.querySelector("button").onclick = () => d.remove();
+  $("pVars").appendChild(d);
+}
+$("pVarAdd").onclick = () => varRow();
+function setTipo(t){ document.querySelector(`input[name=ptipo][value=${t}]`).checked = true; $("pUnico").hidden = t !== "unico"; $("pVarBox").hidden = t !== "var"; }
+document.querySelectorAll("input[name=ptipo]").forEach(r => r.onchange = () => { setTipo(r.value); if(r.value==="var" && !$("pVars").children.length){ varRow(); varRow(); } });
+function setPreview(url){ $("pFotoPrev").style.cssText = fotoStyle(url); $("pFotoPrev").textContent = url ? "" : "Sin foto"; }
+
+function openProd(p){
+  editProd = p || null; newFoto = undefined;
+  $("prodModalT").textContent = p ? "Editar producto" : "Nuevo producto";
+  $("pCat").innerHTML = cats.map(c => `<option value="${c.id}">${esc(c.emoji)} ${esc(c.nombre)}</option>`).join("");
+  $("pCat").value = p?.categoria_id ?? curCat;
+  $("pNombre").value = p?.nombre || ""; $("pDesc").value = p?.descripcion || ""; $("pBadge").value = p?.badge || "";
+  $("pPrecio").value = p?.precio || ""; $("pRolls").value = p?.rolls || 0;
+  $("pOrden").value = p?.orden ?? (prods.filter(x=>x.categoria_id===curCat).length + 1);
+  $("pSalsa").checked = !!p?.salsa; $("pTop").checked = !!p?.es_topping; $("pActivo").checked = p ? p.activo : true;
+  $("pVars").innerHTML = ""; (p?.variantes || []).forEach(varRow);
+  setTipo(p?.variantes?.length ? "var" : "unico");
+  $("pFotoFile").value = ""; setPreview(p?.foto || "");
+  $("pDel").hidden = !p; $("pMsg").textContent = "";
+  openM("prodModal");
+}
+$("addProd").onclick = () => openProd();
+
+$("pFotoFile").onchange = () => {
+  const f = $("pFotoFile").files[0]; if(!f) return;
+  newFoto = f; setPreview(URL.createObjectURL(f));
+};
+$("pFotoQuitar").onclick = () => { newFoto = null; $("pFotoFile").value = ""; setPreview(""); };
+
+$("prodForm").onsubmit = async e => {
+  e.preventDefault();
+  $("pMsg").textContent = "";
+  const tipo = document.querySelector("input[name=ptipo]:checked").value;
+  const variantes = tipo === "var" ? [...$("pVars").children].map(d => { const [n,p] = d.querySelectorAll("input"); return { n:n.value.trim(), p:+p.value||0 }; }).filter(v => v.n) : [];
+  if(tipo === "var" && !variantes.length) return $("pMsg").textContent = "Agrega al menos una opción con nombre y precio.";
+  if(tipo === "unico" && !(+$("pPrecio").value > 0)) return $("pMsg").textContent = "Ingresa un precio.";
+  if(variantes.some(v => !(v.p > 0))) return $("pMsg").textContent = "Cada opción necesita un precio.";
+
+  $("pSave").disabled = true; $("pSave").textContent = "Guardando…";
+  try {
+    let foto = editProd?.foto || "";
+    if(newFoto === null) foto = "";
+    if(newFoto) foto = await subir(newFoto, "productos");
+    const row = {
+      categoria_id:+$("pCat").value, nombre:$("pNombre").value.trim(), descripcion:$("pDesc").value.trim(),
+      precio: tipo === "unico" ? +$("pPrecio").value : 0, variantes, rolls:+$("pRolls").value||0,
+      salsa:$("pSalsa").checked, es_topping:$("pTop").checked, badge:$("pBadge").value.trim(),
+      activo:$("pActivo").checked, orden:+$("pOrden").value||0, foto,
+    };
+    const { error } = editProd ? await sb.from("productos").update(row).eq("id", editProd.id) : await sb.from("productos").insert(row);
+    if(error) throw error;
+    curCat = row.categoria_id; closeM("prodModal"); toast("Producto guardado"); load();
+  } catch(err){ $("pMsg").textContent = "No se pudo guardar: " + err.message; }
+  $("pSave").disabled = false; $("pSave").textContent = "Guardar";
+};
+$("pDel").onclick = async () => {
+  if(!confirm(`¿Eliminar "${editProd.nombre}"? No se puede deshacer. (Si solo quieres sacarlo por un tiempo, usa "Ocultar".)`)) return;
+  const { error } = await sb.from("productos").delete().eq("id", editProd.id);
+  if(error) return toast(error.message, true);
+  closeM("prodModal"); toast("Producto eliminado"); load();
+};
+
+// ---------- Ajustes de apariencia ----------
+async function loadAj(){
+  const { data, error } = await sb.from("ajustes").select("*").eq("id", 1).maybeSingle();
+  if(error || !data) return toast("Falta la tabla de ajustes: vuelve a ejecutar supabase/setup.sql en Supabase.", true);
+  aj = data;
+  colorsEd = { ...DEF, ...(aj.colores || {}) };
+  slEd = Array.isArray(aj.portada) ? aj.portada.map(s => ({ ...s })) : [];
+  renderColors(); renderImgs(); renderAviso(); renderSlEd();
+}
+async function guardarAj(cambios, okMsg){
+  if(!aj){ toast("Falta la tabla de ajustes: vuelve a ejecutar supabase/setup.sql en Supabase.", true); return false; }
+  const { data, error } = await sb.from("ajustes").update({ ...cambios, actualizado:new Date().toISOString() }).eq("id", 1).select();
+  if(error || !data?.length){ toast("No se pudo guardar: " + (error?.message || "sin permisos"), true); return false; }
+  aj = data[0]; toast(okMsg); return true;
+}
+
+// Paleta
+function pintarPreview(){
+  for(const k in CSSVAR) $("pv").style.setProperty(CSSVAR[k], colorsEd[k]);
+}
+function renderColors(){
+  $("presets").innerHTML = PRESETS.map((p,i) => { const c = { ...DEF, ...p.c };
+    return `<button class="preset" data-p="${i}"><i>${["pine","rice","salmon","mango"].map(k=>`<b style="background:${c[k]}"></b>`).join("")}</i>${esc(p.n)}</button>`; }).join("");
+  $("colors").innerHTML = COLORES.map(c => `
+    <label class="col"><input type="color" data-c="${c.k}" value="${colorsEd[c.k]}"><span><b>${c.n}</b><small>${c.d}</small></span><code>${colorsEd[c.k].toUpperCase()}</code></label>`).join("");
+  pintarPreview();
+}
+$("colors").oninput = e => {
+  const k = e.target.dataset.c; if(!k) return;
+  colorsEd[k] = e.target.value; e.target.closest(".col").querySelector("code").textContent = e.target.value.toUpperCase();
+  pintarPreview();
+};
+$("presets").onclick = e => { const b = e.target.closest(".preset"); if(!b) return; colorsEd = { ...DEF, ...PRESETS[+b.dataset.p].c }; renderColors(); };
+$("colReset").onclick = () => { colorsEd = { ...DEF }; renderColors(); };
+$("colSave").onclick = async () => {
+  // Solo se guardan los colores distintos al original
+  const c = Object.fromEntries(Object.entries(colorsEd).filter(([k,v]) => v.toLowerCase() !== DEF[k].toLowerCase()));
+  $("colSave").disabled = true;
+  await guardarAj({ colores:c }, "Colores guardados: ya se ven en la página");
+  $("colSave").disabled = false;
+};
+
+// Logo y fotos sueltas
+function renderImgs(){
+  $("imgLogo").style.cssText = aj.logo ? fotoStyle(aj.logo) : "";
+  $("imgLogo").textContent = aj.logo ? "" : "S";
+  $("imgLogo").style.fontFamily = "Marcellus,serif"; $("imgLogo").style.fontSize = aj.logo ? "" : "40px";
+  $("pvLogo").style.backgroundImage = aj.logo ? `url('${encodeURI(aj.logo)}')` : ""; $("pvLogo").textContent = aj.logo ? "" : "S";
+  $("imgPortada").style.cssText = fotoStyle(aj.foto_portada || "ebi");
+  $("imgDestacada").style.cssText = fotoStyle(aj.foto_destacada || "sake");
+  document.querySelector('[data-quitar=logo]').hidden = !aj.logo;
+  document.querySelector('[data-quitar=foto_portada]').hidden = !aj.foto_portada;
+  document.querySelector('[data-quitar=foto_destacada]').hidden = !aj.foto_destacada;
+}
+document.querySelectorAll("[data-up]").forEach(inp => inp.onchange = async () => {
+  const f = inp.files[0]; if(!f) return;
+  const campo = inp.dataset.up, esLogo = campo === "logo";
+  const btn = inp.parentElement; btn.style.opacity = .5; toast("Subiendo imagen…");
+  try {
+    const url = await subir(f, esLogo ? "marca" : "portada", esLogo ? 400 : 900, esLogo ? "image/png" : "image/jpeg");
+    if(await guardarAj({ [campo]:url }, esLogo ? "Logo actualizado" : "Foto actualizada")) renderImgs();
+  } catch(err){ toast("No se pudo subir: " + err.message, true); }
+  btn.style.opacity = ""; inp.value = "";
+});
+document.querySelectorAll("[data-quitar]").forEach(b => b.onclick = async () => {
+  const campo = b.dataset.quitar;
+  if(!confirm(campo === "logo" ? "¿Quitar el logo? Se mostrará el círculo con la S." : "¿Volver a la foto original?")) return;
+  if(await guardarAj({ [campo]:"" }, "Listo")) renderImgs();
+});
+
+// Aviso "Agotamos stock"
+function renderAviso(){
+  $("soOn").checked = !!aj.agotado;
+  $("soTit").value = aj.agotado_titulo || "Agotamos stock";
+  $("soTxt").value = aj.agotado_texto || "";
+  estadoAviso();
+}
+function estadoAviso(){
+  const on = !!aj.agotado;
+  $("soState").textContent = on ? "Visible en la página" : "Oculto para los clientes";
+  $("soState").classList.toggle("on", on);
+}
+$("soOn").onchange = async () => {
+  // El interruptor se publica al instante
+  const on = $("soOn").checked;
+  if(await guardarAj({ agotado:on, agotado_titulo:$("soTit").value.trim() || "Agotamos stock", agotado_texto:$("soTxt").value.trim() },
+    on ? "Aviso activado: los clientes ya lo ven" : "Aviso desactivado")) estadoAviso();
+  else $("soOn").checked = !on;
+};
+$("soSave").onclick = async () => {
+  if(await guardarAj({ agotado:$("soOn").checked, agotado_titulo:$("soTit").value.trim() || "Agotamos stock", agotado_texto:$("soTxt").value.trim() }, "Aviso guardado")) estadoAviso();
+};
+
+// Carrusel de la portada
+function renderSlEd(){
+  const opts = ir => `<option value="">— Sin enlace —</option>` + cats.map(c => `<option${c.nombre===ir?" selected":""}>${esc(c.nombre)}</option>`).join("")
+    + (ir && !cats.some(c => c.nombre === ir) ? `<option selected>${esc(ir)}</option>` : "");
+  $("slEd").innerHTML = slEd.length ? slEd.map((s,i) => `
+    <div class="sl" data-i="${i}">
+      <div class="th" style="background-image:url('${encodeURI(rel(s.src))}')"></div>
+      <div class="f">
+        <input data-f="txt" value="${esc(s.txt)}" placeholder="Texto de la etiqueta (opcional)" maxlength="40" aria-label="Texto">
+        <select data-f="ir" aria-label="Lleva a la categoría">${opts(s.ir)}</select>
+      </div>
+      <div class="mv">
+        <button class="b sm" data-mv="-1" ${i?"":"disabled"} aria-label="Subir">↑</button>
+        <button class="b sm" data-mv="1" ${i<slEd.length-1?"":"disabled"} aria-label="Bajar">↓</button>
+        <button class="b sm del" data-rm aria-label="Quitar">×</button>
+      </div>
+    </div>`).join("") : `<p class="empty" style="padding:16px 0">Sin imágenes propias: la página muestra las 3 cartas originales.</p>`;
+}
+$("slEd").oninput = e => { const row = e.target.closest(".sl"), f = e.target.dataset.f; if(row && f) slEd[+row.dataset.i][f] = e.target.value; };
+$("slEd").onchange = $("slEd").oninput;
+$("slEd").onclick = e => {
+  const row = e.target.closest(".sl"); if(!row) return; const i = +row.dataset.i;
+  if(e.target.closest("[data-rm]")){ slEd.splice(i, 1); renderSlEd(); }
+  const mv = e.target.closest("[data-mv]");
+  if(mv){ const j = i + +mv.dataset.mv; [slEd[i], slEd[j]] = [slEd[j], slEd[i]]; renderSlEd(); }
+};
+$("slAdd").onchange = async () => {
+  const f = $("slAdd").files[0]; if(!f) return;
+  toast("Subiendo imagen…");
+  try { slEd.push({ src: await subir(f, "portada", 1200), txt:"", ir:"" }); renderSlEd(); toast("Imagen agregada: recuerda guardar el carrusel"); }
+  catch(err){ toast("No se pudo subir: " + err.message, true); }
+  $("slAdd").value = "";
+};
+$("slOrig").onclick = () => { slEd = [...slEd, ...PORTADA_ORIGINAL.map(s => ({ ...s }))]; renderSlEd(); };
+$("slSave").onclick = async () => {
+  await guardarAj({ portada: slEd.map(s => ({ src:s.src, txt:(s.txt||"").trim(), ir:s.ir||"" })) }, "Carrusel guardado");
+};
+</script>
+</body>
+</html>

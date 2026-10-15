@@ -8,6 +8,18 @@
 <meta name="theme-color" content="#0E3B2E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+// Paleta elegida en el panel de gestión. Se guarda una copia local para que la página no parpadee al cargar.
+window.aplicarColores = c => {
+  if(!c) return;
+  const r = document.documentElement.style;
+  const V = { pine:"--pine", pineDeep:"--pine-deep", rice:"--rice", rice2:"--rice-2", ink:"--ink", inkSoft:"--ink-soft", salmon:"--salmon", mango:"--mango", bamboo:"--bamboo" };
+  for(const k in V) if(/^#[0-9a-f]{6}$/i.test(c[k] || "")) r.setProperty(V[k], c[k]);
+  if(/^#[0-9a-f]{6}$/i.test(c.pine || "")){ r.setProperty("--pine-soft", `color-mix(in srgb, ${c.pine} 80%, #fff)`); document.querySelector("meta[name=theme-color]").content = c.pine; }
+  if(/^#[0-9a-f]{6}$/i.test(c.salmon || "")) r.setProperty("--salmon-deep", `color-mix(in srgb, ${c.salmon} 85%, #000)`);
+};
+try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catch(e){}
+</script>
 <style>
   :root{
     --pine:#0E3B2E; --pine-deep:#062419; --pine-soft:#174C3C;
@@ -36,7 +48,7 @@
 
   /* ---------- Botones ---------- */
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;border:0;border-radius:999px;padding:14px 24px;font-weight:700;font-size:1rem;text-decoration:none;transition:transform .18s ease,background-color .18s ease,box-shadow .18s ease;white-space:nowrap}
-  .btn-primary{background:var(--salmon);color:#fff;box-shadow:0 10px 24px -10px rgba(238,122,79,.8)}
+  .btn-primary{background:var(--salmon);color:#fff;box-shadow:0 10px 24px -10px color-mix(in srgb,var(--salmon) 80%,transparent)}
   .btn-primary:hover{background:var(--salmon-deep);transform:translateY(-2px)}
   .btn-ghost{background:transparent;color:inherit;border:1.5px solid currentColor}
   .btn-ghost:hover{background:rgba(255,255,255,.08)}
@@ -50,6 +62,7 @@
   .brand{display:flex;align-items:center;gap:12px;text-decoration:none;line-height:1}
   .brand-mark{width:46px;height:46px;flex:none;border-radius:50%;background:var(--rice);color:var(--pine);display:grid;place-items:center;font-family:var(--font-display);font-size:1.5rem;border:3px solid var(--mango);transition:transform .4s ease}
   .brand:hover .brand-mark{transform:rotate(-12deg)}
+  .brand-mark img{width:100%;height:100%;object-fit:cover;border-radius:50%}
   .brand-txt{display:flex;flex-direction:column}
   .brand .name{font-family:var(--font-display);font-size:1.7rem;letter-spacing:.06em}
   .brand .name small{font-size:.48em;letter-spacing:.08em;color:var(--mango);margin-left:6px;vertical-align:.5em}
@@ -65,7 +78,7 @@
   .hero .wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(32px,5vw,72px);align-items:center;position:relative;z-index:1}
   .hero h1{font-size:clamp(2.5rem,5.6vw,4.6rem);margin-top:18px}
   .hero h1 em{font-style:normal;color:var(--mango)}
-  .hero .lead{font-size:clamp(1.05rem,1.6vw,1.22rem);color:#D7E2D6;max-width:34em;margin-top:22px}
+  .hero .lead{font-size:clamp(1.05rem,1.6vw,1.22rem);color:color-mix(in srgb,var(--rice) 82%,var(--bamboo));max-width:34em;margin-top:22px}
   .ctas{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
   .facts{display:grid;grid-template-columns:repeat(3,auto);justify-content:start;gap:10px clamp(16px,4vw,36px);margin-top:40px;padding-top:24px;border-top:1px solid rgba(255,255,255,.14)}
   .fact{display:flex;flex-direction:column}
@@ -105,7 +118,7 @@
   .sec-head{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:16px 40px;margin-bottom:clamp(24px,3.5vw,40px)}
   .sec-head h2{font-size:clamp(2.1rem,4.2vw,3.4rem);margin-top:10px}
   .sec-head p{max-width:30em;color:var(--ink-soft)}
-  .dark .sec-head p{color:#C9D6C8}
+  .dark .sec-head p{color:color-mix(in srgb,var(--rice) 82%,var(--bamboo))}
 
   /* ---------- Nosotros ---------- */
   .origin{padding-block:clamp(48px,7vw,88px) 0}
@@ -113,9 +126,11 @@
   .statement{font-family:var(--font-display);font-size:clamp(1.9rem,3.8vw,3.1rem);line-height:1.15;margin-top:14px;text-wrap:balance;max-width:22ch}
   .statement em{font-style:normal;color:var(--salmon-deep)}
   .origin-lead{color:var(--ink-soft);font-size:1.08rem;margin-top:18px;max-width:36em}
-  .soldout{background:var(--pine);color:var(--rice);border-radius:var(--r-lg);padding:24px;display:flex;flex-direction:column;gap:8px;transform:rotate(-2deg);box-shadow:0 24px 40px -26px rgba(14,59,46,.8)}
+  .soldout{background:var(--pine);color:var(--rice);border-radius:var(--r-lg);padding:24px;display:flex;flex-direction:column;gap:8px;transform:rotate(-2deg);box-shadow:0 24px 40px -26px rgba(0,0,0,.8)}
   .so-k{font-family:var(--font-display);font-size:1.9rem;line-height:1;color:var(--mango)}
-  .so-t{font-size:.94rem;color:#D2DDD1}
+  .so-t{font-size:.94rem;color:color-mix(in srgb,var(--rice) 82%,var(--bamboo))}
+  .soldout[hidden]{display:none}
+  .origin-top:has(.soldout[hidden]){grid-template-columns:1fr}
   @media (max-width:760px){.origin-top{grid-template-columns:1fr}.soldout{transform:none}}
   .why{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(16px,3vw,36px);margin-top:clamp(36px,5vw,56px);padding-top:clamp(28px,4vw,40px);border-top:1px solid var(--rice-2)}
   .why > div{display:flex;gap:16px;align-items:flex-start}
@@ -138,8 +153,8 @@
   .cat-head h3{font-size:clamp(1.8rem,3vw,2.4rem);letter-spacing:.04em}
   .cat-head p{color:var(--ink-soft);font-size:.95rem;flex-basis:100%}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:clamp(16px,2vw,24px)}
-  .item{background:#fff;border-radius:var(--r-lg);padding:22px;display:flex;flex-direction:column;gap:14px;box-shadow:0 1px 0 var(--rice-2),0 24px 50px -36px rgba(14,59,46,.45);transition:transform .25s ease,box-shadow .25s ease;min-width:0;position:relative}
-  .item:hover{transform:translateY(-4px);box-shadow:0 1px 0 var(--rice-2),0 34px 60px -34px rgba(14,59,46,.55)}
+  .item{background:#fff;border-radius:var(--r-lg);padding:22px;display:flex;flex-direction:column;gap:14px;box-shadow:0 1px 0 var(--rice-2),0 24px 50px -36px rgba(0,0,0,.45);transition:transform .25s ease,box-shadow .25s ease;min-width:0;position:relative}
+  .item:hover{transform:translateY(-4px);box-shadow:0 1px 0 var(--rice-2),0 34px 60px -34px rgba(0,0,0,.55)}
   .photo{width:min(70%,190px);aspect-ratio:1;border-radius:50%;margin:2px auto;background-repeat:no-repeat;background-color:var(--pine);border:5px solid var(--rice);box-shadow:0 0 0 1px var(--rice-2);transition:transform .5s ease}
   .item:hover .photo{transform:scale(1.04) rotate(-2deg)}
   .badge{position:absolute;top:18px;left:18px;background:var(--salmon);color:#fff;font-weight:800;font-size:.68rem;letter-spacing:.16em;padding:5px 11px;border-radius:999px;text-transform:uppercase}
@@ -159,7 +174,7 @@
   .empty b{display:block;font-family:var(--font-display);font-weight:400;font-size:1.4rem;color:var(--ink);margin-bottom:4px}
 
   /* ---------- Pedido ---------- */
-  #cart{position:sticky;top:84px;background:#fff;border-radius:var(--r-lg);padding:clamp(20px,2.4vw,26px);box-shadow:0 24px 50px -36px rgba(14,59,46,.45);scroll-margin-top:84px}
+  #cart{position:sticky;top:84px;background:#fff;border-radius:var(--r-lg);padding:clamp(20px,2.4vw,26px);box-shadow:0 24px 50px -36px rgba(0,0,0,.45);scroll-margin-top:84px}
   @media (max-width:960px){#cart{position:static}}
   #cart h3{font-size:1.8rem}
   .stp{display:flex;align-items:center;gap:10px;margin:22px 0 8px;font-size:.78rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
@@ -198,7 +213,7 @@
   .feature .big{display:flex;align-items:baseline;gap:12px;margin-top:22px}
   .feature .big .price{font-size:clamp(2.6rem,5vw,3.6rem);color:var(--mango)}
   .feature .big span{color:var(--bamboo)}
-  .feature .body{color:#D2DDD1;font-size:1.08rem;max-width:32em;margin-top:18px}
+  .feature .body{color:color-mix(in srgb,var(--rice) 82%,var(--bamboo));font-size:1.08rem;max-width:32em;margin-top:18px}
   .tag-new{display:inline-block;background:var(--salmon);color:#fff;font-weight:800;font-size:.72rem;letter-spacing:.16em;padding:6px 12px;border-radius:999px;text-transform:uppercase}
   @media (max-width:820px){.feature{grid-template-columns:1fr}.feature .ph{width:min(70%,260px)}}
 
@@ -221,7 +236,7 @@
 
   .final{text-align:center;padding-block:clamp(64px,9vw,110px)}
   .final h2{font-size:clamp(2.2rem,5vw,3.8rem);max-width:16ch;margin:14px auto 0}
-  .final p{color:#C9D6C8;margin-top:16px;font-size:1.08rem}
+  .final p{color:color-mix(in srgb,var(--rice) 82%,var(--bamboo));margin-top:16px;font-size:1.08rem}
   .final .ctas{justify-content:center;margin-top:30px}
 
   footer{background:var(--pine-deep);color:var(--bamboo);font-size:.9rem;padding-block:36px calc(36px + env(safe-area-inset-bottom,0px))}
@@ -346,9 +361,10 @@
         <p class="statement">Todo lo preparamos con la mayor dedicación, profesionalismo y <em>productos de la Patagonia.</em></p>
         <p class="origin-lead">Somos Saisei &amp; Co. Te invitamos a descubrir nuevos sabores y a vivirlos en buena compañía, desde el sur de Chile.</p>
       </div>
-      <div class="soldout">
-        <span class="so-k">Agotamos stock</span>
-        <span class="so-t">Gracias por tanto, puerto querido. Pide con tiempo y asegura tu tabla.</span>
+      <!-- Solo aparece cuando el administrador lo activa -->
+      <div class="soldout" id="soldout" hidden>
+        <span class="so-k" id="soldoutT">Agotamos stock</span>
+        <span class="so-t" id="soldoutX"></span>
       </div>
     </div>
     <div class="why">
@@ -538,7 +554,8 @@ const CONFIG = {
 };
 
 // Anuncios de la portada (imágenes en la carpeta img/). "ir" = nombre de la categoría a la que lleva al tocarla.
-const ANUNCIOS = [
+// Con Supabase activo, el carrusel, los colores, el logo y el aviso de stock se cambian desde el panel de gestión.
+let ANUNCIOS = [
   { src:"img/carta-shari.png",  alt:"Tablas Shari de 20, 30 y 40 piezas", txt:"Tablas desde $12.000", ir:"Shari" },
   { src:"img/carta-promos.png", alt:"Promos Sai y & Co de hand rolls",    txt:"Promos desde $10.000", ir:"Promos" },
   { src:"img/carta-furea.webp", alt:"Rolls especiales Furea",             txt:"Furea desde $6.500", ir:"Furea" },
@@ -572,7 +589,7 @@ const ROLLS = [
 const SALSAS = ["Teriyaki", "Acevichada"];
 
 // Carta de respaldo: se usa solo si Supabase no está configurado o no responde.
-// Con Supabase activo, la carta se edita desde admin.html.
+// Con Supabase activo, la carta se edita desde el panel de gestión.
 // variantes: opciones con precio propio · rolls: cuántos rolls se eligen · salsa: elegir salsa
 // topping: el cliente elige a qué roll de su pedido se lo agrega
 let MENU = [
@@ -620,8 +637,13 @@ $("floatRound").style.cssText = fotoStyle("ebi");
 $("featPh").style.cssText = fotoStyle("sake");
 
 // ---------- Portada: carrusel de anuncios ----------
-$("slides").innerHTML = ANUNCIOS.map((a,i)=>`<div class="slide" data-ir="${a.ir}"><img src="${a.src}" alt="${a.alt}" ${i?'loading="lazy"':''}><span>${a.txt} →</span></div>`).join("");
-$("dots").innerHTML = ANUNCIOS.map((_,i)=>`<button aria-label="Anuncio ${i+1}"></button>`).join("");
+function renderSlides(){
+  $("slides").innerHTML = ANUNCIOS.map((a,i)=>`<div class="slide" data-ir="${esc(a.ir)}"><img src="${esc(a.src)}" alt="${esc(a.alt || a.txt || "Saisei & Co")}" ${i?'loading="lazy"':''}>${a.txt ? `<span>${esc(a.txt)} →</span>` : ""}</div>`).join("");
+  $("dots").innerHTML = ANUNCIOS.length > 1 ? ANUNCIOS.map((_,i)=>`<button aria-label="Anuncio ${i+1}"></button>`).join("") : "";
+  $("prev").hidden = $("next").hidden = ANUNCIOS.length < 2;
+  $("slides").scrollLeft = 0;
+}
+renderSlides();
 let slideIdx = 0, autoplay;
 function goSlide(i){
   slideIdx = (i + ANUNCIOS.length) % ANUNCIOS.length;
@@ -873,6 +895,42 @@ try { const saved = JSON.parse(localStorage.getItem("saisei-cart-v2")||"[]"); if
 renderMenu();
 render();
 loadMenu();
+loadAjustes();
+
+// ---------- Apariencia (colores, logo, fotos, carrusel y aviso de stock) ----------
+async function loadAjustes(){
+  const sb = window.SUPABASE || {};
+  if(!sb.url || !sb.anonKey) return;
+  try {
+    const r = await fetch(`${sb.url}/rest/v1/ajustes?select=*&id=eq.1`, { headers:{ apikey: sb.anonKey, Authorization:`Bearer ${sb.anonKey}` } });
+    if(!r.ok) throw new Error(r.status);
+    const a = (await r.json())[0]; if(!a) return;
+
+    const c = a.colores && typeof a.colores === "object" ? a.colores : {};
+    aplicarColores(c);
+    try { localStorage.setItem("saisei-colores", JSON.stringify(c)); } catch(e){}
+
+    if(a.logo){
+      document.querySelectorAll(".brand-mark").forEach(m => m.innerHTML = `<img src="${esc(a.logo)}" alt="">`);
+      let ic = document.querySelector("link[rel=icon]");
+      if(!ic){ ic = document.createElement("link"); ic.rel = "icon"; document.head.appendChild(ic); }
+      ic.href = a.logo;
+    }
+    if(a.foto_portada) $("floatRound").style.cssText = fotoStyle(a.foto_portada);
+    if(a.foto_destacada) $("featPh").style.cssText = fotoStyle(a.foto_destacada);
+
+    if(Array.isArray(a.portada) && a.portada.some(s => s && s.src)){
+      ANUNCIOS = a.portada.filter(s => s && s.src).map(s => ({ src:s.src, txt:s.txt || "", alt:s.txt || "", ir:s.ir || "" }));
+      renderSlides(); goSlide(0); restart();
+    }
+
+    $("soldout").hidden = !a.agotado;
+    if(a.agotado){
+      $("soldoutT").textContent = a.agotado_titulo || "Agotamos stock";
+      $("soldoutX").textContent = a.agotado_texto || "";
+    }
+  } catch(e){ console.warn("No se pudieron cargar los ajustes de apariencia.", e); }
+}
 
 // ---------- Galería de Instagram (embed oficial) ----------
 $("igRow").innerHTML = CONFIG.posts.map(code => `
