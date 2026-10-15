@@ -75,7 +75,7 @@ create policy "admin borra fotos" on storage.objects for delete to authenticated
 
 -- 5) Carta inicial (solo se carga si no hay categorías) ------------------
 do $$
-declare c_shari bigint; c_promos bigint; c_furea bigint; c_top bigint;
+declare c_shari bigint; c_promos bigint; c_furea bigint; c_esp bigint; c_top bigint;
 begin
   if exists (select 1 from public.categorias) then return; end if;
 
@@ -86,7 +86,9 @@ begin
   insert into public.categorias (nombre, emoji, descripcion, orden) values
     ('Furea', '🔥', 'Rolls especiales con salsa a elección (o sin salsa). ¿Quieres más? Mira los Toppings.', 3) returning id into c_furea;
   insert into public.categorias (nombre, emoji, descripcion, orden) values
-    ('Toppings', '✨', 'Agrega un topping y elige a cuál de tus rolls se lo ponemos.', 4) returning id into c_top;
+    ('Especiales', '🌭', 'Corn dogs: vienesa con queso envuelta en panko, crujiente por fuera y con queso que se estira.', 4) returning id into c_esp;
+  insert into public.categorias (nombre, emoji, descripcion, orden) values
+    ('Toppings', '✨', 'Agrega un topping y elige a cuál de tus rolls se lo ponemos.', 5) returning id into c_top;
 
   -- "foto" con nombres como 'rollA' usan los recortes de las cartas incluidos en la página.
   insert into public.productos (categoria_id, nombre, descripcion, precio, variantes, rolls, salsa, es_topping, badge, foto, orden) values
@@ -96,8 +98,11 @@ begin
     (c_promos, 'Promo Sai',  '3 hand rolls de pollo, palta y queso crema.', 10000, '[]', 0, false, false, '', 'panda', 1),
     (c_promos, 'Promo & Co', '2 hand rolls de pollo, palta y queso crema + 1 hand roll de salmón, palta y queso crema.', 12000, '[]', 0, false, false, '', 'rollP', 2),
     (c_furea,  'Ebi Mango',   'Camarón y queso, envuelto en mango.', 6500, '[]', 0, true, false, '', 'ebi', 1),
-    (c_furea,  'Sake Furea',  'Palta, pepino y queso crema, envuelto en salmón flameado.', 6500, '[]', 0, true, false, '', 'sake', 2),
+    (c_furea,  'Sake Furea',  'Palta, pepino y queso crema, envuelto en salmón flameado. Pruébalo con salmón ahumado: más firme e intenso.', 0, '[{"n":"Fresco","p":6500},{"n":"Ahumado","p":6500}]', 0, true, false, '', 'sake', 2),
     (c_furea,  'Aburi Chizu', 'Atún, queso y palta, envuelto en queso crema con topping de papas al hilo.', 7500, '[]', 0, true, false, 'Nuevo', 'aburi', 3),
     (c_top,    'Papas al hilo', 'Crujientes papas al hilo sobre el roll que elijas.', 1000, '[]', 0, false, true, '', '', 1),
-    (c_top,    'Ceviche',       'Ceviche fresco sobre el roll que elijas.',           2500, '[]', 0, false, true, '', '', 2);
+    (c_esp,    '1 Corn', 'Vienesa con queso envuelta en panko.',              2500, '[]', 0, false, false, '', '', 1),
+    (c_esp,    '3 Corn', 'Vienesa con queso en panko, 2 salsas a elección.',   6500, '[]', 0, false, false, '', '', 2),
+    (c_top,    'Ceviche',       'Ceviche fresco sobre el roll que elijas.',           2500, '[]', 0, false, true, '', '', 2),
+    (c_top,    'Centolla',      'Centolla desmenuzada con salsa y cilantro fresco.',  3500, '[]', 0, false, true, 'Nuevo', '', 3);
 end $$;
