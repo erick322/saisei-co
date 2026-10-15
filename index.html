@@ -6,6 +6,13 @@
 <title>Saisei & Co · Pedidos</title>
 <meta name="description" content="Pide sushi de Saisei & Co en Puerto Cisnes: tablas Shari, promos de hand rolls, rolls de autor Furea y corn dogs. Delivery o retiro.">
 <meta name="theme-color" content="#0E3B2E">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="img/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Saisei & Co">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script>
@@ -70,7 +77,20 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   .nav ul{display:flex;gap:26px;list-style:none;margin:0 0 0 auto;padding:0}
   .nav ul a{text-decoration:none;font-size:.95rem;font-weight:500;opacity:.85}
   .nav ul a:hover{opacity:1;color:var(--mango)}
-  @media (max-width:860px){.nav ul{display:none}.nav .btn{margin-left:auto}}
+  .menu-btn{display:none;width:44px;height:44px;flex:none;border-radius:50%;border:1.5px solid color-mix(in srgb,var(--rice) 35%,transparent);background:none;color:var(--rice);place-items:center;padding:0}
+  .menu-btn svg{width:22px;height:22px}
+  .menu-btn .x,.nav.open .menu-btn .bars{display:none}
+  .nav.open .menu-btn .x{display:block}
+  @media (max-width:860px){
+    .nav .wrap{gap:12px}
+    .nav .btn{margin-left:auto}
+    .menu-btn{display:grid}
+    .nav ul{display:none;position:absolute;left:0;right:0;top:100%;flex-direction:column;gap:0;margin:0;padding:6px var(--gutter) 14px;background:var(--pine);box-shadow:0 24px 30px -18px rgba(0,0,0,.5)}
+    .nav.open ul{display:flex}
+    .nav ul a{display:block;padding:14px 0;font-size:1.1rem;border-bottom:1px solid color-mix(in srgb,var(--rice) 12%,transparent)}
+    .nav ul li:last-child a{border-bottom:0}
+  }
+  @media (max-width:380px){.nav .btn-sm{padding:9px 13px;font-size:.86rem}.brand .tag{display:none}}
   @media (max-width:480px){.brand-mark{width:38px;height:38px;font-size:1.2rem}.brand{gap:9px}.brand .name{font-size:1.4rem}.brand .tag{letter-spacing:.14em;font-size:.6rem}}
 
   /* ---------- Portada ---------- */
@@ -196,7 +216,7 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   #cart textarea{resize:vertical;min-height:70px}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .seg{display:grid;grid-template-columns:1fr 1fr;background:var(--rice);border-radius:999px;padding:5px;gap:4px}
-  #cart .seg label{margin:0;text-align:center;border-radius:999px;padding:10px 12px;font-size:.92rem;letter-spacing:0;text-transform:none;color:var(--ink-soft);cursor:pointer}
+  #cart .seg label{position:relative;margin:0;text-align:center;border-radius:999px;padding:10px 12px;font-size:.92rem;letter-spacing:0;text-transform:none;color:var(--ink-soft);cursor:pointer}
   .seg input{position:absolute;opacity:0;pointer-events:none}
   #cart .seg label:has(input:checked){background:var(--pine);color:var(--rice)}
   #cart .seg label:has(input:focus-visible){outline:3px solid var(--mango)}
@@ -309,13 +329,17 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
       <span class="brand-mark" aria-hidden="true">S</span>
       <span class="brand-txt"><span class="name">SAISEI<small>&amp; Co</small></span><span class="tag">Puerto Cisnes · Patagonia</span></span>
     </a>
-    <ul>
+    <ul id="navMenu">
       <li><a href="#carta">Carta</a></li>
       <li><a href="#nosotros">Nosotros</a></li>
       <li><a href="#fotos">Fotos</a></li>
       <li><a href="#como">Cómo pedir</a></li>
     </ul>
     <a class="btn btn-primary btn-sm" href="#carta">Pedir ahora</a>
+    <button class="menu-btn" id="menuBtn" type="button" aria-label="Menú" aria-controls="navMenu" aria-expanded="false">
+      <svg class="bars" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <svg class="x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
   </div>
 </header>
 
@@ -826,7 +850,14 @@ $("picker").onclick = e => { if(e.target.id === "picker") closePicker(); };
 $("sent").onclick = e => { if(e.target.id === "sent") closeModal("sent"); };
 $("sentOk").onclick = () => closeModal("sent");
 $("sentClear").onclick = () => { cart = []; render(); closeModal("sent"); goToCat(0); };
-document.addEventListener("keydown", e => { if(e.key === "Escape"){ if(pick) closePicker(); if(topPick) closeTopping(); closeModal("sent"); } });
+document.addEventListener("keydown", e => { if(e.key === "Escape"){ if(pick) closePicker(); if(topPick) closeTopping(); closeModal("sent"); abrirMenu(false); } });
+
+// Menú del teléfono
+const nav = document.querySelector(".nav");
+function abrirMenu(si){ nav.classList.toggle("open", si); $("menuBtn").setAttribute("aria-expanded", si); }
+$("menuBtn").onclick = () => abrirMenu(!nav.classList.contains("open"));
+$("navMenu").addEventListener("click", e => { if(e.target.closest("a")) abrirMenu(false); });
+document.addEventListener("click", e => { if(!nav.contains(e.target)) abrirMenu(false); });
 
 // ---------- Carrito ----------
 $("lines").addEventListener("click", e => {
@@ -918,6 +949,7 @@ async function loadAjustes(){
       let ic = document.querySelector("link[rel=icon]");
       if(!ic){ ic = document.createElement("link"); ic.rel = "icon"; document.head.appendChild(ic); }
       ic.href = a.logo;
+      document.querySelector("link[rel=apple-touch-icon]").href = a.logo;
     }
     if(a.foto_portada) $("floatRound").style.cssText = fotoStyle(a.foto_portada);
     if(a.foto_destacada) $("featPh").style.cssText = fotoStyle(a.foto_destacada);

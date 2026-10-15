@@ -1,0 +1,14 @@
+{
+  "name": "Saisei & Co · Gestión",
+  "short_name": "Saisei Gestión",
+  "lang": "es",
+  "start_url": "/gestion/",
+  "scope": "/gestion/",
+  "display": "standalone",
+  "background_color": "#0b2b22",
+  "theme_color": "#0b2b22",
+  "icons": [
+    { "src": "../img/gestion-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "../img/gestion-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
