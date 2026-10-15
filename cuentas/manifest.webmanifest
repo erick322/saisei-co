@@ -1,0 +1,14 @@
+{
+  "name": "Saisei & Co · Cuentas",
+  "short_name": "Saisei Cuentas",
+  "lang": "es",
+  "start_url": "/cuentas/",
+  "scope": "/cuentas/",
+  "display": "standalone",
+  "background_color": "#F4F6EE",
+  "theme_color": "#0E3B2E",
+  "icons": [
+    { "src": "../img/gestion-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "../img/gestion-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
