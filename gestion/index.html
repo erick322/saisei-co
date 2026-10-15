@@ -153,7 +153,7 @@
 
 <div class="top">
   <h1>Saisei &amp; Co <small>Gestión</small></h1>
-  <div class="r" id="who" hidden><span id="email"></span><a class="b sm" href="../" target="_blank" rel="noopener">Ver página</a><button class="b sm" id="logout">Salir</button></div>
+  <div class="r" id="who" hidden><span id="email"></span><a class="b sm" href="../" target="_blank" rel="noopener">Ver página</a><button class="b sm" id="pwOpen">Cambiar contraseña</button><button class="b sm" id="logout">Salir</button></div>
 </div>
 
 <!-- Sin configurar -->
@@ -175,6 +175,22 @@
     <input id="lPass" type="password" autocomplete="current-password" required>
     <button class="b pri full" id="lBtn">Ingresar</button>
     <div class="msg err" id="lMsg"></div>
+    <button type="button" class="b sm" id="lForgot" style="border:0;padding:4px 0;color:var(--muted);text-decoration:underline">¿Olvidaste tu contraseña?</button>
+  </form>
+</div>
+
+<!-- Modal contraseña -->
+<div class="overlay" id="pwModal" hidden>
+  <form class="modal" id="pwForm" style="max-width:420px">
+    <div class="row"><h3>Cambiar contraseña</h3><button type="button" class="x" data-close>×</button></div>
+    <p class="hint" id="pwHint">Elige una contraseña nueva de al menos 8 caracteres.</p>
+    <input type="email" autocomplete="username" id="pwUser" hidden>
+    <label for="pw1">Contraseña nueva</label>
+    <input id="pw1" type="password" autocomplete="new-password" minlength="8" required>
+    <label for="pw2">Repite la contraseña</label>
+    <input id="pw2" type="password" autocomplete="new-password" minlength="8" required>
+    <div class="msg err" id="pwMsg"></div>
+    <div class="acts-end" style="margin-top:6px"><button class="b pri" id="pwSave">Guardar contraseña</button></div>
   </form>
 </div>
 
@@ -421,19 +437,50 @@ let aj = null, colorsEd = {}, slEd = [];
 if(!cfg.url || !cfg.anonKey || !window.supabase){ show("noConfig"); }
 else {
   sb = window.supabase.createClient(cfg.url, cfg.anonKey);
+  // Al volver desde el correo de recuperación, se pide la contraseña nueva
+  sb.auth.onAuthStateChange(ev => { if(ev === "PASSWORD_RECOVERY") setTimeout(() => openPw(true), 600); });
   sb.auth.getSession().then(({data}) => data.session ? enter(data.session) : show("loginView"));
 }
 
 // ---------- Sesión ----------
 $("loginForm").onsubmit = async e => {
   e.preventDefault();
-  $("lBtn").disabled = true; $("lMsg").textContent = "";
+  $("lBtn").disabled = true; $("lMsg").className = "msg err"; $("lMsg").textContent = "";
   const { data, error } = await sb.auth.signInWithPassword({ email: $("lEmail").value.trim(), password: $("lPass").value });
   $("lBtn").disabled = false;
   if(error) return $("lMsg").textContent = "Correo o contraseña incorrectos.";
   enter(data.session);
 };
 $("logout").onclick = async () => { await sb.auth.signOut(); location.reload(); };
+
+// ---------- Contraseña ----------
+function openPw(recuperando){
+  $("pwHint").textContent = recuperando ? "Entraste con el enlace de recuperación. Elige tu contraseña nueva (mínimo 8 caracteres)." : "Elige una contraseña nueva de al menos 8 caracteres.";
+  $("pwUser").value = $("email").textContent; $("pw1").value = $("pw2").value = ""; $("pwMsg").textContent = "";
+  openM("pwModal"); $("pw1").focus();
+}
+$("pwOpen").onclick = () => openPw(false);
+$("pwForm").onsubmit = async e => {
+  e.preventDefault();
+  if($("pw1").value.length < 8) return $("pwMsg").textContent = "Debe tener al menos 8 caracteres.";
+  if($("pw1").value !== $("pw2").value) return $("pwMsg").textContent = "Las contraseñas no coinciden.";
+  $("pwSave").disabled = true;
+  const { error } = await sb.auth.updateUser({ password: $("pw1").value });
+  $("pwSave").disabled = false;
+  if(error) return $("pwMsg").textContent = /different|same/i.test(error.message) ? "La nueva contraseña debe ser distinta a la anterior." : "No se pudo cambiar: " + error.message;
+  $("pw1").value = $("pw2").value = "";
+  closeM("pwModal"); toast("Contraseña cambiada");
+};
+// Envía un correo con un enlace para crear una contraseña nueva
+$("lForgot").onclick = async () => {
+  const email = $("lEmail").value.trim();
+  if(!email) { $("lMsg").textContent = "Escribe tu correo arriba y vuelve a tocar “¿Olvidaste tu contraseña?”."; return $("lEmail").focus(); }
+  $("lForgot").disabled = true;
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+  $("lForgot").disabled = false;
+  $("lMsg").className = error ? "msg err" : "msg ok";
+  $("lMsg").textContent = error ? "No se pudo enviar el correo: " + error.message : "Si el correo es de un administrador, te llegará un enlace para crear una contraseña nueva.";
+};
 
 async function enter(session){
   const { data: ok } = await sb.rpc("es_admin");
