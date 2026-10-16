@@ -899,7 +899,8 @@ function buildMessage(){
   const lines = ordered().map(l => l.topping
     ? `   ↳ + ${l.q} × ${l.name} ${l.detail} — ${fmt(l.unit*l.q)}`
     : `• ${l.q} × ${l.name}${l.detail?` (${l.detail})`:""} — ${fmt(l.unit*l.q)}`);
-  let msg = `🍣 *Nuevo pedido — Saisei & Co*\n\n${lines.join("\n")}\n\n*Total: ${fmt(total())}*`;
+  const { codigo, nuevo } = pedidoCodigo();
+  let msg = `🍣 *Nuevo pedido N° ${codigo} — Saisei & Co*\n\n${lines.join("\n")}\n\n*Total: ${fmt(total())}*`;
   if(tipo()==="Delivery") msg += " + despacho";
   msg += `\n\n👤 ${val("nombre")}\n📞 ${val("telefono")}\n`;
   if(tipo()==="Delivery"){
@@ -908,19 +909,48 @@ function buildMessage(){
   } else msg += "🥢 Retiro\n";
   msg += `🕒 ${val("hora") || "Lo antes posible"}\n💳 ${$("pago").value}`;
   if(val("notas")) msg += `\n📝 ${val("notas")}`;
-  return {msg};
+  return {msg, codigo, nuevo};
+}
+
+// Cada pedido enviado también se guarda en Supabase como "pendiente": el administrador
+// lo revisa en /cuentas → Pedidos y, al confirmarlo, queda registrado como venta.
+const COD_CH = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+function pedidoCodigo(){
+  // Si el cliente vuelve a enviar el mismo pedido, se reutiliza el número y no se duplica
+  const sig = JSON.stringify([cart, tipo(), ...["nombre","telefono","direccion","referencia","hora","pago","notas"].map(id => $(id).value.trim())]);
+  try { const prev = JSON.parse(sessionStorage.getItem("saisei-pedido") || "null"); if(prev && prev.sig === sig) return { codigo: prev.codigo, nuevo: false }; } catch(e){}
+  const codigo = Array.from(crypto.getRandomValues(new Uint8Array(5)), b => COD_CH[b % COD_CH.length]).join("");
+  try { sessionStorage.setItem("saisei-pedido", JSON.stringify({ sig, codigo })); } catch(e){}
+  return { codigo, nuevo: true };
+}
+function guardarPedido(codigo){
+  const sb = window.SUPABASE || {};
+  if(!sb.url || !sb.anonKey) return;
+  const val = (id, max) => $(id).value.trim().slice(0, max) || null, del = tipo() === "Delivery";
+  const body = {
+    codigo, cliente: val("nombre", 120), telefono: val("telefono", 40), entrega: tipo(),
+    direccion: del ? val("direccion", 300) : null, referencia: del ? val("referencia", 300) : null,
+    hora: val("hora", 120), pago: $("pago").value, notas: val("notas", 1000), total: total(),
+    items: ordered().map(l => ({ n: l.name, d: l.detail || "", q: l.q, p: l.unit, top: !!l.topping })),
+  };
+  fetch(`${sb.url}/rest/v1/pedidos`, { method:"POST", keepalive:true, body: JSON.stringify(body),
+    headers:{ apikey: sb.anonKey, Authorization:`Bearer ${sb.anonKey}`, "Content-Type":"application/json", Prefer:"return=minimal" } })
+    .then(r => { if(!r.ok && r.status !== 409) throw new Error(r.status); })
+    .catch(e => { console.warn("No se pudo guardar el pedido en el sistema", e); try { sessionStorage.removeItem("saisei-pedido"); } catch(_){} });
 }
 function toast(t){ const el=$("toast"); el.textContent=t; el.classList.add("show"); clearTimeout(toast.t); toast.t=setTimeout(()=>el.classList.remove("show"),1800); }
 
 $("sendWa").onclick = () => {
   const r = buildMessage(); $("err").textContent = r.error||"";
   if(!r.msg) return;
+  if(r.nuevo) guardarPedido(r.codigo);
   window.open(`https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(r.msg)}`, "_blank");
   openModal("sent");
 };
 $("sendIg").onclick = async () => {
   const r = buildMessage(); $("err").textContent = r.error||"";
   if(!r.msg) return;
+  if(r.nuevo) guardarPedido(r.codigo);
   try { await navigator.clipboard.writeText(r.msg.replace(/\*/g,"")); toast("Pedido copiado: pégalo en el chat"); } catch(e){}
   setTimeout(()=>{ window.open(`https://ig.me/m/${CONFIG.instagram}`, "_blank"); openModal("sent"); }, 600);
 };

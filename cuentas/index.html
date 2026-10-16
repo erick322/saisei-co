@@ -53,6 +53,9 @@
   .tabs a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;font-size:11.5px;font-weight:600;color:var(--ink2);text-decoration:none;border-radius:10px}
   .tabs a.on{color:var(--pine)}
   .tabs a.on .ico{background:var(--rice2);border-radius:10px;padding:2px 10px;width:44px;height:26px}
+  .tabs a{position:relative}
+  .nb{background:var(--salmon);color:#fff;border-radius:999px;font-size:11px;font-weight:800;min-width:19px;height:19px;padding:0 5px;display:inline-grid;place-items:center;margin-left:auto;line-height:1}
+  .tabs .nb{position:absolute;top:1px;left:calc(50% + 6px);margin:0}
   .fab{position:fixed;right:16px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:31;width:58px;height:58px;border-radius:18px;border:0;background:var(--salmon);color:#fff;box-shadow:0 6px 18px rgba(238,122,79,.45);display:grid;place-items:center;cursor:pointer}
   .fab .ico{width:28px;height:28px}
 
@@ -373,6 +376,7 @@ const I = {
   upload:'<path d="M12 21V9M7 14l5-5 5 5"/><path d="M5 3h14"/>',
   calc:'<rect x="5" y="2.5" width="14" height="19" rx="2"/><path d="M8 6.5h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 18.5h.01M12 18.5h.01M16 18.5h.01"/>',
   copy:'<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
+  bag:'<path d="M5 8h14l-1 13H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
   phone:'<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.8 2z"/>',
 };
 const ico = (k, cls = "ico") => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${I[k] || ""}</svg>`;
@@ -657,6 +661,7 @@ const invCls = e => ({ "COMPRAR":"bad", "OK":"ok", "Contar":"", "Sin mínimo":"i
 // =====================================================================
 const VIEWS = {
   inicio:      { t:"Resumen",              i:"home",    month:true, grp:"Día a día" },
+  pedidos:     { t:"Pedidos de la página", i:"bag",     grp:"Día a día" },
   ventas:      { t:"Ventas",               i:"cart",    month:true, grp:"Día a día" },
   gastos:      { t:"Gastos y compras",     i:"receipt", month:true, grp:"Día a día" },
   inventario:  { t:"Inventario",           i:"box",     grp:"Día a día" },
@@ -670,7 +675,7 @@ const VIEWS = {
   ajustes:     { t:"Ajustes",              i:"gear",    grp:"Configuración" },
   mas:         { t:"Más",                  i:"more" },
 };
-const TABS = ["inicio", "ventas", "gastos", "carta", "mas"];
+const TABS = ["inicio", "pedidos", "ventas", "gastos", "mas"];
 let view = "inicio", curM = curMonth();
 const UI = { ventasQ:"", insQ:"", invSolo:false, cartaF:"Todos", gastoTipo:"Todos" };
 
@@ -679,10 +684,10 @@ function buildNav(){
   Object.entries(VIEWS).forEach(([k, v]) => {
     if(!v.grp) return;
     if(v.grp !== g){ g = v.grp; h += `<div class="grp">${g}</div>`; }
-    h += `<a href="#${k}" data-v="${k}">${ico(v.i)}${v.t}</a>`;
+    h += `<a href="#${k}" data-v="${k}">${ico(v.i)}${v.t}${k === "pedidos" ? `<span class="nb" data-nb hidden></span>` : ""}</a>`;
   });
   $("sideNav").innerHTML = h;
-  $("tabs").innerHTML = TABS.map(k => `<a href="#${k}" data-v="${k}">${ico(VIEWS[k].i)}${k === "carta" ? "Carta" : k === "gastos" ? "Gastos" : VIEWS[k].t}</a>`).join("");
+  $("tabs").innerHTML = TABS.map(k => `<a href="#${k}" data-v="${k}">${ico(VIEWS[k].i)}${{ pedidos:"Pedidos", gastos:"Gastos" }[k] || VIEWS[k].t}${k === "pedidos" ? `<span class="nb" data-nb hidden></span>` : ""}</a>`).join("");
 }
 function route(){
   const h = location.hash.slice(1);
@@ -721,6 +726,7 @@ function startApp(){
   showOnly("app");
   setSync(outbox.length ? "off" : "ok");
   route();
+  if(sb && user) loadPedidos();
 }
 window.addEventListener("hashchange", route);
 
@@ -759,6 +765,8 @@ R.inicio = () => {
   const split = o => Object.entries(o).sort((a, b) => b[1] - a[1]).map(([k, x]) => `<div class="row small" style="margin-top:6px"><span>${esc(k)}</span><span class="sp"></span><b class="num">${fmt(x)}</b><span class="muted num" style="width:44px;text-align:right">${pct(s.bruto ? x / s.bruto : 0)}</span></div>`).join("") || `<p class="muted small">Sin ventas este mes.</p>`;
 
   const alerts = [];
+  const pendWeb = PED.list.filter(p => p.estado === "pendiente").length;
+  if(pendWeb) alerts.push(`<a class="alert bad" href="#pedidos">${ico("bag")}<span><b>${pendWeb}</b> pedido${pendWeb > 1 ? "s" : ""} de la página por confirmar</span></a>`);
   if(comprar.length) alerts.push(`<a class="alert bad" href="#inventario">${ico("alert")}<span><b>${comprar.length}</b> insumo${comprar.length > 1 ? "s" : ""} bajo el mínimo: ${esc(comprar.slice(0, 3).map(i => i.nombre).join(", "))}${comprar.length > 3 ? "…" : ""}</span></a>`);
   if(revisar.length) alerts.push(`<a class="alert" href="#carta">${ico("alert")}<span><b>${revisar.length}</b> producto${revisar.length > 1 ? "s" : ""} con precio a revisar (food cost sobre ${pct(fco + .05)})</span></a>`);
   if(s.neto && s.fc > fco + .05) alerts.push(`<a class="alert" href="#carta">${ico("alert")}<span>El food cost del mes va en <b>${pct(s.fc)}</b>; el objetivo es ${pct(fco)}.</span></a>`);
@@ -1137,7 +1145,7 @@ R.ajustes = () => {
 };
 
 R.mas = () => `<div class="card" style="margin-bottom:12px"><div class="row"><div class="sync" style="color:var(--ink2);font-size:13.5px" id="sync3"><i></i><span>${mode === "local" ? "Datos guardados solo en este dispositivo" : outbox.length ? `${outbox.length} cambio(s) por subir a la nube` : "Todo guardado en la nube"}</span></div><span class="sp"></span>${user ? `<span class="small muted">${esc(user.email)}</span>` : ""}</div></div><div class="tiles">${Object.entries(VIEWS).filter(([k, v]) => v.grp && !TABS.includes(k)).map(([k, v]) => `<a class="tile" href="#${k}">${ico(v.i)}<b>${v.t}</b><span>${{
-  inventario:"Stock y lista de compras", recetas:"Gramos por producto", insumos:"Precios y costo real", resultados:"Mes a mes y mermas",
+  carta:"Precios, costos y márgenes", inventario:"Stock y lista de compras", recetas:"Gramos por producto", insumos:"Precios y costo real", resultados:"Mes a mes y mermas",
   equilibrio:"Cuánto vender para no perder", fijos:"Gas, luz, sueldos…", proveedores:"Contactos y entregas", ajustes:"Parámetros y respaldos" }[k] || ""}</span></a>`).join("")}</div>`;
 
 // =====================================================================
@@ -1169,11 +1177,12 @@ const confirmDel = t => confirm(t + "\n\nEsta acción no se puede deshacer.");
 
 // ---------- Formulario de venta ----------
 function nextNum(){ return Math.max(0, ...S.ventas.map(v => n0(v.num))) + 1; }
-function formVenta(orig){
-  const v = orig ? clone(orig) : { id:uid(), fecha: curM === curMonth() ? today() : pStart(curM), num:nextNum(), canal:"WhatsApp", pago:"Transferencia", items:[], nota:"" };
+// opt.base: datos iniciales (ej. un pedido de la página) · opt.onSaved: se llama al guardar
+function formVenta(orig, opt = {}){
+  const v = orig ? clone(orig) : { id:uid(), fecha: curM === curMonth() ? today() : pStart(curM), num:nextNum(), canal:"WhatsApp", pago:"Transferencia", items:[], nota:"", ...(opt.base || {}) };
   const prods = S.carta.filter(p => p.activo !== false);
   const cats = [...new Set(prods.map(p => p.categoria || "Otros"))];
-  const body = `
+  const body = `${opt.info ? `<div class="banner info" style="margin:12px 0 0">${ico("info")}<div>${opt.info}</div></div>` : ""}
     <div class="f2">
       <div><label for="vF">Fecha</label><input id="vF" type="date" value="${esc(v.fecha)}" required></div>
       <div><label for="vN">N° de pedido</label><input id="vN" type="number" inputmode="numeric" min="0" value="${esc(v.num)}"></div>
@@ -1188,7 +1197,7 @@ function formVenta(orig){
   const foot = `<div class="tot" id="vTot"></div><span class="sp"></span>
     ${orig ? `<button class="b del" data-act="delVenta" data-id="${esc(v.id)}">${ico("trash")}</button>` : ""}
     <button class="b" data-act="close">Cancelar</button><button class="b acc" id="vSave">Guardar venta</button>`;
-  const m = openModal(orig ? `Venta #${esc(v.num)}` : "Nueva venta", body, foot, "full");
+  const m = openModal(opt.title || (orig ? `Venta #${esc(v.num)}` : "Nueva venta"), body, foot, "full");
   wireChips(m, () => draw());
   function draw(){
     const L = m.querySelector("#vLines");
@@ -1243,10 +1252,171 @@ function formVenta(orig){
     v.nota = m.querySelector("#vNota").value.trim();
     v.comision = v.pago === "Tarjeta / link de pago" ? vTot({ ...v, comision:0 }).bruto * n0(P().comision) : 0;
     put("ventas", v); closeModal();
+    if(opt.onSaved) opt.onSaved(v);
     curM = pKey(v.fecha); render();
     toast(orig ? "Venta actualizada" : `Venta #${v.num} guardada · ${fmt(vTot(v).bruto)}`);
   };
   draw();
+}
+
+// =====================================================================
+//  Pedidos que llegan desde la página (tabla "pedidos" en Supabase)
+//  Entran como "pendiente"; solo al confirmarlos se registran como venta.
+// =====================================================================
+const PED = { list:[], ok:false, err:"", filtro:"pendiente", n:0, first:true };
+const PED_EST = { pendiente:["Por confirmar", "warn"], confirmado:["Confirmado", "ok"] };
+async function loadPedidos(){
+  if(!sb || !user || !navigator.onLine) return;
+  const desde = new Date(Date.now() - 60 * 864e5).toISOString();
+  let { data, error } = await sb.from("pedidos").select("*").or(`estado.eq.pendiente,creado.gte."${desde}"`).order("creado", { ascending:false }).limit(300);
+  if(error){ PED.err = tableMissing(error) ? "sql" : error.message; }
+  else {
+    PED.err = ""; PED.ok = true;
+    // Rechazados de versiones anteriores: se eliminan
+    if(data.some(p => p.estado === "rechazado")){
+      const { error: e2 } = await sb.from("pedidos").delete().eq("estado", "rechazado");
+      if(!e2) data = data.filter(p => p.estado !== "rechazado");
+    }
+    PED.list = data.filter(p => p.estado !== "rechazado");
+    // Si la venta se guardó pero el pedido no alcanzó a marcarse (sin conexión), se corrige ahora
+    PED.list.filter(p => p.estado === "pendiente").forEach(p => { const v = S.ventas.find(x => x.pedidoWeb === p.id); if(v) marcarPedido(p, "confirmado", v.id, true); });
+  }
+  const n = PED.list.filter(p => p.estado === "pendiente").length;
+  if(!PED.first && n > PED.n){ toast("🛎️ Llegó un pedido nuevo de la página"); try { navigator.vibrate && navigator.vibrate(200); } catch(e){} }
+  PED.n = n; PED.first = false;
+  updateBadge();
+  if((view === "pedidos" || view === "inicio") && $("ov").hidden) renderKeep();
+}
+setInterval(() => { if(document.visibilityState === "visible") loadPedidos(); }, 30000);
+document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") loadPedidos(); });
+function updateBadge(){
+  const n = PED.list.filter(p => p.estado === "pendiente").length;
+  document.querySelectorAll("[data-nb]").forEach(e => { e.textContent = n; e.hidden = !n; });
+}
+async function marcarPedido(p, estado, ventaId = null, quiet){
+  const { error } = await sb.from("pedidos").update({ estado, venta_id: ventaId, revisado: estado === "pendiente" ? null : new Date().toISOString() }).eq("id", p.id);
+  if(error){ if(!quiet) toast("No se pudo actualizar el pedido: " + error.message, true); return false; }
+  const local = PED.list.find(x => x.id === p.id);
+  Object.assign(local || p, { estado, venta_id: ventaId });
+  PED.n = PED.list.filter(x => x.estado === "pendiente").length;
+  updateBadge();
+  if($("ov").hidden && (view === "pedidos" || view === "inicio")) render();
+  return true;
+}
+// Los pedidos rechazados se eliminan de la base de datos para no acumular registros
+async function borrarPedido(p){
+  const { error } = await sb.from("pedidos").delete().eq("id", p.id);
+  if(error){ toast("No se pudo eliminar el pedido: " + error.message, true); return false; }
+  PED.list = PED.list.filter(x => x.id !== p.id);
+  PED.n = PED.list.filter(x => x.estado === "pendiente").length;
+  updateBadge();
+  return true;
+}
+function hace(iso){
+  const min = Math.round((Date.now() - new Date(iso)) / 60000);
+  if(min < 1) return "recién";
+  if(min < 60) return `hace ${min} min`;
+  if(min < 24 * 60) return `hace ${Math.round(min / 60)} h`;
+  return new Date(iso).toLocaleDateString("es-CL", { day:"numeric", month:"short" });
+}
+const pedItems = p => (p.items || []).map(i => `${i.top ? "+ " : ""}${i.q}× ${i.n}`).join(", ");
+const telWa = t => { const d = String(t || "").replace(/\D/g, ""); return d.length === 9 ? "56" + d : d.length === 8 ? "569" + d : d; };
+
+// Relaciona el nombre de la página ("Tabla 30 piezas Mixta") con el producto de la carta ("Tabla Mixta 30")
+const STOP = new Set(["topping", "piezas", "pieza", "de", "con", "y", "el", "la", "en"]);
+const toks = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").split(" ").filter(w => w && !STOP.has(w));
+function matchProd(name){
+  const map = P().webMap || {};
+  if(map[name] && prodById(map[name])) return map[name];
+  const a = new Set(toks(name)); let best = "", bs = 0;
+  S.carta.forEach(p => {
+    const b = new Set(toks(p.nombre)), inter = [...a].filter(x => b.has(x)).length;
+    const s = inter / ((a.size + b.size - inter) || 1);
+    if(s > bs){ bs = s; best = p.id; }
+  });
+  return bs >= .5 ? best : "";
+}
+
+R.pedidos = () => {
+  if(!sb || !user) return `<div class="card">${empty("bag", "Pedidos de la página", "Para ver los pedidos entra con tu cuenta de administrador.")}</div>`;
+  if(PED.err === "sql") return `<div class="banner">${ico("alert")}<div>Falta crear la tabla de pedidos: en Supabase → <b>SQL Editor</b> pega el archivo <code>supabase/pedidos.sql</code>, toca <b>Run</b> y recarga.</div></div>`;
+  if(!PED.ok) return PED.err
+    ? `<div class="banner">${ico("alert")}<div>No se pudieron cargar los pedidos (${esc(PED.err)}). <button class="linkbtn" data-act="reloadPed">Reintentar</button></div></div>`
+    : `<p class="muted">Cargando pedidos…</p>`;
+  const cnt = e => PED.list.filter(p => p.estado === e).length;
+  const list = PED.list.filter(p => p.estado === PED.filtro);
+  const vacio = { pendiente:["Sin pedidos por confirmar", "Cuando un cliente envíe un pedido desde la página aparecerá aquí. Lo revisas, lo confirmas y queda registrado como venta."],
+    confirmado:["Sin pedidos confirmados", "Los últimos 60 días."] }[PED.filtro];
+  return `
+  <div class="row">
+    <div class="chips">${Object.entries(PED_EST).map(([k, [l]]) => `<button class="chip ${PED.filtro === k ? "on" : ""}" data-act="pedF" data-f="${k}">${l} · ${cnt(k)}</button>`).join("")}</div>
+    <span class="sp"></span>
+    <button class="b sm" data-act="reloadPed">Actualizar</button>
+  </div>
+  <div class="list mt">${list.map(p => `<button class="item" data-act="detPedido" data-id="${p.id}">
+      <div class="main-t"><div class="tt">N° ${esc(p.codigo)} · ${esc(p.cliente)}</div>
+      <div class="st">${esc(pedItems(p))}</div>
+      <div class="st">${esc(p.entrega)}${p.hora ? " · " + esc(p.hora) : ""}${p.pago ? " · " + esc(p.pago) : ""}</div></div>
+      <div class="am num">${fmt(p.total)}<small class="muted">${hace(p.creado)}</small></div></button>`).join("") || empty("bag", vacio[0], vacio[1])}</div>
+  <p class="hint mt">Se revisa si hay pedidos nuevos cada 30 segundos mientras la app está abierta.</p>`;
+};
+
+function detPedido(id){
+  const p = PED.list.find(x => String(x.id) === String(id)); if(!p) return;
+  const pend = p.estado === "pendiente";
+  const opts = S.carta.slice().sort(byName).map(c => `<option value="${esc(c.id)}">${esc(c.nombre)} · ${fmt(c.precio)}</option>`).join("");
+  const venta = S.ventas.find(v => v.id === p.venta_id);
+  const body = `
+    <p class="row" style="margin:12px 0 0"><span class="pill ${PED_EST[p.estado][1]}">${PED_EST[p.estado][0]}</span><span class="small muted">Recibido ${new Date(p.creado).toLocaleString("es-CL", { weekday:"long", day:"numeric", month:"long", hour:"2-digit", minute:"2-digit" })}</span></p>
+    <div class="calc" style="grid-template-columns:1fr 1fr">
+      <div>Cliente<b style="font-size:15px">${esc(p.cliente)}</b>${esc(p.telefono)}</div>
+      <div>${esc(p.entrega)}<b style="font-size:15px">${p.entrega === "Delivery" ? esc(p.direccion || "") : "Retira en el local"}</b>${esc(p.referencia || "")}</div>
+      <div>Para cuándo<b style="font-size:15px">${esc(p.hora || "Lo antes posible")}</b></div>
+      <div>Pago<b style="font-size:15px">${esc(p.pago || "—")}</b></div>
+    </div>
+    ${p.notas ? `<p class="formula">📝 ${esc(p.notas)}</p>` : ""}
+    <div class="sec">Productos</div>
+    <div class="tw"><table><thead><tr><th>Pedido en la página</th><th class="n">Total</th>${pend ? "<th>Se registra como</th>" : ""}</tr></thead><tbody>
+      ${(p.items || []).map((it, k) => `<tr><td>${it.top ? "+ " : ""}<b>${esc(it.q)}× ${esc(it.n)}</b>${it.d ? `<div class="small muted">${esc(it.d)}</div>` : ""}</td>
+        <td class="n">${fmt(n0(it.q) * n0(it.p))}</td>
+        ${pend ? `<td style="min-width:190px"><select data-map="${k}"><option value="">— Elige producto —</option>${opts}<option value="__sin">Sin producto (costo $0)</option></select></td>` : ""}</tr>`).join("")}
+      <tr class="tot"><td>Total del pedido${p.entrega === "Delivery" ? " (sin despacho)" : ""}</td><td class="n">${fmt(p.total)}</td>${pend ? "<td></td>" : ""}</tr>
+    </tbody></table></div>
+    ${pend ? `<p class="hint mt">Al confirmar se abre la venta ya armada para que la revises${p.entrega === "Delivery" ? ", con el cobro de delivery incluido" : ""}. Solo cuando la guardes queda registrada en las cuentas.</p>` : ""}
+    ${p.estado === "confirmado" ? `<p class="hint mt">${venta ? `Registrado como venta #${esc(venta.num)} del ${dName(venta.fecha)} por ${fmt(vTot(venta).bruto)}.` : "La venta de este pedido ya no está en las cuentas."}</p>` : ""}`;
+  const wa = `https://wa.me/${telWa(p.telefono)}?text=${encodeURIComponent(`Hola ${p.cliente}, te escribimos de Saisei & Co por tu pedido N° ${p.codigo}.`)}`;
+  const foot = `<a class="b" href="${esc(wa)}" target="_blank" rel="noopener">${ico("phone")}WhatsApp</a><span class="sp"></span>
+    ${pend ? `<button class="b del" data-act="rechPedido" data-id="${p.id}">Rechazar</button><button class="b acc" id="pConf">${ico("check")}Confirmar</button>` : ""}
+    ${p.estado === "confirmado" && venta ? `<button class="b" data-act="editVenta" data-id="${esc(venta.id)}">Ver venta</button>` : ""}`;
+  const m = openModal(`Pedido N° ${esc(p.codigo)}`, body, foot, "wide");
+  if(!pend) return;
+  m.querySelectorAll("[data-map]").forEach(s => s.value = matchProd(p.items[+s.dataset.map].n));
+  m.querySelector("#pConf").onclick = () => {
+    const sels = [...m.querySelectorAll("[data-map]")];
+    const falta = sels.find(s => !s.value);
+    if(falta){ falta.focus(); return toast("Elige a qué producto corresponde cada línea", true); }
+    const map = { ...(P().webMap || {}) }; let cambio = false;
+    const items = [];
+    sels.forEach(s => {
+      const it = p.items[+s.dataset.map], prod = prodById(s.value);
+      if(prod && map[it.n] !== prod.id){ map[it.n] = prod.id; cambio = true; }
+      const line = prod ? { prod:prod.id, nombre:prod.nombre, cant:n0(it.q), precio:n0(it.p), desc:0, costo:prodCost(prod) }
+                        : { prod:null, nombre:it.n, cant:n0(it.q), precio:n0(it.p), desc:0, costo:0 };
+      const ex = items.find(x => x.prod && x.prod === line.prod && x.precio === line.precio);
+      if(ex) ex.cant += line.cant; else items.push(line);
+    });
+    if(cambio) setPar({ ...S.par, webMap: map });   // se recuerda para los próximos pedidos
+    if(p.entrega === "Delivery"){
+      const dp = S.carta.find(c => isServ(c) && /delivery|despacho/i.test(c.nombre));
+      items.push({ prod: dp ? dp.id : null, nombre: dp ? dp.nombre : "Delivery", cant:1, precio:n0(P().deliveryCobro), desc:0, costo: dp ? prodCost(dp) : n0(P().deliveryCosto) });
+    }
+    const base = { fecha: new Date(p.creado).toLocaleDateString("sv-SE"), canal:"Sitio web",
+      pago: /tarjeta/i.test(p.pago || "") ? "Tarjeta / link de pago" : PAGOS_V.includes(p.pago) ? p.pago : "Transferencia",
+      items, pedidoWeb: p.id, nota: [`Web N° ${p.codigo}`, p.cliente, p.telefono, p.notas].filter(Boolean).join(" · ").slice(0, 300) };
+    formVenta(null, { base, title:`Confirmar pedido N° ${esc(p.codigo)}`,
+      info:"Revisa la venta (precios, delivery, medio de pago). Al tocar <b>Guardar venta</b> el pedido queda confirmado y entra a las cuentas.",
+      onSaved: async v => { if(await marcarPedido(p, "confirmado", v.id)) toast(`Pedido N° ${p.codigo} confirmado y registrado`); } });
+  };
 }
 
 // ---------- Formulario de gasto ----------
@@ -1559,7 +1729,20 @@ const A = {
   mnext: () => { curM = addMonth(curM, 1); render(); },
   newVenta: () => formVenta(),
   editVenta: d => formVenta(S.ventas.find(v => v.id === d.id)),
-  delVenta: d => { if(confirmDel("¿Eliminar esta venta?")){ del("ventas", d.id); closeModal(); render(); toast("Venta eliminada"); } },
+  delVenta: d => {
+    const v = S.ventas.find(x => x.id === d.id);
+    if(!confirmDel(v && v.pedidoWeb ? "¿Eliminar esta venta?\nEl pedido de la página volverá a quedar por confirmar." : "¿Eliminar esta venta?")) return;
+    del("ventas", d.id); closeModal(); render(); toast("Venta eliminada");
+    if(v && v.pedidoWeb && sb && user) marcarPedido(PED.list.find(p => p.id === v.pedidoWeb) || { id:v.pedidoWeb }, "pendiente", null);
+  },
+  pedF: d => { PED.filtro = d.f; render(); },
+  reloadPed: async () => { await loadPedidos(); toast("Pedidos actualizados"); },
+  detPedido: d => detPedido(d.id),
+  rechPedido: async d => {
+    const p = PED.list.find(x => String(x.id) === d.id);
+    if(!confirm(`¿Rechazar el pedido N° ${p.codigo} de ${p.cliente}?\nSe eliminará y no se registrará en las cuentas. Avísale al cliente por WhatsApp.`)) return;
+    if(await borrarPedido(p)){ closeModal(); render(); toast("Pedido rechazado y eliminado"); }
+  },
   newGasto: () => formGasto(),
   editGasto: d => formGasto(S.gastos.find(g => g.id === d.id)),
   delGasto: d => { if(confirmDel("¿Eliminar este gasto?")){ del("gastos", d.id); closeModal(); render(); toast("Gasto eliminado"); } },

@@ -1,0 +1,43 @@
+-- =====================================================================
+-- Saisei & Co — Pedidos que llegan desde la página
+-- Pega TODO este archivo en Supabase → SQL Editor → New query → Run.
+-- Requiere haber ejecutado antes setup.sql (usa la función es_admin()).
+--
+-- Cada pedido enviado desde la página queda "pendiente". El administrador
+-- lo revisa en /cuentas → Pedidos y, solo cuando lo confirma, se registra
+-- como venta en las cuentas.
+-- =====================================================================
+
+create table if not exists public.pedidos (
+  id         bigint generated always as identity primary key,
+  codigo     text not null unique check (codigo ~ '^[A-Z0-9]{4,8}$'),   -- el N° que ve el cliente en su mensaje
+  creado     timestamptz not null default now(),
+  estado     text not null default 'pendiente' check (estado in ('pendiente', 'confirmado', 'rechazado')),
+  cliente    text not null check (length(cliente) between 1 and 120),
+  telefono   text not null check (length(telefono) between 3 and 40),
+  entrega    text not null check (entrega in ('Delivery', 'Retiro')),
+  direccion  text check (length(direccion) <= 300),
+  referencia text check (length(referencia) <= 300),
+  hora       text check (length(hora) <= 120),
+  pago       text check (length(pago) <= 60),
+  notas      text check (length(notas) <= 1000),
+  items      jsonb not null check (jsonb_typeof(items) = 'array' and jsonb_array_length(items) between 1 and 60),
+  total      int not null default 0 check (total between 0 and 10000000),
+  venta_id   text,          -- la venta creada en /cuentas al confirmar
+  revisado   timestamptz    -- cuándo lo confirmó o rechazó el administrador
+);
+create index if not exists pedidos_estado_creado on public.pedidos (estado, creado desc);
+
+alter table public.pedidos enable row level security;
+drop policy if exists "cliente crea pedido" on public.pedidos;
+drop policy if exists "admin ve pedidos" on public.pedidos;
+drop policy if exists "admin cambia pedidos" on public.pedidos;
+drop policy if exists "admin borra pedidos" on public.pedidos;
+
+-- Cualquiera puede ENVIAR un pedido nuevo (siempre entra como pendiente), pero no puede ver ni cambiar pedidos.
+create policy "cliente crea pedido" on public.pedidos for insert to anon, authenticated
+  with check (estado = 'pendiente' and venta_id is null and revisado is null);
+-- Solo el administrador los ve, confirma, rechaza o borra.
+create policy "admin ve pedidos"     on public.pedidos for select to authenticated using (public.es_admin());
+create policy "admin cambia pedidos" on public.pedidos for update to authenticated using (public.es_admin()) with check (public.es_admin());
+create policy "admin borra pedidos"  on public.pedidos for delete to authenticated using (public.es_admin());
