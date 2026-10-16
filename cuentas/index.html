@@ -195,6 +195,7 @@
   .tin{min-height:36px;padding:6px 8px;border-radius:9px;text-align:right;max-width:120px}
 
   .overlay{position:fixed;inset:0;z-index:50;background:rgba(6,36,25,.45);display:flex;align-items:flex-end;justify-content:center}
+  .overlay.ask{z-index:70;align-items:center;padding:16px}.overlay.ask .modal{max-width:420px;border-radius:18px}
   .modal{background:var(--rice);width:100%;max-height:94vh;border-radius:22px 22px 0 0;display:flex;flex-direction:column;box-shadow:0 -10px 40px rgba(0,0,0,.2);animation:up .2s ease-out}
   @keyframes up{from{transform:translateY(30px);opacity:.4}}
   .modal.full{height:100%;max-height:100%;border-radius:0}
@@ -1173,7 +1174,23 @@ function wireChips(root, onChange){
     onChange && onChange(g.dataset.chips, c.dataset.val);
   }));
 }
-const confirmDel = t => confirm(t + "\n\nEsta acción no se puede deshacer.");
+// Confirmación propia de la app: el confirm() del navegador no aparece en algunas apps instaladas
+// (o si se marcó "no mostrar más diálogos") y responde "no" solo, dejando el botón sin efecto.
+function ask(msg, ok = "Aceptar", danger = false){
+  return new Promise(res => {
+    const d = document.createElement("div");
+    d.className = "overlay ask";
+    d.innerHTML = `<div class="modal" role="alertdialog" aria-modal="true"><div class="mb"><p style="margin:4px 0 0;white-space:pre-line;font-size:15px">${esc(msg)}</p></div>
+      <div class="mf"><span class="sp"></span><button class="b" data-r="0">Cancelar</button><button class="b ${danger ? "del" : "pri"}" data-r="1">${esc(ok)}</button></div></div>`;
+    const end = v => { d.remove(); document.removeEventListener("keydown", key, true); res(v); };
+    const key = e => { if(e.key === "Escape"){ e.stopPropagation(); end(false); } };
+    d.addEventListener("click", e => { e.stopPropagation(); const b = e.target.closest("[data-r]"); if(b) end(b.dataset.r === "1"); else if(e.target === d) end(false); });
+    document.addEventListener("keydown", key, true);
+    document.body.appendChild(d);
+    d.querySelector('[data-r="1"]').focus();
+  });
+}
+const confirmDel = (t, ok = "Eliminar") => ask(t + "\n\nEsta acción no se puede deshacer.", ok, true);
 
 // ---------- Formulario de venta ----------
 function nextNum(){ return Math.max(0, ...S.ventas.map(v => n0(v.num))) + 1; }
@@ -1290,7 +1307,7 @@ async function loadPedidos(){
 setInterval(() => { if(document.visibilityState === "visible") loadPedidos(); }, 30000);
 
 // Si la app quedó abierta (o instalada en el teléfono) con una versión antigua, avisa y se actualiza
-const APP_VERSION = "2026-10-16c";
+const APP_VERSION = "2026-10-16d";
 async function checkVersion(){
   try{
     const html = await (await fetch(location.pathname + "?v=" + Date.now(), { cache:"no-store" })).text();
@@ -1723,7 +1740,7 @@ async function restore(file){
     const j = JSON.parse(await file.text());
     const d = normalize(j.datos || j);
     if(!hasData(d)) throw new Error("vacío");
-    if(!confirm(`Restaurar el respaldo reemplazará las cuentas actuales por:\n${d.ventas.length} ventas, ${d.gastos.length} gastos, ${d.insumos.length} insumos, ${d.carta.length} productos.\n\n¿Continuar?`)) return;
+    if(!(await ask(`Restaurar el respaldo reemplazará las cuentas actuales por:\n${d.ventas.length} ventas, ${d.gastos.length} gastos, ${d.insumos.length} insumos, ${d.carta.length} productos.\n\n¿Continuar?`, "Restaurar"))) return;
     const old = S;
     S = d; saveCache();
     if(mode === "nube"){
@@ -1746,9 +1763,9 @@ const A = {
   mnext: () => { curM = addMonth(curM, 1); render(); },
   newVenta: () => formVenta(),
   editVenta: d => formVenta(S.ventas.find(v => v.id === d.id)),
-  delVenta: d => {
+  delVenta: async d => {
     const v = S.ventas.find(x => x.id === d.id);
-    if(!confirmDel(v && v.pedidoWeb ? "¿Eliminar esta venta?\nEl pedido de la página volverá a quedar por confirmar." : "¿Eliminar esta venta?")) return;
+    if(!(await confirmDel(v && v.pedidoWeb ? "¿Eliminar esta venta?\nEl pedido de la página volverá a quedar por confirmar." : "¿Eliminar esta venta?"))) return;
     del("ventas", d.id); closeModal(); render(); toast("Venta eliminada");
     if(v && v.pedidoWeb && sb && user) marcarPedido(PED.list.find(p => p.id === v.pedidoWeb) || { id:v.pedidoWeb }, "pendiente", null);
   },
@@ -1757,39 +1774,40 @@ const A = {
   detPedido: d => detPedido(d.id),
   rechPedido: async d => {
     const p = PED.list.find(x => String(x.id) === d.id);
-    if(!confirm(`¿Rechazar el pedido N° ${p.codigo} de ${p.cliente}?\nSe eliminará y no se registrará en las cuentas. Avísale al cliente por WhatsApp.`)) return;
+    if(!p) return;
+    if(!(await ask(`¿Rechazar el pedido N° ${p.codigo} de ${p.cliente}?\nSe eliminará y no se registrará en las cuentas. Avísale al cliente por WhatsApp.`, "Rechazar pedido", true))) return;
     if(await borrarPedido(p)){ closeModal(); render(); toast("Pedido rechazado y eliminado"); }
   },
   newGasto: () => formGasto(),
   editGasto: d => formGasto(S.gastos.find(g => g.id === d.id)),
-  delGasto: d => { if(confirmDel("¿Eliminar este gasto?")){ del("gastos", d.id); closeModal(); render(); toast("Gasto eliminado"); } },
+  delGasto: async d => { if(await confirmDel("¿Eliminar este gasto?")){ del("gastos", d.id); closeModal(); render(); toast("Gasto eliminado"); } },
   gTipo: d => { UI.gastoTipo = d.t; render(); },
   cartaF: d => { UI.cartaF = d.f; render(); },
   detProd: d => detProd(d.id),
   newProd: () => formProd(),
   editProd: d => formProd(prodById(d.id)),
-  applySug: d => { const p = prodById(d.id), s = prodInfo(p).sug; if(confirm(`¿Cambiar el precio de ${p.nombre} de ${fmt(p.precio)} a ${fmt(s)}?`)){ p.precio = s; put("carta", p); closeModal(); render(); toast("Precio actualizado"); } },
-  delProd: d => { const p = prodById(d.id); if(confirmDel(`¿Eliminar ${p.nombre} de la carta?\nLas ventas ya registradas no cambian.`)){ del("carta", d.id); closeModal(); render(); toast("Producto eliminado"); } },
+  applySug: async d => { const p = prodById(d.id), s = prodInfo(p).sug; if(await ask(`¿Cambiar el precio de ${p.nombre} de ${fmt(p.precio)} a ${fmt(s)}?`, "Cambiar precio")){ p.precio = s; put("carta", p); closeModal(); render(); toast("Precio actualizado"); } },
+  delProd: async d => { const p = prodById(d.id); if(await confirmDel(`¿Eliminar ${p.nombre} de la carta?\nLas ventas ya registradas no cambian.`)){ del("carta", d.id); closeModal(); render(); toast("Producto eliminado"); } },
   newRec: () => formRec(),
   editRec: d => formRec(recById(d.id)),
-  delRec: d => {
+  delRec: async d => {
     const used = S.carta.filter(p => (p.partes || []).some(x => x.receta === d.id));
     if(used.length) return toast("Primero quítala de: " + used.map(p => p.nombre).join(", "), true);
-    if(confirmDel("¿Eliminar esta receta?")){ del("recetas", d.id); closeModal(); render(); toast("Receta eliminada"); }
+    if(await confirmDel("¿Eliminar esta receta?")){ del("recetas", d.id); closeModal(); render(); toast("Receta eliminada"); }
   },
   newIns: () => formIns(),
   editIns: d => formIns(insById(d.id)),
-  delIns: d => {
+  delIns: async d => {
     const used = S.recetas.filter(r => (r.items || []).some(x => x.insumo === d.id));
     if(used.length) return toast("Se usa en: " + used.map(r => r.id).join(", ") + ". Quítalo de esas recetas primero.", true);
-    if(confirmDel("¿Eliminar este insumo?")){ del("insumos", d.id); closeModal(); render(); toast("Insumo eliminado"); }
+    if(await confirmDel("¿Eliminar este insumo?")){ del("insumos", d.id); closeModal(); render(); toast("Insumo eliminado"); }
   },
   newFijo: () => formFijo(),
   editFijo: d => formFijo(S.fijos.find(f => f.id === d.id)),
-  delFijo: d => { if(confirmDel("¿Eliminar este costo fijo?")){ del("fijos", d.id); closeModal(); render(); } },
+  delFijo: async d => { if(await confirmDel("¿Eliminar este costo fijo?")){ del("fijos", d.id); closeModal(); render(); } },
   newProv: () => formProv(),
   editProv: d => formProv(S.proveedores.find(p => p.id === d.id)),
-  delProv: d => { if(confirmDel("¿Eliminar este proveedor?")){ del("proveedores", d.id); closeModal(); render(); } },
+  delProv: async d => { if(await confirmDel("¿Eliminar este proveedor?")){ del("proveedores", d.id); closeModal(); render(); } },
   listaCompras: async () => {
     const l = S.insumos.filter(i => invEstado(i) === "COMPRAR").sort((a, b) => String(a.proveedor).localeCompare(String(b.proveedor)) || byName(a, b));
     let t = `Lista de compras Saisei & Co (${new Date().toLocaleDateString("es-CL")})\n`, pv = null;
@@ -1800,7 +1818,7 @@ const A = {
   csvVentas, csvGastos, backup,
   restore: () => $("restoreFile").click(),
   logout: async () => {
-    if(mode === "nube" && outbox.length && !confirm("Hay cambios que aún no se suben a la nube. Si cierras sesión ahora se perderán. ¿Cerrar igual?")) return;
+    if(mode === "nube" && outbox.length && !(await ask("Hay cambios que aún no se suben a la nube. Si cierras sesión ahora se perderán. ¿Cerrar igual?", "Cerrar sesión", true))) return;
     if(sb) await sb.auth.signOut();
     // La copia local solo se borra si todo está en la nube
     if(mode === "nube"){ localStorage.removeItem(LS_DATA); localStorage.removeItem(LS_OUT); }
