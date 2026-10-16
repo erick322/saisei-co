@@ -133,9 +133,11 @@
   tr.tot td{font-weight:800;border-top:2px solid var(--line)}
   tr.sub td{font-weight:700;background:#f7f9f4}
   .t-res td:first-child{white-space:nowrap}
+  .t-res td:first-child,.t-res th:first-child{position:sticky;left:-16px;z-index:1;background:#fff;box-shadow:1px 0 0 var(--line)}
+  .t-res tr.sub td:first-child{background:#f7f9f4}
 
   /* Listas */
-  .list{display:grid;gap:8px}
+  .list{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
   .item{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;gap:12px;align-items:center;cursor:pointer;text-align:left;width:100%}
   .item:hover{border-color:#c4d2bd}
   .item .main-t{flex:1;min-width:0}
@@ -143,7 +145,8 @@
   .item .st{font-size:13px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .item .am{text-align:right;font-weight:800;white-space:nowrap}
   .item .am small{display:block;font-weight:600;font-size:12px}
-  .day{font-size:12.5px;font-weight:700;color:var(--ink2);text-transform:capitalize;margin:14px 2px 2px;display:flex;justify-content:space-between}
+  .day{font-size:12.5px;font-weight:700;color:var(--ink2);margin:14px 2px 2px;display:flex;justify-content:space-between}
+  .day span:first-child::first-letter{text-transform:uppercase}
   .empty{text-align:center;padding:34px 16px;color:var(--ink2)}
   .empty .ico{width:42px;height:42px;color:#a9bbb0;margin-bottom:6px}
   .empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
@@ -1307,7 +1310,7 @@ async function loadPedidos(){
 setInterval(() => { if(document.visibilityState === "visible") loadPedidos(); }, 30000);
 
 // Si la app quedó abierta (o instalada en el teléfono) con una versión antigua, avisa y se actualiza
-const APP_VERSION = "2026-10-16d";
+const APP_VERSION = "2026-10-16e";
 async function checkVersion(){
   try{
     const html = await (await fetch(location.pathname + "?v=" + Date.now(), { cache:"no-store" })).text();
