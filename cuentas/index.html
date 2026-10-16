@@ -1271,7 +1271,7 @@ async function loadPedidos(){
   let { data, error } = await sb.from("pedidos").select("*").or(`estado.eq.pendiente,creado.gte."${desde}"`).order("creado", { ascending:false }).limit(300);
   if(error){ PED.err = tableMissing(error) ? "sql" : error.message; }
   else {
-    PED.err = ""; PED.ok = true;
+    PED.err = ""; PED.ok = true; PED.at = new Date();
     // Rechazados de versiones anteriores: se eliminan
     if(data.some(p => p.estado === "rechazado")){
       const { error: e2 } = await sb.from("pedidos").delete().eq("estado", "rechazado");
@@ -1288,6 +1288,23 @@ async function loadPedidos(){
   if((view === "pedidos" || view === "inicio") && $("ov").hidden) renderKeep();
 }
 setInterval(() => { if(document.visibilityState === "visible") loadPedidos(); }, 30000);
+
+// Si la app quedó abierta (o instalada en el teléfono) con una versión antigua, avisa y se actualiza
+const APP_VERSION = "2026-10-16c";
+async function checkVersion(){
+  try{
+    const html = await (await fetch(location.pathname + "?v=" + Date.now(), { cache:"no-store" })).text();
+    const m = html.match(/const APP_VERSION = "([^"]+)"/);
+    if(m && m[1] !== APP_VERSION && !$("upd")){
+      const b = document.createElement("div");
+      b.id = "upd"; b.className = "banner info";
+      b.innerHTML = `${ico("info")}<div>Hay una versión nueva de la app. <button class="b sm pri" style="margin-left:6px" onclick="location.reload()">Actualizar ahora</button></div>`;
+      $("banner").prepend(b);
+    }
+  }catch(e){}
+}
+setInterval(() => { if(document.visibilityState === "visible") checkVersion(); }, 5 * 60000);
+document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") checkVersion(); });
 document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") loadPedidos(); });
 function updateBadge(){
   const n = PED.list.filter(p => p.estado === "pendiente").length;
@@ -1358,7 +1375,7 @@ R.pedidos = () => {
       <div class="st">${esc(pedItems(p))}</div>
       <div class="st">${esc(p.entrega)}${p.hora ? " · " + esc(p.hora) : ""}${p.pago ? " · " + esc(p.pago) : ""}</div></div>
       <div class="am num">${fmt(p.total)}<small class="muted">${hace(p.creado)}</small></div></button>`).join("") || empty("bag", vacio[0], vacio[1])}</div>
-  <p class="hint mt">Se revisa si hay pedidos nuevos cada 30 segundos mientras la app está abierta.</p>`;
+  <p class="hint mt">Se revisa si hay pedidos nuevos cada 30 segundos mientras la app está abierta${PED.at ? ` · última revisión ${PED.at.toLocaleTimeString("es-CL", { hour:"2-digit", minute:"2-digit" })}` : ""}.</p>`;
 };
 
 function detPedido(id){
