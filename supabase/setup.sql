@@ -73,6 +73,9 @@ create table if not exists public.ajustes (
   agotado_texto  text default 'Gracias por tanto, puerto querido. Pide con tiempo y asegura tu tabla.',
   actualizado    timestamptz default now()
 );
+-- Contacto de la página (se edita en /gestion → Avisos y portada; vacío = el número y usuario de index.html)
+alter table public.ajustes add column if not exists whatsapp  text default '';
+alter table public.ajustes add column if not exists instagram text default '';
 insert into public.ajustes (id) values (1) on conflict do nothing;
 alter table public.ajustes enable row level security;
 drop policy if exists "ver ajustes" on public.ajustes;

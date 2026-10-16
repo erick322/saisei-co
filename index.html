@@ -474,13 +474,13 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
 <section class="sec" id="fotos" aria-labelledby="galTitle">
   <div class="wrap">
     <div class="sec-head">
-      <div><span class="eyebrow">@cosaisei</span><h2 id="galTitle">Así llega a tu mesa</h2></div>
+      <div><span class="eyebrow" data-ig-txt>@cosaisei</span><h2 id="galTitle">Así llega a tu mesa</h2></div>
       <p>Directo desde nuestro Instagram. Desliza para ver más.</p>
     </div>
     <div class="ig-row" id="igRow"></div>
     <div class="ig-cta">
       <p><b>Síguenos en Instagram</b><br>Promos nuevas, toppings y fotos de cada pedido.</p>
-      <a class="btn btn-primary" href="https://www.instagram.com/cosaisei/" target="_blank" rel="noopener"><svg class="i"><use href="#i-ig"/></svg>@cosaisei</a>
+      <a class="btn btn-primary" href="https://www.instagram.com/cosaisei/" target="_blank" rel="noopener"><svg class="i"><use href="#i-ig"/></svg><span data-ig-txt>@cosaisei</span></a>
     </div>
   </div>
 </section>
@@ -490,7 +490,7 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   <div class="wrap">
     <div class="sec-head">
       <div><span class="eyebrow">Cómo pedir</span><h2>Cuatro pasos y a comer</h2></div>
-      <p>¿Dudas? Escríbenos al <a href="https://wa.me/56950357674" target="_blank" rel="noopener"><b>+56 9 5035 7674</b></a> o por DM en Instagram.</p>
+      <p>¿Dudas? Escríbenos al <a href="https://wa.me/56950357674" target="_blank" rel="noopener"><b data-wa-txt>+56 9 5035 7674</b></a> o por DM en Instagram.</p>
     </div>
     <div class="steps">
       <div class="step"><span class="n">1</span><h3>Elige tus productos</h3><p>Toca <b>Agregar</b> en lo que quieras. En las tablas eliges tus rolls; en los Furea, la salsa. ¿Topping? Agrégalo y elige a qué roll va.</p></div>
@@ -507,7 +507,7 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   <div class="wrap">
     <span class="eyebrow">Sabor que inspira, calidad que perdura</span>
     <h2>¿Ya sabes qué vas a pedir hoy?</h2>
-    <p>Arma tu pedido en un minuto y te respondemos por WhatsApp al <b style="color:var(--rice)">+56 9 5035 7674</b>.</p>
+    <p>Arma tu pedido en un minuto y te respondemos por WhatsApp al <b style="color:var(--rice)" data-wa-txt>+56 9 5035 7674</b>.</p>
     <div class="ctas">
       <a class="btn btn-primary" href="#carta">Armar mi pedido</a>
       <a class="btn btn-ghost" href="https://wa.me/56950357674?text=Hola%20Saisei%20%26%20Co%2C%20tengo%20una%20consulta" target="_blank" rel="noopener"><svg class="i"><use href="#i-chat"/></svg>Escribir por WhatsApp</a>
@@ -524,7 +524,7 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
       <a href="https://www.instagram.com/cosaisei/" target="_blank" rel="noopener">Instagram</a>
       <a href="https://wa.me/56950357674" target="_blank" rel="noopener">WhatsApp</a>
     </nav>
-    <div class="foot-contact"><span>Puerto Cisnes, Patagonia chilena</span><span>WhatsApp <b>+56 9 5035 7674</b></span><span>© 2026 Saisei &amp; Co · Delivery con costo adicional</span><a class="admin-link" href="gestion/" rel="nofollow"><svg aria-hidden="true" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M7 11V8a5 5 0 0 1 10 0v3M5 11h14v10H5z"/></svg>Acceso administración</a></div>
+    <div class="foot-contact"><span>Puerto Cisnes, Patagonia chilena</span><span>WhatsApp <b data-wa-txt>+56 9 5035 7674</b></span><span>© 2026 Saisei &amp; Co · Delivery con costo adicional</span><a class="admin-link" href="gestion/" rel="nofollow"><svg aria-hidden="true" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M7 11V8a5 5 0 0 1 10 0v3M5 11h14v10H5z"/></svg>Acceso administración</a></div>
   </div>
 </footer>
 
@@ -961,6 +961,23 @@ render();
 loadMenu();
 loadAjustes();
 
+// ---------- WhatsApp e Instagram (se cambian en /gestion → Avisos y portada) ----------
+function aplicarContacto(wa, ig){
+  wa = String(wa || "").replace(/\D/g, ""); ig = String(ig || "").replace(/^@/, "").trim();
+  if(wa.length >= 8){
+    const viejo = CONFIG.whatsapp; CONFIG.whatsapp = wa;
+    const txt = /^569\d{8}$/.test(wa) ? `+56 9 ${wa.slice(3, 7)} ${wa.slice(7)}` : "+" + wa;
+    document.querySelectorAll('a[href*="wa.me/"]').forEach(a => a.href = a.href.replace("wa.me/" + viejo, "wa.me/" + wa));
+    document.querySelectorAll("[data-wa-txt]").forEach(e => e.textContent = txt);
+  }
+  if(/^[A-Za-z0-9._]{1,30}$/.test(ig)){
+    const viejo = CONFIG.instagram; CONFIG.instagram = ig;
+    document.querySelectorAll('a[href*="instagram.com/' + viejo + '"]').forEach(a => a.href = "https://www.instagram.com/" + ig + "/");
+    document.querySelectorAll("[data-ig-txt]").forEach(e => e.textContent = "@" + ig);
+  }
+}
+try { const k = JSON.parse(localStorage.getItem("saisei-contacto") || "null"); if(k) aplicarContacto(k.wa, k.ig); } catch(e){}
+
 // ---------- Apariencia (colores, logo, fotos, carrusel y aviso de stock) ----------
 async function loadAjustes(){
   const sb = window.SUPABASE || {};
@@ -973,6 +990,9 @@ async function loadAjustes(){
     const c = a.colores && typeof a.colores === "object" ? a.colores : {};
     aplicarColores(c);
     try { localStorage.setItem("saisei-colores", JSON.stringify(c)); } catch(e){}
+
+    aplicarContacto(a.whatsapp, a.instagram);
+    try { localStorage.setItem("saisei-contacto", JSON.stringify({ wa:a.whatsapp || "", ig:a.instagram || "" })); } catch(e){}
 
     if(a.logo){
       document.querySelectorAll(".brand-mark").forEach(m => m.innerHTML = `<img src="${esc(a.logo)}" alt="">`);
