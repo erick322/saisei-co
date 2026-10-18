@@ -477,6 +477,28 @@ async function pullAll(){
   }
   return rows;
 }
+// Trae lo que se anotó en otro dispositivo (ej. un pedido confirmado desde el celular) sin tener que recargar.
+// Primero compara una "firma" barata (cantidad de filas + última modificación) y solo descarga todo si cambió.
+let cloudSig = "";
+async function firmaNube(){
+  const { data, count, error } = await sb.from("cuentas").select("actualizado", { count:"exact" }).order("actualizado", { ascending:false, nullsFirst:false }).limit(1);
+  if(error) throw error;
+  return count + "|" + (data[0] ? data[0].actualizado : "");
+}
+async function refreshCloud(){
+  if(mode !== "nube" || !sb || !user || !navigator.onLine || flushing || outbox.length) return;
+  try{
+    const sig = await firmaNube();
+    if(sig === cloudSig) return;
+    const rows = await pullAll();
+    if(flushing || outbox.length) return;   // se anotó algo mientras bajaba: se reintenta en la próxima vuelta
+    cloudSig = sig;
+    S = fromRows(rows); saveCache();
+    if($("ov").hidden) renderKeep();
+  }catch(e){ console.warn("No se pudo revisar la nube", e); }
+}
+setInterval(() => { if(document.visibilityState === "visible") refreshCloud(); }, 30000);
+document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") refreshCloud(); });
 function fromRows(rows){
   const b = blank();
   rows.forEach(r => {
@@ -550,6 +572,7 @@ async function enter(session){
       S = fromRows(rows);
     }
     saveCache(); banner(null); startApp(); flush();
+    firmaNube().then(s => cloudSig = s, () => {});
   }catch(e){
     if(tableMissing(e)){
       mode = "local";
@@ -1310,7 +1333,7 @@ async function loadPedidos(){
 setInterval(() => { if(document.visibilityState === "visible") loadPedidos(); }, 30000);
 
 // Si la app quedó abierta (o instalada en el teléfono) con una versión antigua, avisa y se actualiza
-const APP_VERSION = "2026-10-16e";
+const APP_VERSION = "2026-10-18a";
 async function checkVersion(){
   try{
     const html = await (await fetch(location.pathname + "?v=" + Date.now(), { cache:"no-store" })).text();
