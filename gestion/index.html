@@ -94,24 +94,24 @@
 
   /* Vista previa de la paleta (usa los mismos nombres de color que la página) */
   .pv{border-radius:16px;overflow:hidden;margin-top:12px;background:var(--rice);color:var(--ink);font-size:13px;border:1px solid var(--line)}
-  .pv-nav{background:var(--pine);color:var(--rice);display:flex;align-items:center;gap:8px;padding:10px 12px}
-  .pv-logo{width:30px;height:30px;border-radius:50%;background:var(--rice) center/cover no-repeat;color:var(--pine);border:2px solid var(--mango);display:grid;place-items:center;font-family:Marcellus,serif}
+  .pv-nav{background:var(--pine);color:var(--on-dark,var(--rice));display:flex;align-items:center;gap:8px;padding:10px 12px}
+  .pv-logo{width:30px;height:30px;border-radius:50%;background:var(--rice) center/cover no-repeat;color:var(--accent-text,var(--pine));border:2px solid var(--mango);display:grid;place-items:center;font-family:Marcellus,serif}
   .pv-nav b{font-family:Marcellus,serif;font-weight:400;font-size:17px;letter-spacing:.06em}
   .pv-nav .pv-btn{margin-left:auto}
-  .pv-hero{background:var(--pine);color:var(--rice);padding:14px 14px 22px}
+  .pv-hero{background:var(--pine);color:var(--on-dark,var(--rice));padding:14px 14px 22px}
   .pv-hero h3{font-size:22px;line-height:1.1}
   .pv-hero h3 em{font-style:normal;color:var(--mango)}
   .pv-hero p{color:var(--bamboo);margin:6px 0 10px}
   .pv-btn{display:inline-block;background:var(--salmon);color:#fff;border-radius:999px;padding:6px 12px;font-weight:700;font-size:12px}
   .pv-body{padding:14px;display:flex;gap:10px;align-items:stretch}
-  .pv-card{background:#fff;border-radius:14px;padding:12px;flex:1;display:flex;flex-direction:column;gap:6px;box-shadow:0 1px 0 var(--rice-2)}
+  .pv-card{background:var(--card,#fff);border-radius:14px;padding:12px;flex:1;display:flex;flex-direction:column;gap:6px;box-shadow:0 1px 0 var(--rice-2)}
   .pv-card h4{margin:0;font-family:Marcellus,serif;font-weight:400;font-size:16px}
   .pv-card small{color:var(--ink-soft)}
   .pv-chips{display:flex;gap:4px}
   .pv-chips span{border:1.5px solid var(--rice-2);background:var(--rice);border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600}
-  .pv-chips span.on{background:var(--pine);border-color:var(--pine);color:var(--rice)}
-  .pv-card .pr{color:var(--pine);font-weight:800}
-  .pv-sold{background:var(--pine);color:var(--rice);border-radius:14px;padding:12px;flex:.8}
+  .pv-chips span.on{background:var(--sel,var(--pine));border-color:var(--sel,var(--pine));color:var(--on-sel,var(--rice))}
+  .pv-card .pr{color:var(--accent-text,var(--pine));font-weight:800}
+  .pv-sold{background:var(--pine);color:var(--on-dark,var(--rice));border-radius:14px;padding:12px;flex:.8}
   .pv-sold b{display:block;font-family:Marcellus,serif;font-weight:400;font-size:17px;color:var(--mango)}
   .pv-foot{background:var(--pine-deep);color:var(--bamboo);padding:8px 14px;font-size:12px}
 
@@ -473,6 +473,7 @@ const COLORES = [
   { k:"pineDeep", n:"Principal oscuro",    d:"Pie de página y barra del pedido en celular", def:"#062419" },
   { k:"rice",     n:"Fondo",               d:"Fondo general de la página",                 def:"#F4F6EE" },
   { k:"rice2",    n:"Fondo suave",         d:"Bordes, separadores y recuadros",            def:"#E8EDE1" },
+  { k:"card",     n:"Tarjetas",            d:"Fondo de productos, pestañas y del pedido",  def:"#FFFFFF" },
   { k:"ink",      n:"Texto",               d:"Títulos y texto principal",                  def:"#13261F" },
   { k:"inkSoft",  n:"Texto secundario",    d:"Descripciones y ayudas",                     def:"#4A5E55" },
   { k:"salmon",   n:"Botones",             d:"Botones de pedir y etiquetas",               def:"#EE7A4F" },
@@ -490,13 +491,15 @@ const PRESETS = [
   { g:SUAVE, n:"Cielo",    c:{ pine:"#2B5570", pineDeep:"#1C394C", rice:"#F5F8FA", rice2:"#E1E9EF", ink:"#17252F", inkSoft:"#4F5F6A", salmon:"#B4553A", mango:"#F2CC8F", bamboo:"#CADBE7" } },
   { g:SUAVE, n:"Lavanda",  c:{ pine:"#524A7E", pineDeep:"#332E54", rice:"#F8F7FB", rice2:"#E7E4F0", ink:"#231F33", inkSoft:"#5C5770", salmon:"#B04F63", mango:"#F0C67C", bamboo:"#D0CAE4" } },
   { g:SUAVE, n:"Durazno",  c:{ pine:"#6E4537", pineDeep:"#472B22", rice:"#FBF7F3", rice2:"#F1E6DD", ink:"#2E211C", inkSoft:"#66574F", salmon:"#A84F35", mango:"#EFC27A", bamboo:"#E4CFC1" } },
+  // Blanca con barras negras tipo pizarra, botones salmón y detalles dorados
+  { g:SUAVE, n:"Pizarra",  c:{ pine:"#161514", pineDeep:"#0C0B0B", rice:"#FBFAF8", rice2:"#ECE8E3", card:"#FFFFFF", ink:"#1A1817", inkSoft:"#5C5650", salmon:"#B4502C", mango:"#E8B873", bamboo:"#C9C1B8" } },
   { g:INTENSA, n:"Original",  c:{} },
   { g:INTENSA, n:"Océano",    c:{ pine:"#0B3954", pineDeep:"#062236", rice:"#F3F7F9", rice2:"#E1EBF0", ink:"#10242F", inkSoft:"#4B606B", salmon:"#FF7F50", mango:"#FFD166", bamboo:"#9DB8C7" } },
   { g:INTENSA, n:"Sakura",    c:{ pine:"#5B2333", pineDeep:"#3A1420", rice:"#FBF5F3", rice2:"#F1E3E0", ink:"#2A1418", inkSoft:"#6E5257", salmon:"#E56B6F", mango:"#F4C095", bamboo:"#C9A9A6" } },
   { g:INTENSA, n:"Noche",     c:{ pine:"#1C1C1E", pineDeep:"#0E0E10", rice:"#F5F3EE", rice2:"#E6E2D9", ink:"#1A1A1A", inkSoft:"#5A5752", salmon:"#E4572E", mango:"#F2C14E", bamboo:"#A8A39A" } },
   { g:INTENSA, n:"Bosque",    c:{ pine:"#2F4A2A", pineDeep:"#1B2D18", rice:"#F7F4EA", rice2:"#E9E3D0", ink:"#1F2A1C", inkSoft:"#5C6655", salmon:"#C8553D", mango:"#E9B44C", bamboo:"#B3BFA0" } },
 ];
-const CSSVAR = { pine:"--pine", pineDeep:"--pine-deep", rice:"--rice", rice2:"--rice-2", ink:"--ink", inkSoft:"--ink-soft", salmon:"--salmon", mango:"--mango", bamboo:"--bamboo" };
+const CSSVAR = { pine:"--pine", pineDeep:"--pine-deep", rice:"--rice", rice2:"--rice-2", card:"--card", ink:"--ink", inkSoft:"--ink-soft", salmon:"--salmon", mango:"--mango", bamboo:"--bamboo" };
 const DEF = Object.fromEntries(COLORES.map(c => [c.k, c.def]));
 
 const $ = id => document.getElementById(id);
@@ -795,7 +798,12 @@ async function guardarAj(cambios, okMsg){
 
 // Paleta
 function pintarPreview(){
-  for(const k in CSSVAR) $("pv").style.setProperty(CSSVAR[k], colorsEd[k]);
+  const s = $("pv").style;
+  for(const k in CSSVAR) s.setProperty(CSSVAR[k], colorsEd[k]);
+  // Igual que la página: con fondo oscuro, los textos claros, precios y opciones elegidas se ajustan solos
+  const n = parseInt(colorsEd.rice.slice(1), 16), oscura = (0.299 * (n >> 16) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255 < .35;
+  const D = { "--on-dark":colorsEd.ink, "--accent-text":colorsEd.mango, "--sel":colorsEd.salmon, "--on-sel":"#fff" };
+  for(const k in D) oscura ? s.setProperty(k, D[k]) : s.removeProperty(k);
 }
 function renderColors(){
   $("presets").innerHTML = [SUAVE, INTENSA].map(g => `<div class="pgrp">${g}</div>` + PRESETS.map((p,i) => { if(p.g !== g) return ""; const c = { ...DEF, ...p.c };
