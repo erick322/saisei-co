@@ -337,6 +337,14 @@
             <button type="button" data-f="recto">Recto</button>
           </div>
         </div>
+        <div class="btnshape">
+          <div class="bs-lbl"><b>Transiciones y movimiento</b><small>Cómo se mueve la página: animaciones al tocar botones, el deslizar del pedido y el desplazamiento. “Mínimo” la hace sentir más rápida.</small></div>
+          <div class="segshape" id="movForma">
+            <button type="button" data-m="normal">Normal</button>
+            <button type="button" data-m="suave">Suave</button>
+            <button type="button" data-m="minimo">Mínimo</button>
+          </div>
+        </div>
         <div class="acts-end">
           <button class="b" id="colReset">Volver a los originales</button>
           <button class="b pri" id="colSave">Guardar colores</button>
@@ -582,8 +590,9 @@ document.querySelectorAll(".overlay").forEach(o => o.addEventListener("mousedown
 
 const cfg = window.SUPABASE || {};
 let sb, cats = [], prods = [], curCat = null, editCat = null, editProd = null, newFoto = undefined;
-let aj = null, colorsEd = {}, slEd = [], btnForma = "pill", igPosts = [], opiniones = [];
+let aj = null, colorsEd = {}, slEd = [], btnForma = "pill", movForma = "normal", igPosts = [], opiniones = [];
 const BTN_RADIUS = { pill:"999px", redondo:"14px", recto:"4px" };
+const MOV = ["normal", "suave", "minimo"];
 
 if(!cfg.url || !cfg.anonKey || !window.supabase){ show("noConfig"); }
 else {
@@ -832,6 +841,8 @@ async function loadAj(){
   colorsEd = { ...DEF, ...(aj.colores || {}) };
   btnForma = BTN_RADIUS[colorsEd.btn] ? colorsEd.btn : "pill";
   delete colorsEd.btn; // la forma del botón se maneja aparte, colorsEd queda solo con colores
+  movForma = MOV.includes(colorsEd.mov) ? colorsEd.mov : "normal";
+  delete colorsEd.mov; // el movimiento viaja en el mismo JSON, pero se maneja aparte
   slEd = Array.isArray(aj.portada) ? aj.portada.map(s => ({ ...s })) : [];
   igPosts = Array.isArray(aj.instagram_posts) ? aj.instagram_posts.filter(c => typeof c === "string") : [];
   renderColors(); renderImgs(); renderAviso(); renderSlEd(); renderContacto(); renderIgList();
@@ -942,8 +953,11 @@ function pintarPreview(){
   for(const k in D) oscura ? s.setProperty(k, D[k]) : s.removeProperty(k);
   s.setProperty("--btn-radius", BTN_RADIUS[btnForma]);
   $("btnForma").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.f === btnForma));
+  movForma === "normal" ? $("pv").removeAttribute("data-motion") : $("pv").setAttribute("data-motion", movForma);
+  $("movForma").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.m === movForma));
 }
 $("btnForma").onclick = e => { const b = e.target.closest("button"); if(!b) return; btnForma = b.dataset.f; pintarPreview(); };
+$("movForma").onclick = e => { const b = e.target.closest("button"); if(!b) return; movForma = b.dataset.m; pintarPreview(); };
 function renderColors(){
   $("presets").innerHTML = [SUAVE, INTENSA].map(g => `<div class="pgrp">${g}</div>` + PRESETS.map((p,i) => { if(p.g !== g) return ""; const c = { ...DEF, ...p.c };
     return `<button class="preset" data-p="${i}"><i>${["pine","rice","salmon","mango"].map(k=>`<b style="background:${c[k]}"></b>`).join("")}</i>${esc(p.n)}</button>`; }).join("")).join("");
@@ -957,13 +971,14 @@ $("colors").oninput = e => {
   pintarPreview();
 };
 $("presets").onclick = e => { const b = e.target.closest(".preset"); if(!b) return; colorsEd = { ...DEF, ...PRESETS[+b.dataset.p].c }; renderColors(); };
-$("colReset").onclick = () => { colorsEd = { ...DEF }; btnForma = "pill"; renderColors(); };
+$("colReset").onclick = () => { colorsEd = { ...DEF }; btnForma = "pill"; movForma = "normal"; renderColors(); };
 $("colSave").onclick = async () => {
   // Solo se guardan los colores distintos al original
   const c = Object.fromEntries(Object.entries(colorsEd).filter(([k,v]) => v.toLowerCase() !== DEF[k].toLowerCase()));
   if(btnForma !== "pill") c.btn = btnForma; // la forma del botón viaja en el mismo JSON de colores
+  if(movForma !== "normal") c.mov = movForma; // el movimiento viaja en el mismo JSON de colores
   $("colSave").disabled = true;
-  await guardarAj({ colores:c }, "Colores y botones guardados: ya se ven en la página");
+  await guardarAj({ colores:c }, "Apariencia guardada: ya se ve en la página");
   $("colSave").disabled = false;
 };
 

@@ -33,6 +33,10 @@ window.aplicarColores = c => {
   if(/^#[0-9a-f]{6}$/i.test(c.salmon || "")) r.setProperty("--salmon-deep", `color-mix(in srgb, ${c.salmon} 85%, #000)`);
   // Forma de los botones elegida en el panel (píldora por defecto)
   r.setProperty("--btn-radius", { redondo:"14px", recto:"4px" }[c.btn] || "999px");
+  // Transiciones y movimiento elegido en el panel (normal por defecto)
+  const mov = { suave:"suave", minimo:"minimo" }[c.mov] || "";
+  if(mov) document.documentElement.setAttribute("data-motion", mov);
+  else document.documentElement.removeAttribute("data-motion");
 };
 try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catch(e){}
 </script>
@@ -319,6 +323,12 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   .done-ico{width:72px;height:72px;margin:0 auto 10px;border-radius:50%;background:var(--mango);display:grid;place-items:center;font-size:2rem}
 
   @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
+  /* Movimiento elegido en el panel. "Suave": transiciones tranquilas, sin saltos ni rebotes. */
+  html[data-motion="suave"] *,html[data-motion="suave"] *::before,html[data-motion="suave"] *::after{transition-duration:.4s!important;transition-timing-function:ease!important}
+  html[data-motion="suave"] .btn:hover,html[data-motion="suave"] .item:hover{transform:none!important}
+  /* "Mínimo": sin animaciones, para máxima rapidez (igual que el ajuste del sistema). */
+  html[data-motion="minimo"] *,html[data-motion="minimo"] *::before,html[data-motion="minimo"] *::after{animation:none!important;transition:none!important}
+  html[data-motion="minimo"]{scroll-behavior:auto}
 
   /* ---------- Opiniones de clientes ---------- */
   #opResumen .op-avg{color:var(--salmon-deep);font-weight:700}
