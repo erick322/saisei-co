@@ -102,7 +102,29 @@
   .pv-hero h3{font-size:22px;line-height:1.1}
   .pv-hero h3 em{font-style:normal;color:var(--mango)}
   .pv-hero p{color:var(--bamboo);margin:6px 0 10px}
-  .pv-btn{display:inline-block;background:var(--salmon);color:#fff;border-radius:999px;padding:6px 12px;font-weight:700;font-size:12px}
+  .pv-btn{display:inline-block;background:var(--salmon);color:#fff;border-radius:var(--btn-radius,999px);padding:6px 12px;font-weight:700;font-size:12px}
+  .btnshape{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+  .bs-lbl small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+  .segshape{display:inline-flex;gap:4px;padding:4px;border-radius:12px;background:var(--line)}
+  .segshape button{border:0;background:none;padding:7px 14px;border-radius:9px;font:600 13px/1 Figtree,sans-serif;color:var(--muted);cursor:pointer}
+  .segshape button.on{background:var(--accent);color:var(--bg)}
+  .igadd{display:flex;gap:8px;margin:8px 0 12px}
+  .igadd input{flex:1}
+  .iglist{display:flex;flex-direction:column;gap:6px}
+  .igitem{display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--line);border-radius:10px}
+  .igitem code{flex:1;font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .igitem a{font-size:12px;white-space:nowrap}
+  .navbadge{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--accent);color:var(--bg);font-size:11px;font-weight:700}
+  .oplist{display:flex;flex-direction:column;gap:10px}
+  .opmod{display:flex;flex-direction:column;gap:6px;padding:12px 14px;border:1px solid var(--line);border-radius:12px}
+  .opmod.pend{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent)}
+  .opmod .optop{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .opmod .opnm{font-weight:700}
+  .opmod .opst{color:var(--accent);letter-spacing:2px}
+  .opmod .opst .off{color:var(--line)}
+  .opmod .optx{color:var(--muted);font-size:14px;overflow-wrap:anywhere}
+  .opmod .opmeta{font-size:12px;color:var(--muted)}
+  .opmod .opacts{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
   .pv-body{padding:14px;display:flex;gap:10px;align-items:stretch}
   .pv-card{background:var(--card,#fff);border-radius:14px;padding:12px;flex:1;display:flex;flex-direction:column;gap:6px;box-shadow:0 1px 0 var(--rice-2)}
   .pv-card h4{margin:0;font-family:Marcellus,serif;font-weight:400;font-size:16px}
@@ -207,14 +229,25 @@
 
     .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
   }
+  /* Conmutador Gestión | Cuentas (compartido con cuentas/). Adaptable por currentColor */
+  .brandrow{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .appsw{display:inline-flex;gap:3px;padding:3px;border-radius:999px;border:1px solid color-mix(in srgb,currentColor 22%,transparent);font:600 13px/1 Figtree,sans-serif}
+  .appsw>*{padding:6px 14px;border-radius:999px;text-decoration:none;color:inherit;opacity:.62;white-space:nowrap}
+  .appsw>a:hover{opacity:.9}
+  .appsw>[aria-current=page]{background:color-mix(in srgb,currentColor 16%,transparent);opacity:1}
 </style>
 </head>
 <body>
 
 <div class="top">
-  <h1>Saisei &amp; Co <small>Gestión</small></h1>
+  <div class="brandrow">
+    <h1>Saisei &amp; Co <small>Gestión</small></h1>
+    <nav class="appsw" aria-label="Cambiar entre Gestión y Cuentas">
+      <span aria-current="page">Gestión</span>
+      <a href="../cuentas/">Cuentas</a>
+    </nav>
+  </div>
   <div class="r" id="who" hidden><span id="email"></span>
-    <a class="b sm" href="../cuentas/" aria-label="Cuentas del negocio" title="Cuentas del negocio"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 6-7"/></svg><span class="txt">Cuentas</span></a>
     <a class="b sm" href="../" target="_blank" rel="noopener" aria-label="Ver página" title="Ver página"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span class="txt">Ver página</span></a>
     <button class="b sm" id="pwOpen" aria-label="Cambiar contraseña" title="Cambiar contraseña"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span class="txt">Cambiar contraseña</span></button>
     <button class="b sm" id="logout" aria-label="Salir" title="Salir"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg><span class="txt">Salir</span></button>
@@ -265,6 +298,7 @@
     <button data-s="sCarta" class="on"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Carta y productos</button>
     <button data-s="sApariencia"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a10 10 0 1 1 10-10c0 2.8-2.2 4-4 4h-2a2 2 0 0 0-1.5 3.3A1.6 1.6 0 0 1 12 22Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor"/><circle cx="12" cy="7" r="1.2" fill="currentColor"/><circle cx="16.5" cy="11" r="1.2" fill="currentColor"/></svg>Apariencia</button>
     <button data-s="sAvisos"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1ZM16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>Avisos y portada</button>
+    <button data-s="sOpiniones"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9 6.8 19.2l1-5.8-4.3-4.1 5.9-.9z"/></svg>Opiniones<span class="navbadge" id="opBadge" hidden></span></button>
   </nav>
 
   <!-- ===== Carta ===== -->
@@ -295,6 +329,14 @@
         <p class="hint">Elige una paleta lista o ajusta cada color. La vista previa cambia al instante; la página cambia al guardar. Las paletas “suaves” cansan menos la vista y se leen bien en el celular, incluso a pleno sol.</p>
         <div class="presets" id="presets"></div>
         <div class="colors" id="colors"></div>
+        <div class="btnshape">
+          <div class="bs-lbl"><b>Forma de los botones</b><small>Cómo se ven los botones de “pedir” y “agregar” en la página.</small></div>
+          <div class="segshape" id="btnForma">
+            <button type="button" data-f="pill">Píldora</button>
+            <button type="button" data-f="redondo">Redondo</button>
+            <button type="button" data-f="recto">Recto</button>
+          </div>
+        </div>
         <div class="acts-end">
           <button class="b" id="colReset">Volver a los originales</button>
           <button class="b pri" id="colSave">Guardar colores</button>
@@ -352,6 +394,14 @@
     </section>
 
     <section class="card">
+      <h2>Galería de Instagram</h2>
+      <p class="hint">Las publicaciones que aparecen en la sección “Lo último” de la página. La primera de la lista se muestra primero. Pega el link de una publicación (o su código) y agrégala; quita las que no quieras. Si dejas la lista vacía, se muestran las que trae la página por defecto.</p>
+      <div class="igadd"><input id="igNew" placeholder="https://www.instagram.com/p/DedelW7lUya/" autocapitalize="off" spellcheck="false"><button class="b" id="igAdd">Agregar</button></div>
+      <div class="iglist" id="igList"></div>
+      <div class="acts-end"><button class="b pri" id="igSave">Guardar galería</button></div>
+    </section>
+
+    <section class="card">
       <div class="row"><h2>Aviso "Agotamos stock"</h2><span class="state" id="soState">Oculto</span></div>
       <p class="hint">Los clientes solo ven este aviso mientras esté activado. Apágalo cuando vuelvas a tener stock.</p>
       <label class="switch"><input type="checkbox" id="soOn"> Mostrar el aviso en la página</label>
@@ -373,6 +423,15 @@
         </div>
         <button class="b pri" id="slSave">Guardar carrusel</button>
       </div>
+    </section>
+  </div>
+
+  <!-- ===== Opiniones ===== -->
+  <div id="sOpiniones" hidden>
+    <section class="card">
+      <div class="row"><h2>Opiniones de clientes</h2><span class="state" id="opState"></span></div>
+      <p class="hint">Las opiniones que dejan los clientes en la página llegan aquí. Solo se muestran en la web las que <b>apruebes</b>. Puedes ocultar una aprobada o eliminarla.</p>
+      <div class="oplist" id="opAdmin"></div>
     </section>
   </div>
 </div>
@@ -521,7 +580,8 @@ document.querySelectorAll(".overlay").forEach(o => o.addEventListener("mousedown
 
 const cfg = window.SUPABASE || {};
 let sb, cats = [], prods = [], curCat = null, editCat = null, editProd = null, newFoto = undefined;
-let aj = null, colorsEd = {}, slEd = [];
+let aj = null, colorsEd = {}, slEd = [], btnForma = "pill", igPosts = [], opiniones = [];
+const BTN_RADIUS = { pill:"999px", redondo:"14px", recto:"4px" };
 
 if(!cfg.url || !cfg.anonKey || !window.supabase){ show("noConfig"); }
 else {
@@ -580,7 +640,7 @@ async function enter(session){
   }
   $("email").textContent = session.user.email; $("who").hidden = false;
   show("panel");
-  await Promise.all([load(), loadAj()]);
+  await Promise.all([load(), loadAj(), loadOpi()]);
 }
 
 // Pestañas
@@ -588,6 +648,7 @@ $("seccs").onclick = e => {
   const b = e.target.closest("button"); if(!b) return;
   [...$("seccs").children].forEach(x => { x.classList.toggle("on", x === b); $(x.dataset.s).hidden = x !== b; });
   if(b.dataset.s === "sAvisos") renderSlEd();   // por si cambiaron las categorías
+  if(b.dataset.s === "sOpiniones") loadOpi();   // trae las últimas opiniones al abrir
   scrollTo(0, 0);
 };
 
@@ -607,10 +668,14 @@ function resize(file, max = 900, tipo = "image/jpeg"){
     img.src = URL.createObjectURL(file);
   });
 }
+// ¿El navegador puede generar WebP? (más liviano que JPEG/PNG). Si no, se usa el formato de antes.
+const WEBP_OK = (() => { try { return document.createElement("canvas").toDataURL("image/webp").indexOf("image/webp") === 5; } catch(e){ return false; } })();
 async function subir(file, carpeta, max = 900, tipo = "image/jpeg"){
-  const blob = await resize(file, max, tipo);
-  const path = `${carpeta}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${tipo === "image/png" ? "png" : "jpg"}`;
-  const up = await sb.storage.from("fotos").upload(path, blob, { contentType:tipo, upsert:false });
+  const out = WEBP_OK ? "image/webp" : tipo;
+  const blob = await resize(file, max, out);
+  const ext = out === "image/webp" ? "webp" : out === "image/png" ? "png" : "jpg";
+  const path = `${carpeta}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+  const up = await sb.storage.from("fotos").upload(path, blob, { contentType:out, upsert:false });
   if(up.error) throw up.error;
   return sb.storage.from("fotos").getPublicUrl(path).data.publicUrl;
 }
@@ -763,8 +828,11 @@ async function loadAj(){
   if(error || !data) return toast("Falta la tabla de ajustes: vuelve a ejecutar supabase/setup.sql en Supabase.", true);
   aj = data;
   colorsEd = { ...DEF, ...(aj.colores || {}) };
+  btnForma = BTN_RADIUS[colorsEd.btn] ? colorsEd.btn : "pill";
+  delete colorsEd.btn; // la forma del botón se maneja aparte, colorsEd queda solo con colores
   slEd = Array.isArray(aj.portada) ? aj.portada.map(s => ({ ...s })) : [];
-  renderColors(); renderImgs(); renderAviso(); renderSlEd(); renderContacto();
+  igPosts = Array.isArray(aj.instagram_posts) ? aj.instagram_posts.filter(c => typeof c === "string") : [];
+  renderColors(); renderImgs(); renderAviso(); renderSlEd(); renderContacto(); renderIgList();
 }
 
 // WhatsApp e Instagram de la página
@@ -796,6 +864,72 @@ async function guardarAj(cambios, okMsg){
   aj = data[0]; toast(okMsg); return true;
 }
 
+// Galería de Instagram: acepta un código o el link completo de la publicación
+function igCode(v){
+  v = String(v || "").trim();
+  const m = v.match(/instagram\.com\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/);
+  if(m) return m[1];
+  return /^[A-Za-z0-9_-]+$/.test(v) ? v : "";
+}
+function renderIgList(){
+  $("igList").innerHTML = igPosts.length
+    ? igPosts.map((c, i) => `<div class="igitem"><code>${esc(c)}</code><a href="https://www.instagram.com/p/${esc(c)}/" target="_blank" rel="noopener">Ver</a><button class="b sm del" data-ig-del="${i}">Quitar</button></div>`).join("")
+    : `<p class="hint">Sin publicaciones propias: la página muestra las que trae por defecto.</p>`;
+}
+$("igAdd").onclick = () => {
+  const code = igCode($("igNew").value);
+  if(!code) return toast("Pega el link de una publicación de Instagram o su código", true);
+  if(igPosts.includes(code)) return toast("Esa publicación ya está en la lista", true);
+  igPosts.unshift(code); $("igNew").value = ""; renderIgList();
+};
+$("igNew").onkeydown = e => { if(e.key === "Enter"){ e.preventDefault(); $("igAdd").click(); } };
+$("igList").onclick = e => { const b = e.target.closest("[data-ig-del]"); if(!b) return; igPosts.splice(+b.dataset.igDel, 1); renderIgList(); };
+$("igSave").onclick = async () => {
+  $("igSave").disabled = true;
+  await guardarAj({ instagram_posts: igPosts }, "Galería de Instagram guardada: ya se ve en la página");
+  $("igSave").disabled = false;
+};
+
+// ---------- Opiniones de clientes (moderación) ----------
+const opStarsTxt = n => Array.from({ length: 5 }, (_, i) => `<span class="${i < n ? "" : "off"}">★</span>`).join("");
+function renderOpi(){
+  const pend = opiniones.filter(o => !o.aprobado).length;
+  $("opBadge").hidden = !pend; $("opBadge").textContent = pend;
+  $("opState").textContent = opiniones.length ? `${opiniones.length} en total · ${pend} por revisar` : "Sin opiniones todavía";
+  $("opAdmin").innerHTML = opiniones.length ? opiniones.map(o => `
+    <div class="opmod${o.aprobado ? "" : " pend"}">
+      <div class="optop"><span class="opnm">${esc(o.nombre)}</span><span class="opst" aria-label="${o.estrellas} de 5">${opStarsTxt(o.estrellas)}</span></div>
+      <div class="optx">${esc(o.texto)}</div>
+      <div class="opmeta">${new Date(o.creado).toLocaleDateString("es-CL", { day: "numeric", month: "long", year: "numeric" })} · ${o.aprobado ? "Visible en la página" : "Oculta (por revisar)"}</div>
+      <div class="opacts">
+        ${o.aprobado ? `<button class="b sm" data-op-oc="${o.id}">Ocultar</button>` : `<button class="b sm pri" data-op-ap="${o.id}">Aprobar</button>`}
+        <button class="b sm del" data-op-del="${o.id}">Eliminar</button>
+      </div>
+    </div>`).join("") : `<p class="hint">Aún no hay opiniones. Cuando un cliente deje una en la página, aparecerá aquí para que la apruebes.</p>`;
+}
+async function loadOpi(){
+  const { data, error } = await sb.from("opiniones").select("*").order("creado", { ascending: false });
+  if(error){ $("opAdmin").innerHTML = `<p class="hint">No se pudo cargar. Si es la primera vez, vuelve a correr <b>supabase/setup.sql</b> en Supabase para crear la tabla de opiniones.</p>`; return; }
+  opiniones = data || []; renderOpi();
+}
+async function opUpd(id, cambios, ok){
+  const { error } = await sb.from("opiniones").update(cambios).eq("id", id);
+  if(error){ toast("No se pudo guardar: " + error.message, true); return false; }
+  toast(ok); return true;
+}
+$("opAdmin").onclick = async e => {
+  const ap = e.target.closest("[data-op-ap]"), oc = e.target.closest("[data-op-oc]"), del = e.target.closest("[data-op-del]");
+  if(ap){ if(await opUpd(ap.dataset.opAp, { aprobado: true }, "Opinión aprobada: ya se ve en la página")) loadOpi(); }
+  else if(oc){ if(await opUpd(oc.dataset.opOc, { aprobado: false }, "Opinión ocultada")) loadOpi(); }
+  else if(del){
+    const o = opiniones.find(x => x.id == del.dataset.opDel);
+    if(!confirm(`¿Eliminar la opinión de ${o?.nombre || "este cliente"}? No se puede deshacer.`)) return;
+    const { error } = await sb.from("opiniones").delete().eq("id", del.dataset.opDel);
+    if(error) return toast("No se pudo eliminar: " + error.message, true);
+    toast("Opinión eliminada"); loadOpi();
+  }
+};
+
 // Paleta
 function pintarPreview(){
   const s = $("pv").style;
@@ -804,7 +938,10 @@ function pintarPreview(){
   const n = parseInt(colorsEd.rice.slice(1), 16), oscura = (0.299 * (n >> 16) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255 < .35;
   const D = { "--on-dark":colorsEd.ink, "--accent-text":colorsEd.mango, "--sel":colorsEd.salmon, "--on-sel":"#fff" };
   for(const k in D) oscura ? s.setProperty(k, D[k]) : s.removeProperty(k);
+  s.setProperty("--btn-radius", BTN_RADIUS[btnForma]);
+  $("btnForma").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.f === btnForma));
 }
+$("btnForma").onclick = e => { const b = e.target.closest("button"); if(!b) return; btnForma = b.dataset.f; pintarPreview(); };
 function renderColors(){
   $("presets").innerHTML = [SUAVE, INTENSA].map(g => `<div class="pgrp">${g}</div>` + PRESETS.map((p,i) => { if(p.g !== g) return ""; const c = { ...DEF, ...p.c };
     return `<button class="preset" data-p="${i}"><i>${["pine","rice","salmon","mango"].map(k=>`<b style="background:${c[k]}"></b>`).join("")}</i>${esc(p.n)}</button>`; }).join("")).join("");
@@ -818,12 +955,13 @@ $("colors").oninput = e => {
   pintarPreview();
 };
 $("presets").onclick = e => { const b = e.target.closest(".preset"); if(!b) return; colorsEd = { ...DEF, ...PRESETS[+b.dataset.p].c }; renderColors(); };
-$("colReset").onclick = () => { colorsEd = { ...DEF }; renderColors(); };
+$("colReset").onclick = () => { colorsEd = { ...DEF }; btnForma = "pill"; renderColors(); };
 $("colSave").onclick = async () => {
   // Solo se guardan los colores distintos al original
   const c = Object.fromEntries(Object.entries(colorsEd).filter(([k,v]) => v.toLowerCase() !== DEF[k].toLowerCase()));
+  if(btnForma !== "pill") c.btn = btnForma; // la forma del botón viaja en el mismo JSON de colores
   $("colSave").disabled = true;
-  await guardarAj({ colores:c }, "Colores guardados: ya se ven en la página");
+  await guardarAj({ colores:c }, "Colores y botones guardados: ya se ven en la página");
   $("colSave").disabled = false;
 };
 

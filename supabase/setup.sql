@@ -76,12 +76,34 @@ create table if not exists public.ajustes (
 -- Contacto de la página (se edita en /gestion → Avisos y portada; vacío = el número y usuario de index.html)
 alter table public.ajustes add column if not exists whatsapp  text default '';
 alter table public.ajustes add column if not exists instagram text default '';
+-- Galería de Instagram (se edita en /gestion → Avisos y portada): ["CODIGO1","CODIGO2",...]. Vacío = las publicaciones que trae index.html.
+alter table public.ajustes add column if not exists instagram_posts jsonb default '[]'::jsonb;
 insert into public.ajustes (id) values (1) on conflict do nothing;
 alter table public.ajustes enable row level security;
 drop policy if exists "ver ajustes" on public.ajustes;
 drop policy if exists "admin ajustes" on public.ajustes;
 create policy "ver ajustes"   on public.ajustes for select using (true);
 create policy "admin ajustes" on public.ajustes for update to authenticated using (public.es_admin()) with check (public.es_admin());
+
+-- 3c) Opiniones de clientes (se dejan en la página, se moderan en /gestion) ---
+create table if not exists public.opiniones (
+  id        bigint generated always as identity primary key,
+  nombre    text    not null check (char_length(nombre) between 1 and 60),
+  estrellas int     not null check (estrellas between 1 and 5),
+  texto     text    not null check (char_length(texto) between 1 and 600),
+  aprobado  boolean not null default false,   -- solo se ve en la página cuando el admin la aprueba
+  creado    timestamptz not null default now()
+);
+alter table public.opiniones enable row level security;
+drop policy if exists "ver opiniones aprobadas" on public.opiniones;
+drop policy if exists "crear opinion" on public.opiniones;
+drop policy if exists "admin opiniones" on public.opiniones;
+-- Cualquiera ve SOLO las aprobadas
+create policy "ver opiniones aprobadas" on public.opiniones for select using (aprobado);
+-- Cualquiera puede dejar una opinión, pero entra SIN aprobar (no puede autoaprobarse)
+create policy "crear opinion" on public.opiniones for insert to anon, authenticated with check (aprobado = false);
+-- El admin ve todas, aprueba/oculta y elimina
+create policy "admin opiniones" on public.opiniones for all to authenticated using (public.es_admin()) with check (public.es_admin());
 
 -- 4) Fotos (Storage) ----------------------------------------------------
 insert into storage.buckets (id, name, public) values ('fotos', 'fotos', true) on conflict (id) do nothing;

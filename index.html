@@ -31,6 +31,8 @@ window.aplicarColores = c => {
   r.colorScheme = oscura ? "dark" : "";
   if(/^#[0-9a-f]{6}$/i.test(c.pine || "")){ r.setProperty("--pine-soft", `color-mix(in srgb, ${c.pine} 80%, #fff)`); document.querySelector("meta[name=theme-color]").content = c.pine; }
   if(/^#[0-9a-f]{6}$/i.test(c.salmon || "")) r.setProperty("--salmon-deep", `color-mix(in srgb, ${c.salmon} 85%, #000)`);
+  // Forma de los botones elegida en el panel (píldora por defecto)
+  r.setProperty("--btn-radius", { redondo:"14px", recto:"4px" }[c.btn] || "999px");
 };
 try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catch(e){}
 </script>
@@ -62,7 +64,7 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   svg.i{width:20px;height:20px;flex:none}
 
   /* ---------- Botones ---------- */
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;border:0;border-radius:999px;padding:14px 24px;font-weight:700;font-size:1rem;text-decoration:none;transition:transform .18s ease,background-color .18s ease,box-shadow .18s ease;white-space:nowrap}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;border:0;border-radius:var(--btn-radius,999px);padding:14px 24px;font-weight:700;font-size:1rem;text-decoration:none;transition:transform .18s ease,background-color .18s ease,box-shadow .18s ease;white-space:nowrap}
   .btn-primary{background:var(--salmon);color:#fff;box-shadow:0 10px 24px -10px color-mix(in srgb,var(--salmon) 80%,transparent)}
   .btn-primary:hover{background:var(--salmon-deep);transform:translateY(-2px)}
   .btn-ghost{background:transparent;color:inherit;border:1.5px solid currentColor}
@@ -317,6 +319,27 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   .done-ico{width:72px;height:72px;margin:0 auto 10px;border-radius:50%;background:var(--mango);display:grid;place-items:center;font-size:2rem}
 
   @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
+
+  /* ---------- Opiniones de clientes ---------- */
+  #opResumen .op-avg{color:var(--salmon-deep);font-weight:700}
+  .op-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px;margin-bottom:28px}
+  .op-card{background:var(--card);border-radius:var(--r-md);padding:18px 20px;box-shadow:0 1px 0 var(--rice-2),0 18px 40px -32px rgba(0,0,0,.45);display:flex;flex-direction:column;gap:8px}
+  .op-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .op-name{font-weight:700}
+  .op-date{font-size:.8rem;color:var(--ink-soft)}
+  .op-card p{color:var(--ink-soft);margin:0;overflow-wrap:anywhere}
+  .op-stars-ro{letter-spacing:2px;font-size:.95rem;color:var(--mango);line-height:1}
+  .op-stars-ro .off{color:var(--rice-2)}
+  .op-form{background:var(--rice-2);border-radius:var(--r-lg);padding:clamp(20px,3vw,28px);max-width:620px}
+  .op-form h3{margin:0 0 12px;font-family:var(--font-display,inherit)}
+  .op-stars{display:inline-flex;gap:4px;margin-bottom:12px}
+  .op-stars button{background:none;border:0;padding:2px;font-size:1.8rem;line-height:1;color:#cdd3c6;cursor:pointer}
+  .op-stars button.on{color:var(--mango)}
+  .op-fields{display:flex;flex-direction:column;gap:10px}
+  .op-form input,.op-form textarea{font:inherit;padding:11px 14px;border-radius:12px;border:1.5px solid color-mix(in srgb,var(--ink) 15%,transparent);background:var(--rice);color:var(--ink);width:100%;resize:vertical}
+  .op-send{display:flex;align-items:center;gap:14px;margin-top:14px;flex-wrap:wrap}
+  .op-msg{font-size:.9rem;font-weight:600}
+  .op-hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
 </style>
 </head>
 <body>
@@ -509,6 +532,27 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   </div>
 </section>
 
+<!-- Opiniones -->
+<section class="sec" id="opiniones" aria-labelledby="opTitle" hidden>
+  <div class="wrap">
+    <div class="sec-head">
+      <div><span class="eyebrow">Opiniones</span><h2 id="opTitle">Lo que dicen nuestros clientes</h2></div>
+      <p id="opResumen"></p>
+    </div>
+    <div class="op-grid" id="opLista"></div>
+    <form class="op-form" id="opForm" novalidate>
+      <h3>Deja tu opinión</h3>
+      <div class="op-stars" id="opStars" role="radiogroup" aria-label="Tu calificación, de 1 a 5 estrellas"></div>
+      <div class="op-fields">
+        <input id="opNombre" name="nombre" maxlength="60" placeholder="Tu nombre" autocomplete="name">
+        <textarea id="opTexto" name="texto" maxlength="600" rows="3" placeholder="Cuéntanos tu experiencia"></textarea>
+      </div>
+      <input class="op-hp" type="text" id="opWeb" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <div class="op-send"><button class="btn btn-primary" type="submit" id="opEnviar">Enviar opinión</button><span class="op-msg" id="opMsg" role="status"></span></div>
+    </form>
+  </div>
+</section>
+
 <section class="dark final">
   <svg class="leaves" style="left:-20px;bottom:-30px;width:200px;transform:rotate(20deg)" aria-hidden="true"><use href="#leaf-sprig"/></svg>
   <svg class="leaves" style="right:-20px;top:-20px;width:180px;transform:rotate(200deg)" aria-hidden="true"><use href="#leaf-sprig"/></svg>
@@ -673,7 +717,7 @@ $("featPh").style.cssText = fotoStyle("sake");
 
 // ---------- Portada: carrusel de anuncios ----------
 function renderSlides(){
-  $("slides").innerHTML = ANUNCIOS.map((a,i)=>`<div class="slide" data-ir="${esc(a.ir)}"><img src="${esc(a.src)}" alt="${esc(a.alt || a.txt || "Saisei & Co")}" ${i?'loading="lazy"':''}>${a.txt ? `<span>${esc(a.txt)} →</span>` : ""}</div>`).join("");
+  $("slides").innerHTML = ANUNCIOS.map((a,i)=>`<div class="slide" data-ir="${esc(a.ir)}"><img src="${esc(a.src)}" alt="${esc(a.alt || a.txt || "Saisei & Co")}" decoding="async" ${i?'loading="lazy"':''}>${a.txt ? `<span>${esc(a.txt)} →</span>` : ""}</div>`).join("");
   $("dots").innerHTML = ANUNCIOS.length > 1 ? ANUNCIOS.map((_,i)=>`<button aria-label="Anuncio ${i+1}"></button>`).join("") : "";
   $("prev").hidden = $("next").hidden = ANUNCIOS.length < 2;
   $("slides").scrollLeft = 0;
@@ -1003,7 +1047,7 @@ async function loadAjustes(){
     try { localStorage.setItem("saisei-contacto", JSON.stringify({ wa:a.whatsapp || "", ig:a.instagram || "" })); } catch(e){}
 
     if(a.logo){
-      document.querySelectorAll(".brand-mark").forEach(m => m.innerHTML = `<img src="${esc(a.logo)}" alt="">`);
+      document.querySelectorAll(".brand-mark").forEach(m => m.innerHTML = `<img src="${esc(a.logo)}" alt="" decoding="async">`);
       let ic = document.querySelector("link[rel=icon]");
       if(!ic){ ic = document.createElement("link"); ic.rel = "icon"; document.head.appendChild(ic); }
       ic.href = a.logo;
@@ -1017,6 +1061,8 @@ async function loadAjustes(){
       renderSlides(); goSlide(0); restart();
     }
 
+    if(Array.isArray(a.instagram_posts) && a.instagram_posts.length) renderIG(a.instagram_posts);
+
     $("soldout").hidden = !a.agotado;
     if(a.agotado){
       $("soldoutT").textContent = a.agotado_titulo || "Agotamos stock";
@@ -1026,14 +1072,75 @@ async function loadAjustes(){
 }
 
 // ---------- Galería de Instagram (embed oficial) ----------
-$("igRow").innerHTML = CONFIG.posts.map(code => `
-  <blockquote class="instagram-media" data-instgrm-permalink="https://www.instagram.com/p/${code}/" data-instgrm-version="14">
-    <a class="ig-ph" href="https://www.instagram.com/p/${code}/" target="_blank" rel="noopener">Ver publicación en Instagram</a>
-  </blockquote>`).join("");
-const igScript = document.createElement("script");
-igScript.async = true;
-igScript.src = "https://www.instagram.com/embed.js";
-document.body.appendChild(igScript);
+// Acepta un código ("DedelW7lUya") o un link completo de la publicación.
+function igCode(v){
+  v = String(v || "").trim();
+  const m = v.match(/instagram\.com\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/);
+  if(m) return m[1];
+  return /^[A-Za-z0-9_-]+$/.test(v) ? v : "";
+}
+function renderIG(posts){
+  const codes = (Array.isArray(posts) ? posts : []).map(igCode).filter(Boolean);
+  $("igRow").innerHTML = codes.map(code => `
+    <blockquote class="instagram-media" data-instgrm-permalink="https://www.instagram.com/p/${code}/" data-instgrm-version="14">
+      <a class="ig-ph" href="https://www.instagram.com/p/${code}/" target="_blank" rel="noopener">Ver publicación en Instagram</a>
+    </blockquote>`).join("");
+  if(window.instgrm && window.instgrm.Embeds) window.instgrm.Embeds.process();
+  else if(!renderIG._loading){ renderIG._loading = true; const s = document.createElement("script"); s.async = true; s.src = "https://www.instagram.com/embed.js"; document.body.appendChild(s); }
+}
+renderIG(CONFIG.posts); // las que trae la página; el panel puede reemplazarlas (ver loadAjustes)
+
+// ---------- Opiniones de clientes ----------
+const OP = window.SUPABASE || {};
+const opHead = OP.url && OP.anonKey ? { apikey: OP.anonKey, Authorization: `Bearer ${OP.anonKey}` } : null;
+let opSel = 0;
+const estrellasRO = n => Array.from({ length: 5 }, (_, i) => `<span class="${i < n ? "" : "off"}">★</span>`).join("");
+function opStarsPicker(){
+  $("opStars").innerHTML = Array.from({ length: 5 }, (_, i) => `<button type="button" role="radio" aria-label="${i + 1} estrella${i ? "s" : ""}" data-v="${i + 1}" aria-checked="false">★</button>`).join("");
+}
+function opPaintStars(){
+  [...$("opStars").children].forEach((b, i) => { b.classList.toggle("on", i < opSel); b.setAttribute("aria-checked", i + 1 === opSel ? "true" : "false"); });
+}
+function opShow(msg, err){ const m = $("opMsg"); m.textContent = msg; m.style.color = err ? "var(--salmon-deep)" : "var(--pine)"; }
+$("opStars").addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; opSel = +b.dataset.v; opPaintStars(); });
+async function loadOpiniones(){
+  if(!opHead) return;                 // sin Supabase no hay backend de opiniones
+  try {
+    const r = await fetch(`${OP.url}/rest/v1/opiniones?select=nombre,estrellas,texto,creado&aprobado=eq.true&order=creado.desc&limit=60`, { headers: opHead });
+    if(!r.ok) throw new Error(r.status);
+    const list = await r.json();
+    $("opiniones").hidden = false;    // la tabla existe: se muestra la sección (aunque aún no haya opiniones)
+    opStarsPicker();
+    if(list.length){
+      const prom = list.reduce((s, o) => s + o.estrellas, 0) / list.length;
+      $("opResumen").innerHTML = `<span class="op-avg">${estrellasRO(Math.round(prom))} ${prom.toFixed(1)}</span> · ${list.length} opinión${list.length === 1 ? "" : "es"}`;
+    } else $("opResumen").textContent = "Sé el primero en dejar tu opinión.";
+    $("opLista").innerHTML = list.map(o => `
+      <article class="op-card">
+        <div class="op-top"><span class="op-name">${esc(o.nombre)}</span><span class="op-date">${new Date(o.creado).toLocaleDateString("es-CL", { day: "numeric", month: "short" })}</span></div>
+        <div class="op-stars-ro" aria-label="${o.estrellas} de 5 estrellas">${estrellasRO(o.estrellas)}</div>
+        <p>${esc(o.texto)}</p>
+      </article>`).join("");
+  } catch(e){ console.warn("No se pudieron cargar las opiniones.", e); }
+}
+$("opForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  if(!opHead) return;
+  if($("opWeb").value) return;        // honeypot: lo llenó un bot, se descarta en silencio
+  const nombre = $("opNombre").value.trim(), texto = $("opTexto").value.trim();
+  if(opSel < 1 || opSel > 5) return opShow("Toca las estrellas para calificar.", true);
+  if(!nombre) return opShow("Escribe tu nombre.", true);
+  if(texto.length < 3) return opShow("Cuéntanos un poquito más.", true);
+  $("opEnviar").disabled = true;
+  try {
+    const r = await fetch(`${OP.url}/rest/v1/opiniones`, { method: "POST", headers: { ...opHead, "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify({ nombre, estrellas: opSel, texto }) });
+    if(!r.ok) throw new Error(r.status);
+    $("opForm").reset(); opSel = 0; opPaintStars();
+    opShow("¡Gracias! Tu opinión se publicará cuando la revisemos.");
+  } catch(err){ opShow("No se pudo enviar. Intenta de nuevo en un momento.", true); }
+  $("opEnviar").disabled = false;
+});
+loadOpiniones();
 </script>
 </body>
 </html>
