@@ -212,6 +212,7 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   #searchProd::placeholder{color:var(--ink-soft);opacity:1}
   .search-nores{display:none;padding:32px 0;text-align:center;color:var(--ink-soft);margin:0}
   .search-nores.on{display:block}
+  #menu.searching .cat-head{display:none}
   .cat{margin-top:22px;display:none}
   .cat.active{display:block;animation:catIn .18s ease}
   @keyframes catIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -1093,10 +1094,12 @@ function goToCat(i){
 }
 function filterProducts(q){
   if(!q){
+    $("menu").classList.remove("searching");
     document.querySelectorAll(".cat").forEach((s,j)=>{ s.classList.toggle("active", j===activeCat); s.querySelectorAll(".item").forEach(it=>it.hidden=false); });
     $("searchNores").classList.remove("on");
     return;
   }
+  $("menu").classList.add("searching");
   let found = 0;
   document.querySelectorAll(".cat").forEach(s=>{
     let vis = 0;
