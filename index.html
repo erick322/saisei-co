@@ -1365,7 +1365,7 @@ function igCode(v){
   return /^[A-Za-z0-9_-]+$/.test(v) ? v : "";
 }
 function renderIG(posts){
-  const codes = (Array.isArray(posts) ? posts : []).map(igCode).filter(Boolean);
+  const codes = (Array.isArray(posts) ? posts : []).map(igCode).filter(Boolean).slice(0, 3);
   $("igRow").innerHTML = codes.map(code => `
     <blockquote class="instagram-media" data-instgrm-permalink="https://www.instagram.com/p/${code}/" data-instgrm-version="14">
       <a class="ig-ph" href="https://www.instagram.com/p/${code}/" target="_blank" rel="noopener">Ver publicación en Instagram</a>
