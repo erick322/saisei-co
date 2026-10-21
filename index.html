@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Saisei & Co · Pedidos</title>
 <meta name="description" content="Pide sushi de Saisei & Co en Puerto Cisnes: tablas Shari, promos de hand rolls, rolls de autor Furea y corn dogs. Delivery o retiro.">
-<meta name="theme-color" content="#0E3B2E">
+<meta name="theme-color" content="#ffffff">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="img/icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
@@ -63,7 +63,7 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   p{margin:0}
   .wrap{max-width:var(--max);margin-inline:auto;padding-inline:var(--gutter)}
   .eyebrow{font-size:.78rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--salmon-deep)}
-  .dark .eyebrow,.hero .eyebrow{color:var(--mango)}
+  .dark .eyebrow{color:var(--mango)}
   .price{font-variant-numeric:tabular-nums;font-weight:800;letter-spacing:.01em}
   svg.i{width:20px;height:20px;flex:none}
 
@@ -72,13 +72,14 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   .btn-primary{background:var(--salmon);color:#fff;box-shadow:0 6px 16px -10px rgba(0,0,0,.35)}
   .btn-primary:hover{background:var(--salmon-deep);transform:translateY(-2px);box-shadow:0 10px 22px -10px rgba(0,0,0,.4)}
   .btn-ghost{background:transparent;color:inherit;border:1.5px solid currentColor}
-  .btn-ghost:hover{background:rgba(255,255,255,.08)}
+  .btn-ghost:hover{background:rgba(0,0,0,.05)}
+  .dark .btn-ghost:hover{background:rgba(255,255,255,.1)}
   .btn-sm{padding:10px 18px;font-size:.92rem}
   .btn-block{width:100%}
   .btn:disabled{background:var(--rice-2);color:var(--ink-soft);box-shadow:none;cursor:not-allowed;transform:none}
 
   /* ---------- Barra superior ---------- */
-  .nav{position:sticky;top:0;z-index:40;background:var(--pine);color:var(--on-dark);padding-top:env(safe-area-inset-top,0px);box-shadow:0 1px 0 rgba(255,255,255,.06)}
+  .nav{position:sticky;top:0;z-index:40;background:#fff;color:var(--ink);padding-top:env(safe-area-inset-top,0px);box-shadow:0 1px 0 var(--rice-2)}
   .nav .wrap{display:flex;align-items:center;gap:24px;min-height:68px}
   .brand{display:flex;align-items:center;gap:12px;text-decoration:none;line-height:1}
   .brand-mark{width:46px;height:46px;flex:none;border-radius:50%;background:var(--rice);color:var(--accent-text);display:grid;place-items:center;font-family:var(--font-display);font-size:1.5rem;border:3px solid var(--mango);transition:transform .4s ease}
@@ -91,7 +92,7 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   .nav ul{display:flex;gap:26px;list-style:none;margin:0 0 0 auto;padding:0}
   .nav ul a{text-decoration:none;font-size:.95rem;font-weight:500;opacity:.85}
   .nav ul a:hover{opacity:1;color:var(--mango)}
-  .menu-btn{display:none;width:44px;height:44px;flex:none;border-radius:50%;border:1.5px solid color-mix(in srgb,var(--on-dark) 35%,transparent);background:none;color:var(--on-dark);place-items:center;padding:0}
+  .menu-btn{display:none;width:44px;height:44px;flex:none;border-radius:50%;border:1.5px solid color-mix(in srgb,var(--ink) 35%,transparent);background:none;color:var(--ink);place-items:center;padding:0}
   .menu-btn svg{width:22px;height:22px}
   .menu-btn .x,.nav.open .menu-btn .bars{display:none}
   .nav.open .menu-btn .x{display:block}
@@ -99,19 +100,19 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
     .nav .wrap{gap:12px}
     .nav .btn{display:none}
     .menu-btn{display:grid;margin-left:auto}
-    .nav ul{display:none;position:absolute;left:0;right:0;top:100%;flex-direction:column;gap:0;margin:0;padding:6px var(--gutter) 14px;background:var(--pine);box-shadow:0 24px 30px -18px rgba(0,0,0,.5)}
+    .nav ul{display:none;position:absolute;left:0;right:0;top:100%;flex-direction:column;gap:0;margin:0;padding:6px var(--gutter) 14px;background:#fff;box-shadow:0 24px 30px -18px rgba(0,0,0,.12),0 0 0 1px var(--rice-2)}
     .nav.open ul{display:flex}
-    .nav ul a{display:block;padding:14px 0;font-size:1.1rem;border-bottom:1px solid color-mix(in srgb,var(--on-dark) 12%,transparent)}
+    .nav ul a{display:block;padding:14px 0;font-size:1.1rem;border-bottom:1px solid var(--rice-2)}
     .nav ul li:last-child a{border-bottom:0}
   }
   @media (max-width:380px){.nav .btn-sm{padding:9px 13px;font-size:.86rem}.brand .tag{display:none}}
   @media (max-width:480px){.brand-mark{width:38px;height:38px;font-size:1.2rem}.brand{gap:9px}.brand .name{font-size:1.4rem}.brand .tag{letter-spacing:.14em;font-size:.6rem}}
 
   /* ---------- Franja de categorías pegada al nav (solo móvil) ---------- */
-  .nav-cats{display:none;overflow-x:auto;scrollbar-width:none;border-top:1px solid rgba(255,255,255,.1)}
+  .nav-cats{display:none;overflow-x:auto;scrollbar-width:none;border-top:1px solid var(--rice-2)}
   .nav-cats::-webkit-scrollbar{display:none}
   .nav-cats-inner{display:flex;padding:0 var(--gutter)}
-  .nav-cat{flex:none;background:none;border:0;color:var(--on-dark);padding:9px 16px 11px;font-size:.88rem;font-weight:600;opacity:.55;position:relative;white-space:nowrap;transition:opacity .15s ease}
+  .nav-cat{flex:none;background:none;border:0;color:var(--ink);padding:9px 16px 11px;font-size:.88rem;font-weight:600;opacity:.55;position:relative;white-space:nowrap;transition:opacity .15s ease}
   .nav-cat.on{opacity:1}
   .nav-cat.on::after{content:'';position:absolute;left:10px;right:10px;bottom:0;height:2px;border-radius:2px 2px 0 0;background:var(--mango)}
   @media (max-width:860px){
@@ -123,26 +124,26 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   @media (min-width:861px){.nav-cats{display:none!important}}
 
   /* ---------- Portada ---------- */
-  .hero{background:var(--pine);color:var(--on-dark);position:relative;overflow:hidden;padding-block:clamp(40px,7vw,88px) clamp(70px,9vw,120px)}
+  .hero{background:#fff;color:var(--ink);position:relative;overflow:hidden;padding-block:clamp(40px,7vw,88px) clamp(70px,9vw,120px)}
   .hero .wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(32px,5vw,72px);align-items:center;position:relative;z-index:1}
   .hero h1{font-size:clamp(2.5rem,5.6vw,4.6rem);margin-top:18px}
   .hero h1 em{font-style:normal;color:var(--mango)}
-  .hero .lead{font-size:clamp(1.05rem,1.6vw,1.22rem);color:color-mix(in srgb,var(--on-dark) 82%,var(--bamboo));max-width:34em;margin-top:22px}
+  .hero .lead{font-size:clamp(1.05rem,1.6vw,1.22rem);color:var(--ink-soft);max-width:34em;margin-top:22px}
   .ctas{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
-  .facts{display:grid;grid-template-columns:repeat(3,auto);justify-content:start;gap:10px clamp(16px,4vw,36px);margin-top:40px;padding-top:24px;border-top:1px solid rgba(255,255,255,.14)}
+  .facts{display:grid;grid-template-columns:repeat(3,auto);justify-content:start;gap:10px clamp(16px,4vw,36px);margin-top:40px;padding-top:24px;border-top:1px solid var(--rice-2)}
   .fact{display:flex;flex-direction:column}
-  .fact strong{font-family:var(--font-display);font-size:1.6rem;font-weight:400;color:var(--on-dark)}
+  .fact strong{font-family:var(--font-display);font-size:1.6rem;font-weight:400;color:var(--pine)}
   .fact span{font-size:.84rem;color:var(--bamboo);line-height:1.35}
   @media (max-width:480px){.fact strong{font-size:1.3rem}.fact span{font-size:.76rem}}
   .hero-visual{position:relative;justify-self:center;width:min(100%,430px)}
   .slider{position:relative}
-  .slides{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;border-radius:var(--r-lg);scrollbar-width:none;box-shadow:0 40px 80px -30px rgba(0,0,0,.6);border:6px solid rgba(255,255,255,.08)}
+  .slides{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;border-radius:var(--r-lg);scrollbar-width:none;box-shadow:0 40px 80px -30px rgba(0,0,0,.28);border:6px solid rgba(0,0,0,.06)}
   .slides::-webkit-scrollbar{display:none}
   .slide{flex:0 0 100%;scroll-snap-align:center;position:relative;cursor:pointer}
   .slide img{display:block;width:100%;aspect-ratio:4/5;object-fit:cover}
   .slide span{position:absolute;right:12px;bottom:12px;background:var(--pine-deep);color:var(--on-dark);font-weight:700;font-size:.88rem;padding:8px 14px;border-radius:999px;box-shadow:0 8px 20px -8px rgba(0,0,0,.6)}
   .dots{display:flex;justify-content:center;gap:8px;margin-top:14px}
-  .dots button{width:9px;height:9px;border-radius:50%;border:0;background:rgba(255,255,255,.25);padding:0}
+  .dots button{width:9px;height:9px;border-radius:50%;border:0;background:var(--rice-2);padding:0}
   .dots button.on{background:var(--mango);width:24px;border-radius:9px}
   .arrow{position:absolute;top:50%;transform:translateY(-50%);width:40px;height:40px;border-radius:50%;border:0;background:var(--rice);color:var(--accent-text);font-size:22px;line-height:1;z-index:2;box-shadow:0 8px 20px -8px rgba(0,0,0,.6)}
   .arrow.l{left:-16px}.arrow.r{right:-16px}
@@ -375,55 +376,55 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   .mockups-row::-webkit-scrollbar{display:none}
   .phone-wrap{flex:none;scroll-snap-align:center;text-align:center}
   .phone-frame{display:inline-block;background:#1C1C1E;border-radius:38px;padding:10px;box-shadow:0 32px 72px -20px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.07)}
-  .phone-screen{width:200px;height:408px;background:#FAF8F5;border-radius:30px;overflow:hidden;position:relative;font-family:var(--font-body);line-height:1.4}
+  .phone-screen{width:200px;height:408px;background:var(--rice);border-radius:30px;overflow:hidden;position:relative;font-family:var(--font-body);line-height:1.4}
   .phone-notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:56px;height:13px;background:#1C1C1E;border-radius:0 0 10px 10px;z-index:10}
   .phone-label{font-size:.82rem;font-weight:600;color:var(--ink-soft);margin-top:18px}
   /* Nav interior del teléfono */
-  .ps-nav{background:#5C1A2B;display:flex;align-items:center;gap:6px;padding:20px 12px 8px}
-  .ps-brand-dot{width:22px;height:22px;background:#C9943A;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#5C1A2B;font-weight:800;font-size:9px;flex:none}
-  .ps-brand-txt{color:#FAF8F5;font-weight:700;font-size:9px;letter-spacing:.04em;line-height:1.1}
+  .ps-nav{background:var(--pine);display:flex;align-items:center;gap:6px;padding:20px 12px 8px}
+  .ps-brand-dot{width:22px;height:22px;background:var(--mango);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--pine);font-weight:800;font-size:9px;flex:none}
+  .ps-brand-txt{color:var(--on-dark);font-weight:700;font-size:9px;letter-spacing:.04em;line-height:1.1}
   .ps-brand-txt small{font-size:7px;opacity:.7;font-weight:400;letter-spacing:.02em}
-  .ps-user-btn{margin-left:auto;width:20px;height:20px;border-radius:50%;border:1.5px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;color:#FAF8F5}
+  .ps-user-btn{margin-left:auto;width:20px;height:20px;border-radius:50%;border:1.5px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;color:var(--on-dark)}
   /* Franja de categorías */
-  .ps-cats{display:flex;gap:5px;padding:0 10px 8px;background:#5C1A2B;overflow:hidden}
+  .ps-cats{display:flex;gap:5px;padding:0 10px 8px;background:var(--pine);overflow:hidden}
   .ps-cat{border-radius:10px;padding:4px 8px;font-size:7.5px;font-weight:700;white-space:nowrap;letter-spacing:.01em}
-  .ps-cat.on{background:#C9943A;color:#5C1A2B}
+  .ps-cat.on{background:var(--mango);color:var(--pine-deep)}
   .ps-cat.off{border:1px solid rgba(255,255,255,.28);color:rgba(255,255,255,.62)}
   /* Buscador */
-  .ps-search{margin:8px 10px;border:1.5px solid #C9943A;border-radius:14px;padding:6px 10px;display:flex;align-items:center;gap:5px;color:#C9943A;font-size:8px}
+  .ps-search{margin:8px 10px;border:1.5px solid var(--mango);border-radius:14px;padding:6px 10px;display:flex;align-items:center;gap:5px;color:var(--mango);font-size:8px}
   /* Hero de la pantalla de inicio */
-  .ps-hero{margin:0 10px 8px;border-radius:14px;height:112px;position:relative;overflow:hidden;background:#5C1A2B;display:flex;align-items:flex-end;padding:10px 10px}
+  .ps-hero{margin:0 10px 8px;border-radius:14px;height:112px;position:relative;overflow:hidden;background:var(--pine);display:flex;align-items:flex-end;padding:10px 10px}
   .ps-hero-bg{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.55}
-  .ps-hero-gradient{position:absolute;inset:0;background:linear-gradient(to top,rgba(92,26,43,.9) 0%,rgba(92,26,43,.15) 65%)}
-  .ps-hero-txt{position:relative;z-index:1;color:#FAF8F5}
+  .ps-hero-gradient{position:absolute;inset:0;background:linear-gradient(to top,color-mix(in srgb,var(--pine) 90%,transparent) 0%,color-mix(in srgb,var(--pine) 15%,transparent) 65%)}
+  .ps-hero-txt{position:relative;z-index:1;color:var(--on-dark)}
   .ps-hero-txt strong{display:block;font-size:9px;font-weight:800}
-  .ps-hero-txt em{font-style:normal;font-size:7.5px;color:#C9943A;font-weight:700}
+  .ps-hero-txt em{font-style:normal;font-size:7.5px;color:var(--mango);font-weight:700}
   /* Items */
-  .ps-sec-title{padding:6px 10px 3px;font-size:7.5px;font-weight:800;color:#5C1A2B;text-transform:uppercase;letter-spacing:.08em}
-  .ps-item{margin:0 10px 6px;background:#fff;border-radius:10px;display:flex;gap:7px;padding:7px;align-items:center;box-shadow:0 1px 0 #E8EDE1,0 4px 12px -6px rgba(0,0,0,.1)}
+  .ps-sec-title{padding:6px 10px 3px;font-size:7.5px;font-weight:800;color:var(--pine);text-transform:uppercase;letter-spacing:.08em}
+  .ps-item{margin:0 10px 6px;background:#fff;border-radius:10px;display:flex;gap:7px;padding:7px;align-items:center;box-shadow:0 1px 0 var(--rice-2),0 4px 12px -6px rgba(0,0,0,.1)}
   .ps-item-img{width:42px;height:42px;border-radius:8px;background-size:cover;background-position:center;flex:none}
   .ps-item-info{flex:1;min-width:0}
-  .ps-item-name{font-size:8.5px;font-weight:700;color:#13261F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .ps-item-desc{font-size:7px;color:#4A5E55;margin-top:1px}
-  .ps-item-price{font-size:9px;font-weight:800;color:#C9943A;margin-top:2px}
-  .ps-item-add{width:22px;height:22px;border-radius:50%;background:#5C1A2B;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;flex:none}
+  .ps-item-name{font-size:8.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ps-item-desc{font-size:7px;color:var(--ink-soft);margin-top:1px}
+  .ps-item-price{font-size:9px;font-weight:800;color:var(--mango);margin-top:2px}
+  .ps-item-add{width:22px;height:22px;border-radius:50%;background:var(--pine);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;flex:none}
   /* Carrito */
-  .ps-cart-hd{padding:18px 12px 10px;display:flex;align-items:center;gap:7px;border-bottom:1px solid #E8EDE1}
-  .ps-cart-icon{width:24px;height:24px;background:#5C1A2B;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}
-  .ps-cart-title{font-size:10px;font-weight:800;color:#13261F}
-  .ps-cart-row{margin:0 12px;padding:8px 0;border-bottom:1px solid #E8EDE1;display:flex;align-items:center;gap:5px}
-  .ps-cname{flex:1;font-size:8.5px;font-weight:700;color:#13261F;min-width:0}
-  .ps-cvar{font-size:7px;color:#4A5E55}
+  .ps-cart-hd{padding:18px 12px 10px;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--rice-2)}
+  .ps-cart-icon{width:24px;height:24px;background:var(--pine);border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}
+  .ps-cart-title{font-size:10px;font-weight:800;color:var(--ink)}
+  .ps-cart-row{margin:0 12px;padding:8px 0;border-bottom:1px solid var(--rice-2);display:flex;align-items:center;gap:5px}
+  .ps-cname{flex:1;font-size:8.5px;font-weight:700;color:var(--ink);min-width:0}
+  .ps-cvar{font-size:7px;color:var(--ink-soft)}
   .ps-qty-ctrl{display:flex;align-items:center;gap:3px}
-  .ps-qty-btn{width:18px;height:18px;border-radius:50%;border:1.5px solid #5C1A2B;background:#FAF8F5;color:#5C1A2B;display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1}
-  .ps-qty-btn.add{background:#5C1A2B;color:#fff}
+  .ps-qty-btn{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--pine);background:var(--rice);color:var(--pine);display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1}
+  .ps-qty-btn.add{background:var(--pine);color:#fff}
   .ps-qty-n{font-size:9px;font-weight:700;min-width:12px;text-align:center}
-  .ps-cprice{font-size:9px;font-weight:800;color:#C9943A;min-width:36px;text-align:right}
-  .ps-cart-foot{position:absolute;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #E8EDE1;padding:8px 12px 14px}
+  .ps-cprice{font-size:9px;font-weight:800;color:var(--mango);min-width:36px;text-align:right}
+  .ps-cart-foot{position:absolute;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--rice-2);padding:8px 12px 14px}
   .ps-total{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
-  .ps-total-label{font-size:8.5px;color:#4A5E55}
-  .ps-total-amount{font-size:13px;font-weight:900;color:#5C1A2B}
-  .ps-confirm{background:#5C1A2B;color:#FAF8F5;border:none;border-radius:14px;width:100%;padding:10px;font-size:8.5px;font-weight:800;letter-spacing:.02em}
+  .ps-total-label{font-size:8.5px;color:var(--ink-soft)}
+  .ps-total-amount{font-size:13px;font-weight:900;color:var(--pine)}
+  .ps-confirm{background:var(--pine);color:var(--on-dark);border:none;border-radius:14px;width:100%;padding:10px;font-size:8.5px;font-weight:800;letter-spacing:.02em}
   @media(min-width:760px){
     .mockups-row{justify-content:center}
     .phone-screen{width:216px;height:440px}
@@ -656,7 +657,7 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
       <p style="color:var(--ink-soft);max-width:46ch">Explora la carta, agrega lo que quieras y confírmanos el pedido por WhatsApp. Todo desde tu teléfono.</p>
     </div>
   </div>
-  <div class="mockups-row">
+  <div class="mockups-row" aria-hidden="true">
 
     <!-- Teléfono 1: Pantalla de inicio -->
     <div class="phone-wrap">
