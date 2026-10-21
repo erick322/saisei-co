@@ -205,6 +205,13 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   .tab{flex:none;border:1.5px solid var(--rice-2);background:var(--card);color:var(--ink);padding:9px 18px;border-radius:999px;font-weight:700;font-size:.92rem;transition:all .15s ease}
   .tab:hover{border-color:var(--pine-soft)}
   .tab.on{background:var(--sel);color:var(--on-sel,var(--on-dark));border-color:var(--sel)}
+  .search-wrap{position:relative;margin:12px 0 6px}
+  .search-ic{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--ink-soft);pointer-events:none}
+  #searchProd{width:100%;padding:10px 14px 10px 38px;border:1.5px solid var(--rice-2);border-radius:10px;background:var(--card);font-family:inherit;font-size:.94rem;color:var(--ink);outline:none;transition:border-color .15s;box-sizing:border-box;-webkit-appearance:none}
+  #searchProd:focus{border-color:var(--pine)}
+  #searchProd::placeholder{color:var(--ink-soft);opacity:1}
+  .search-nores{display:none;padding:32px 0;text-align:center;color:var(--ink-soft);margin:0}
+  .search-nores.on{display:block}
   .cat{margin-top:22px;display:none}
   .cat.active{display:block;animation:catIn .18s ease}
   @keyframes catIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -548,6 +555,11 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
     <div class="shop">
       <div>
         <nav class="tabs" id="tabs" aria-label="Categorías"></nav>
+        <div class="search-wrap">
+          <svg class="search-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15.5 15.5L20 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <input type="search" id="searchProd" placeholder="Buscar en la carta…" autocomplete="off" spellcheck="false" aria-label="Buscar productos">
+        </div>
+        <p class="search-nores" id="searchNores">No encontramos productos con ese nombre.</p>
         <div id="menu"></div>
       </div>
 
@@ -1070,11 +1082,36 @@ async function loadMenu(){
   } catch(e){ console.warn("No se pudo cargar la carta desde Supabase, se usa la de respaldo.", e); }
 }
 
+let activeCat = 0;
 function goToCat(i){
+  activeCat = i;
+  const sp = $("searchProd");
+  if(sp && sp.value){ sp.value = ""; filterProducts(""); }
   document.querySelectorAll(".tab").forEach((b,j)=>b.classList.toggle("on", j===i));
   document.querySelectorAll(".nav-cat").forEach((b,j)=>{ b.classList.toggle("on", j===i); if(j===i) b.scrollIntoView({block:"nearest",inline:"center"}); });
-  document.querySelectorAll(".cat").forEach((s,j)=>s.classList.toggle("active", j===i));
+  document.querySelectorAll(".cat").forEach((s,j)=>{ s.classList.toggle("active", j===i); s.querySelectorAll(".item").forEach(it=>it.hidden=false); });
 }
+function filterProducts(q){
+  if(!q){
+    document.querySelectorAll(".cat").forEach((s,j)=>{ s.classList.toggle("active", j===activeCat); s.querySelectorAll(".item").forEach(it=>it.hidden=false); });
+    $("searchNores").classList.remove("on");
+    return;
+  }
+  let found = 0;
+  document.querySelectorAll(".cat").forEach(s=>{
+    let vis = 0;
+    s.querySelectorAll(".item").forEach(it=>{
+      const txt = (it.querySelector("h4")?.textContent||"")+" "+(it.querySelector(".desc")?.textContent||"");
+      const match = txt.toLowerCase().includes(q);
+      it.hidden = !match;
+      if(match) vis++;
+    });
+    s.classList.toggle("active", vis>0);
+    found += vis;
+  });
+  $("searchNores").classList.toggle("on", found===0);
+}
+$("searchProd").addEventListener("input", function(){ filterProducts(this.value.trim().toLowerCase()); });
 $("tabs").onclick = e => { const t = e.target.closest(".tab"); if(t) goToCat(+t.dataset.t); };
 $("navCatsInner").onclick = e => { const t = e.target.closest(".nav-cat"); if(t) goToCat(+t.dataset.t); };
 $("heroCats").onclick = e => { const t = e.target.closest(".hero-cat"); if(t) { goToCat(+t.dataset.t); $("carta").scrollIntoView({behavior:"smooth"}); } };
