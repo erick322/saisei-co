@@ -118,7 +118,6 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   @media (max-width:860px){
     .nav-cats.ready{display:block}
     .tabs{display:none}
-    .cat{scroll-margin-top:122px}
     html{scroll-padding-top:122px}
   }
   @media (min-width:861px){.nav-cats{display:none!important}}
@@ -206,7 +205,9 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   .tab{flex:none;border:1.5px solid var(--rice-2);background:var(--card);color:var(--ink);padding:9px 18px;border-radius:999px;font-weight:700;font-size:.92rem;transition:all .15s ease}
   .tab:hover{border-color:var(--pine-soft)}
   .tab.on{background:var(--sel);color:var(--on-sel,var(--on-dark));border-color:var(--sel)}
-  .cat{scroll-margin-top:140px;margin-top:22px}
+  .cat{margin-top:22px;display:none}
+  .cat.active{display:block;animation:catIn .18s ease}
+  @keyframes catIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   .cat-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin-bottom:18px}
   .cat-head h3{font-size:clamp(1.8rem,3vw,2.4rem);letter-spacing:.04em}
   .cat-head p{color:var(--ink-soft);font-size:.95rem;flex-basis:100%}
@@ -1010,7 +1011,8 @@ $("prev").onclick = () => { goSlide(slideIdx-1); restart(); };
 $("next").onclick = () => { goSlide(slideIdx+1); restart(); };
 function goToCatName(name){
   const i = MENU.findIndex(c => c.cat.toLowerCase() === String(name).toLowerCase());
-  i >= 0 ? goToCat(i) : $("carta").scrollIntoView({behavior:"smooth"});
+  $("carta").scrollIntoView({behavior:"smooth"});
+  if(i >= 0) goToCat(i);
 }
 $("slides").onclick = e => { const s = e.target.closest(".slide"); if(s) goToCatName(s.dataset.ir); };
 document.querySelector("#destacado [data-ir]").onclick = e => { e.preventDefault(); goToCatName(e.currentTarget.dataset.ir); };
@@ -1039,6 +1041,7 @@ function renderMenu(){
       <div class="buy"><span class="price" data-k="price"></span><button type="button" class="btn btn-primary btn-sm add">${it.rolls ? "Elegir rolls" : it.topping ? "Agregar a un roll" : "Agregar"}</button></div>
     </article>`).join("") : `<p class="empty">Pronto agregaremos productos aquí.</p>`}
   </div></section>`).join("");
+  document.querySelector(".cat")?.classList.add("active");
   refreshPrices();
 }
 
@@ -1070,11 +1073,11 @@ async function loadMenu(){
 function goToCat(i){
   document.querySelectorAll(".tab").forEach((b,j)=>b.classList.toggle("on", j===i));
   document.querySelectorAll(".nav-cat").forEach((b,j)=>{ b.classList.toggle("on", j===i); if(j===i) b.scrollIntoView({block:"nearest",inline:"center"}); });
-  $("cat"+i).scrollIntoView({behavior:"smooth", block:"start"});
+  document.querySelectorAll(".cat").forEach((s,j)=>s.classList.toggle("active", j===i));
 }
 $("tabs").onclick = e => { const t = e.target.closest(".tab"); if(t) goToCat(+t.dataset.t); };
 $("navCatsInner").onclick = e => { const t = e.target.closest(".nav-cat"); if(t) goToCat(+t.dataset.t); };
-$("heroCats").onclick = e => { const t = e.target.closest(".hero-cat"); if(t) goToCat(+t.dataset.t); };
+$("heroCats").onclick = e => { const t = e.target.closest(".hero-cat"); if(t) { goToCat(+t.dataset.t); $("carta").scrollIntoView({behavior:"smooth"}); } };
 new IntersectionObserver(([e]) => {
   $("navCats").classList.toggle("at-hero", e.isIntersecting);
 }, { threshold: 0, rootMargin: "-68px 0px 0px 0px" }).observe(document.querySelector(".hero"));
