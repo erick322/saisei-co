@@ -122,6 +122,7 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
     html{scroll-padding-top:122px}
   }
   @media (min-width:861px){.nav-cats{display:none!important}}
+  .nav-cats.at-hero{display:none!important}
 
   /* ---------- Portada ---------- */
   .hero{background:#fff;color:var(--ink);position:relative;overflow:hidden;padding-block:clamp(40px,7vw,88px) clamp(70px,9vw,120px)}
@@ -135,7 +136,13 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   .fact strong{font-family:var(--font-display);font-size:1.6rem;font-weight:400;color:var(--pine)}
   .fact span{font-size:.84rem;color:var(--bamboo);line-height:1.35}
   @media (max-width:480px){.fact strong{font-size:1.3rem}.fact span{font-size:.76rem}}
-  .hero-visual{position:relative;justify-self:center;width:min(100%,430px)}
+  .hero-visual{justify-self:end;width:100%;display:flex;gap:16px;align-items:flex-start}
+  .slider-wrap{flex:1;min-width:0;position:relative}
+  #heroCats{display:none;grid-template-columns:1fr 1fr;gap:7px;flex:none;width:192px;align-content:start;padding-top:4px}
+  .hero-cat{background:var(--rice);border:1.5px solid var(--rice-2);border-radius:14px;padding:13px 14px 12px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;cursor:pointer;width:100%;transition:background .15s,border-color .15s,box-shadow .15s;font-family:inherit;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .hero-cat:hover,.hero-cat:focus-visible{background:#fff;border-color:var(--pine);box-shadow:0 4px 12px -4px rgba(0,0,0,.14)}
+  .hero-cat-e{font-size:1.4rem;line-height:1}
+  .hero-cat-n{font-size:.82rem;font-weight:700;line-height:1.2;text-align:left}
   .slider{position:relative}
   .slides{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;border-radius:var(--r-lg);scrollbar-width:none;box-shadow:0 40px 80px -30px rgba(0,0,0,.28);border:6px solid rgba(0,0,0,.06)}
   .slides::-webkit-scrollbar{display:none}
@@ -155,7 +162,8 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   .curve{display:block;width:100%;height:clamp(40px,6vw,80px);position:absolute;left:0;right:0;bottom:-1px}
   @media (max-width:860px){
     .hero .wrap{grid-template-columns:1fr}
-    .hero-visual{order:-1;width:min(82%,360px)}
+    .hero-visual{order:-1;width:min(82%,360px);display:block}
+    #heroCats{display:none!important}
     .float-round{left:-10%}
     .sticker{right:-8%;width:96px}
     .arrow{display:none}
@@ -490,14 +498,17 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
     </div>
 
     <div class="hero-visual">
-      <div class="slider" aria-roledescription="carrusel" aria-label="Nuestros productos">
-        <button class="arrow l" id="prev" aria-label="Anterior">‹</button>
-        <div class="slides" id="slides"></div>
-        <button class="arrow r" id="next" aria-label="Siguiente">›</button>
+      <div class="slider-wrap">
+        <div class="slider" aria-roledescription="carrusel" aria-label="Nuestros productos">
+          <button class="arrow l" id="prev" aria-label="Anterior">‹</button>
+          <div class="slides" id="slides"></div>
+          <button class="arrow r" id="next" aria-label="Siguiente">›</button>
+        </div>
+        <div class="float-round" id="floatRound" aria-hidden="true"></div>
+        <div class="sticker" aria-hidden="true"><small>Rolls desde</small><b>$6.500</b></div>
+        <div class="dots" id="dots"></div>
       </div>
-      <div class="float-round" id="floatRound" aria-hidden="true"></div>
-      <div class="sticker" aria-hidden="true"><small>Rolls desde</small><b>$6.500</b></div>
-      <div class="dots" id="dots"></div>
+      <nav id="heroCats" aria-label="Categorías del menú"></nav>
     </div>
   </div>
   <svg class="curve" viewBox="0 0 1440 80" preserveAspectRatio="none" aria-hidden="true"><path fill="var(--rice)" d="M0 80V40C240 0 480 0 720 30s480 50 720 10v40Z"/></svg>
@@ -1014,6 +1025,8 @@ function renderMenu(){
   $("tabs").innerHTML = MENU.map((c,i)=>`<button class="tab${i?'':' on'}" data-t="${i}">${esc(c.emoji)} ${esc(c.cat)}</button>`).join("");
   $("navCatsInner").innerHTML = MENU.map((c,i)=>`<button class="nav-cat${i?'':' on'}" data-t="${i}">${esc(c.emoji)} ${esc(c.cat)}</button>`).join("");
   $("navCats").classList.add("ready");
+  $("heroCats").innerHTML = MENU.map((c,i)=>`<button class="hero-cat" data-t="${i}" type="button"><span class="hero-cat-e">${esc(c.emoji)}</span><span class="hero-cat-n">${esc(c.cat)}</span></button>`).join("");
+  $("heroCats").style.display = "grid";
   $("menu").innerHTML = MENU.map((c,i)=>`
   <section class="cat" id="cat${i}"><div class="cat-head"><h3>${esc(c.cat)}</h3><p>${esc(c.sub)}</p></div><div class="grid">
   ${c.items.length ? c.items.map(it=>`
@@ -1061,6 +1074,10 @@ function goToCat(i){
 }
 $("tabs").onclick = e => { const t = e.target.closest(".tab"); if(t) goToCat(+t.dataset.t); };
 $("navCatsInner").onclick = e => { const t = e.target.closest(".nav-cat"); if(t) goToCat(+t.dataset.t); };
+$("heroCats").onclick = e => { const t = e.target.closest(".hero-cat"); if(t) goToCat(+t.dataset.t); };
+new IntersectionObserver(([e]) => {
+  $("navCats").classList.toggle("at-hero", e.isIntersecting);
+}, { threshold: 0, rootMargin: "-68px 0px 0px 0px" }).observe(document.querySelector(".hero"));
 
 const chosen = (card, k) => { const b = card.querySelector(`[data-k=${k}] [aria-pressed=true]`); return b ? +b.dataset.v : null; };
 function readItem(card){
