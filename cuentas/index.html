@@ -374,6 +374,7 @@ const I = {
   leaf:'<path d="M5 19c0-8 5-14 15-15-1 10-7 15-15 15z"/><path d="M5 19 14 10"/>',
   chart:'<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 6-7"/>',
   target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.3"/>',
+  safe:'<rect x="3" y="4" width="18" height="15" rx="2"/><circle cx="12" cy="11.5" r="3.5"/><path d="M12 8v1M12 14v1M7 19v2M17 19v2"/>',
   wallet:'<path d="M3 7a2 2 0 0 1 2-2h13v4"/><path d="M3 7v11a2 2 0 0 0 2 2h15V9H5a2 2 0 0 1-2-2z"/><circle cx="16" cy="14.5" r="1.3"/>',
   truck:'<path d="M2 6h11v10H2zM13 9h4l4 4v3h-8z"/><circle cx="6" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/>',
   gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
@@ -404,7 +405,7 @@ const UNIDADES = ["g", "ml", "un"];
 // =====================================================================
 //  Datos: en la nube (Supabase, tabla "cuentas") o en este dispositivo
 // =====================================================================
-const COLS = ["ventas", "gastos", "insumos", "recetas", "carta", "proveedores", "fijos", "saldos"];
+const COLS = ["ventas", "gastos", "insumos", "recetas", "carta", "proveedores", "fijos", "saldos", "reservas", "apartados"];
 const PAR_DEF = { flete:.1, foodCost:.33, comision:.035, iva:.19, afectaIva:false, dias:20, ticket:15000, meta:500000, deliveryCobro:2000, deliveryCosto:1500, diaCorte:16 };
 const LS_DATA = "saisei.cuentas.datos", LS_OUT = "saisei.cuentas.pendientes";
 let S = blank();
@@ -683,6 +684,17 @@ function caja(m){
   [r.debito, r.efectivo].forEach(c => c.fin = c.ini + c.ent - c.sal);
   return r;
 }
+// Dinero apartado para pagos del mes: los costos fijos del negocio + otros pagos (tarjeta de crédito, etc.).
+// Por mes se guarda { det: { "f:<fijo>" | "r:<reserva>": { monto, apartado, pagado } } }; monto vacío = el monto habitual.
+function apartados(m){
+  const rec = S.apartados.find(x => x.id === m) || { id:m, det:{} };
+  const row = (key, item, base, sub, edit) => { const d = rec.det[key] || {}; return { key, item, sub, edit, base:n0(base), monto:d.monto ?? n0(base), apartado:n0(d.apartado), pagado:!!d.pagado }; };
+  const fijos = S.fijos.map(f => row("f:" + f.id, f.item, f.monto, f.categoria));
+  const otros = S.reservas.slice().sort((a, b) => String(a.item).localeCompare(String(b.item), "es")).map(r => row("r:" + r.id, r.item, r.monto, r.nota, r.id));
+  const all = [...fijos, ...otros], pend = all.filter(r => !r.pagado);
+  return { rec, fijos, otros, all, total:sum(all, r => r.monto), apartado:sum(all, r => r.apartado),
+    falta:sum(pend, r => Math.max(r.monto - r.apartado, 0)), guardado:sum(pend, r => r.apartado), pagados:all.length - pend.length };
+}
 function equilibrio(){
   const cf = totalFijos();
   let N = 0, MC = 0;
@@ -710,6 +722,7 @@ const VIEWS = {
   pedidos:     { t:"Pedidos de la página", i:"bag",     grp:"Día a día" },
   ventas:      { t:"Ventas",               i:"cart",    month:true, grp:"Día a día" },
   gastos:      { t:"Gastos y compras",     i:"receipt", month:true, grp:"Día a día" },
+  apartar:     { t:"Dinero apartado",      i:"safe",    month:true, grp:"Día a día" },
   inventario:  { t:"Inventario",           i:"box",     grp:"Día a día" },
   carta:       { t:"Carta y precios",      i:"menu",    grp:"Productos" },
   recetas:     { t:"Recetas",              i:"book",    grp:"Productos" },
@@ -760,7 +773,7 @@ function render(){
 // Vuelve a dibujar sin perder el campo en que estaba el cursor (inventario, costos fijos)
 function renderKeep(){
   const a = document.activeElement, d = (a && a.dataset) || {};
-  const sel = d.inv ? `[data-inv="${d.inv}"][data-id="${CSS.escape(d.id)}"]` : d.fijo ? `[data-fijo="${CSS.escape(d.fijo)}"]` : null;
+  const sel = d.inv ? `[data-inv="${d.inv}"][data-id="${CSS.escape(d.id)}"]` : d.fijo ? `[data-fijo="${CSS.escape(d.fijo)}"]` : d.ap ? `[data-ap="${d.ap}"][data-k="${CSS.escape(d.k)}"]` : null;
   render();
   if(sel){ const n = document.querySelector(sel); if(n) n.focus(); }
 }
@@ -821,7 +834,8 @@ R.inicio = () => {
   if(!alerts.length) alerts.push(`<div class="alert ok">${ico("check")}<span>Todo en orden por ahora.</span></div>`);
 
   const falta = Math.max(eq.netoEq - s.neto, 0);
-  const cj = caja(curM), col = (l, c) => `<td class="n">${fmt(c[l])}</td>`;
+  const ap = apartados(curM);
+  const cj = caja(curM), libre = cj.debito.fin + cj.efectivo.fin - ap.guardado, col =(l, c) => `<td class="n">${fmt(c[l])}</td>`;
   const fila = (t, l, sg = "") => `<tr><td>${sg}${t}</td>${col(l, cj.debito)}${col(l, cj.efectivo)}<td class="n">${fmt(cj.debito[l] + cj.efectivo[l])}</td></tr>`;
   return `
   <div class="kpis">
@@ -838,7 +852,10 @@ R.inicio = () => {
       ${fila("Ventas", "ent", "+ ")}
       ${fila("Gastos", "sal", "− ")}
       <tr><td><b>Saldo actual</b></td>${[cj.debito.fin, cj.efectivo.fin, cj.debito.fin + cj.efectivo.fin].map(x => `<td class="n"><b class="${x < 0 ? "neg" : ""}">${fmt(x)}</b></td>`).join("")}</tr>
+      ${ap.all.length ? `<tr><td>− <a href="#apartar">Apartado para pagos</a></td><td></td><td></td><td class="n">${fmt(ap.guardado)}</td></tr>
+      <tr class="tot"><td>Libre para usar</td><td></td><td></td><td class="n"><span class="${libre < 0 ? "neg" : "pos"}">${fmt(libre)}</span></td></tr>` : ""}
     </tbody></table></div>
+    ${ap.falta > 0 ? `<a class="alert" href="#apartar">${ico("safe")}<span>Te falta apartar <b>${fmt(ap.falta)}</b> para los pagos del mes.</span></a>` : ""}
     <p class="hint">Ventas con tarjeta o transferencia van a débito descontando la comisión.${cj.credito ? ` Compras a crédito de proveedor por pagar: <b>${fmt(cj.credito)}</b> (no se descuentan aún).` : ""}</p>
   </div>
   <div class="grid g2 mt">
@@ -1141,6 +1158,39 @@ R.fijos = () => {
     <tr class="tot"><td>TOTAL COSTOS FIJOS MENSUALES</td><td class="n">${fmt(tot)}</td><td></td></tr>
     </tbody></table></div>
     <div class="row mt"><button class="b pri" data-act="newFijo">${ico("plus")}Agregar costo fijo</button></div>
+  </div>`;
+};
+
+// ---------- Dinero apartado ----------
+R.apartar = () => {
+  const a = apartados(curM);
+  const money = (r, k, ph) => `<div class="unit pre" style="display:inline-block"><em>$</em><input class="tin num" style="width:112px;max-width:none" type="number" inputmode="numeric" min="0" step="1000" data-ap="${k}" data-k="${esc(r.key)}" value="${k === "monto" ? (r.monto === r.base ? "" : r.monto) : (r.apartado || "")}" placeholder="${ph}" aria-label="${k === "monto" ? "Monto" : "Apartado"} ${esc(r.item)}" ${r.pagado ? "disabled" : ""}></div>`;
+  const rows = l => l.map(r => `<tr>
+    <td>${r.edit ? `<button class="linkbtn" data-act="editReserva" data-id="${esc(r.edit)}" style="text-align:left">${esc(r.item)}</button>` : esc(r.item)}${r.sub ? `<div class="small muted">${esc(r.sub)}</div>` : ""}</td>
+    <td class="n">${money(r, "monto", Math.round(r.base))}</td>
+    <td class="n">${money(r, "apartado", "0")}
+      <label class="row" style="margin:6px 0 0;justify-content:flex-end;gap:6px;color:var(--ink);font-size:13px"><input type="checkbox" data-ap="pagado" data-k="${esc(r.key)}" ${r.pagado ? "checked" : ""}>Pagado</label>
+      ${!r.pagado && r.apartado < r.monto ? `<div class="small muted">falta ${fmt(r.monto - r.apartado)}</div>` : ""}</td></tr>`).join("");
+  const sec = (t, l) => `<tr><td colspan="3" class="sec">${t} · ${fmt(sum(l, r => r.monto))}</td></tr>`;
+  return `
+  <div class="kpis">
+    ${kpi("A pagar este mes", fmt(a.total), `${a.all.length} pagos · ${a.pagados} pagado${a.pagados === 1 ? "" : "s"}`)}
+    ${kpi("Apartado", fmt(a.apartado), a.total ? pct(a.apartado / a.total) + " del total" : "")}
+    ${kpi("Guardado sin pagar", fmt(a.guardado), "no lo uses para otra cosa")}
+    ${kpi("Falta apartar", `<span class="${a.falta > 0 ? "neg" : "pos"}">${fmt(a.falta)}</span>`, a.falta > 0 ? "para cubrir todos los pagos" : "¡Todo cubierto!", "hero")}
+  </div>
+  <div class="banner info mt">${ico("info")}<div>Anota cuánto vas separando para cada pago. Cuando lo pagues, márcalo como <b>pagado</b> y regístralo en <a href="#gastos">Gastos</a>. Si un monto cambia este mes (ej. la tarjeta), escríbelo en “Monto del mes”.</div></div>
+  <div class="card">
+    <div class="tw"><table><thead><tr><th>Pago</th><th class="n">Monto del mes</th><th class="n">Apartado</th></tr></thead><tbody>
+      ${a.fijos.length ? sec("Costos fijos del negocio", a.fijos) + rows(a.fijos) : ""}
+      ${sec("Otros pagos", a.otros)}${rows(a.otros) || `<tr><td colspan="3" class="muted small">Agrega la tarjeta de crédito u otros pagos que no son costos del negocio.</td></tr>`}
+      <tr class="tot"><td>TOTAL</td><td class="n">${fmt(a.total)}</td><td class="n">${fmt(a.apartado)}</td></tr>
+    </tbody></table></div>
+    <div class="row mt">
+      <button class="b pri" data-act="newReserva">${ico("plus")}Agregar otro pago</button>
+      <button class="b" data-act="apartarTodo" ${a.falta > 0 ? "" : "disabled"}>${ico("check")}Apartar todo lo que falta</button>
+      <a class="b" href="#fijos">${ico("wallet")}Editar costos fijos</a>
+    </div>
   </div>`;
 };
 
@@ -1762,6 +1812,22 @@ function formSaldo(){
     closeModal(); render(); toast("Saldo inicial guardado");
   };
 }
+function formReserva(orig){
+  const r = orig ? clone(orig) : { id:uid(), item:"", monto:"", nota:"" };
+  const m = openModal(orig ? "Editar pago" : "Otro pago para apartar", `
+    <label for="rI">Pago</label><input id="rI" value="${esc(r.item)}" placeholder="Ej: Tarjeta de crédito">
+    <div class="f2">
+      <div><label for="rM">Monto habitual al mes</label><div class="unit pre"><em>$</em><input id="rM" type="number" inputmode="numeric" min="0" step="1000" value="${esc(r.monto)}"></div></div>
+      <div><label for="rN">Nota</label><input id="rN" value="${esc(r.nota || "")}" placeholder="Ej: vence el día 5"></div>
+    </div>
+    <p class="hint">No se suma a los costos fijos del negocio; solo sirve para apartar el dinero.</p>`,
+    `${orig ? `<button class="b del" data-act="delReserva" data-id="${esc(r.id)}">${ico("trash")}Eliminar</button>` : ""}<span class="sp"></span><button class="b" data-act="close">Cancelar</button><button class="b pri" id="rSave2">Guardar</button>`);
+  m.querySelector("#rSave2").onclick = () => {
+    const t = { ...r, item:m.querySelector("#rI").value.trim(), monto:n0(m.querySelector("#rM").value), nota:m.querySelector("#rN").value.trim() };
+    if(!t.item) return toast("Escribe el nombre del pago", true);
+    put("reservas", t); closeModal(); render(); toast("Pago guardado");
+  };
+}
 function formProv(orig){
   const p = orig ? clone(orig) : { id:uid(), nombre:"", rubro:"", contacto:"", telefono:"", ciudad:"", dias:"", pago:"", web:"" };
   const F = (k, l, ph = "") => `<div><label for="pv_${k}">${l}</label><input id="pv_${k}" value="${esc(p[k] || "")}" placeholder="${ph}"></div>`;
@@ -1878,6 +1944,14 @@ const A = {
   newFijo: () => formFijo(),
   editFijo: d => formFijo(S.fijos.find(f => f.id === d.id)),
   delFijo: async d => { if(await confirmDel("¿Eliminar este costo fijo?")){ del("fijos", d.id); closeModal(); render(); } },
+  newReserva: () => formReserva(),
+  editReserva: d => formReserva(S.reservas.find(r => r.id === d.id)),
+  delReserva: async d => { if(await confirmDel("¿Eliminar este pago?\nDeja de aparecer en todos los meses.")){ del("reservas", d.id); closeModal(); render(); } },
+  apartarTodo: () => {
+    const a = apartados(curM);
+    a.all.filter(r => !r.pagado && r.apartado < r.monto).forEach(r => a.rec.det[r.key] = { ...a.rec.det[r.key], apartado:r.monto });
+    put("apartados", a.rec); render(); toast("Todo apartado");
+  },
   newProv: () => formProv(),
   editProv: d => formProv(S.proveedores.find(p => p.id === d.id)),
   delProv: async d => { if(await confirmDel("¿Eliminar este proveedor?")){ del("proveedores", d.id); closeModal(); render(); } },
@@ -1920,6 +1994,13 @@ document.addEventListener("change", e => {
     put("insumos", i); renderKeep(); toast("Inventario guardado");
   }
   if(t.dataset.fijo){ const f = S.fijos.find(x => x.id === t.dataset.fijo); if(f){ f.monto = n0(t.value); put("fijos", f); renderKeep(); toast("Guardado"); } }
+  if(t.dataset.ap){
+    const rec = apartados(curM).rec, d = rec.det[t.dataset.k] = rec.det[t.dataset.k] || {};
+    if(t.dataset.ap === "pagado") d.pagado = t.checked;
+    else if(t.dataset.ap === "monto") d.monto = nOrNull(t.value);
+    else d.apartado = n0(t.value);
+    put("apartados", rec); renderKeep(); toast("Guardado");
+  }
   if(t.id === "restoreFile" && t.files[0]){ restore(t.files[0]); t.value = ""; }
 });
 document.addEventListener("submit", e => {
