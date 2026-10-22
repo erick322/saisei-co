@@ -421,6 +421,12 @@
     </section>
 
     <section class="card">
+      <div class="row"><h2>Pago con tarjeta</h2><span class="state" id="ptState"></span></div>
+      <p class="hint">Si lo desactivas, los clientes no ven la opción “Tarjeta” al hacer un pedido: solo transferencia o efectivo. El cambio se publica al instante.</p>
+      <label class="switch"><input type="checkbox" id="ptOn"> Aceptar pago con tarjeta</label>
+    </section>
+
+    <section class="card">
       <h2>Carrusel de la portada</h2>
       <p class="hint">Imágenes que rotan arriba de la página. El texto aparece como etiqueta y, al tocarla, el cliente va a la categoría elegida. Si lo dejas vacío se muestran las 3 cartas originales.</p>
       <div class="slides-ed" id="slEd"></div>
@@ -845,7 +851,7 @@ async function loadAj(){
   delete colorsEd.mov; // el movimiento viaja en el mismo JSON, pero se maneja aparte
   slEd = Array.isArray(aj.portada) ? aj.portada.map(s => ({ ...s })) : [];
   igPosts = Array.isArray(aj.instagram_posts) ? aj.instagram_posts.filter(c => typeof c === "string") : [];
-  renderColors(); renderImgs(); renderAviso(); renderSlEd(); renderContacto(); renderIgList();
+  renderColors(); renderImgs(); renderAviso(); renderPago(); renderSlEd(); renderContacto(); renderIgList();
 }
 
 // WhatsApp e Instagram de la página
@@ -1031,6 +1037,19 @@ $("soOn").onchange = async () => {
 };
 $("soSave").onclick = async () => {
   if(await guardarAj({ agotado:$("soOn").checked, agotado_titulo:$("soTit").value.trim() || "Agotamos stock", agotado_texto:$("soTxt").value.trim() }, "Aviso guardado")) estadoAviso();
+};
+
+// Pago con tarjeta en el pedido
+function renderPago(){
+  const on = aj.pago_tarjeta !== false;
+  $("ptOn").checked = on;
+  $("ptState").textContent = on ? "Activado" : "Desactivado";
+  $("ptState").classList.toggle("on", on);
+}
+$("ptOn").onchange = async () => {
+  const on = $("ptOn").checked;
+  if(await guardarAj({ pago_tarjeta:on }, on ? "Pago con tarjeta activado" : "Pago con tarjeta desactivado")) renderPago();
+  else $("ptOn").checked = !on;
 };
 
 // Carrusel de la portada

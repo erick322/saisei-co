@@ -78,6 +78,8 @@ alter table public.ajustes add column if not exists whatsapp  text default '';
 alter table public.ajustes add column if not exists instagram text default '';
 -- Galería de Instagram (se edita en /gestion → Avisos y portada): ["CODIGO1","CODIGO2",...]. Vacío = las publicaciones que trae index.html.
 alter table public.ajustes add column if not exists instagram_posts jsonb default '[]'::jsonb;
+-- Pago con tarjeta en el pedido (se activa/desactiva en /gestion → Avisos y portada)
+alter table public.ajustes add column if not exists pago_tarjeta boolean default true;
 insert into public.ajustes (id) values (1) on conflict do nothing;
 alter table public.ajustes enable row level security;
 drop policy if exists "ver ajustes" on public.ajustes;

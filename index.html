@@ -1388,6 +1388,8 @@ async function loadAjustes(){
 
     if(Array.isArray(a.instagram_posts) && a.instagram_posts.length) renderIG(a.instagram_posts);
 
+    if(a.pago_tarjeta === false) [...$("pago").options].find(o => o.value === "Tarjeta")?.remove();
+
     $("soldout").hidden = !a.agotado;
     if(a.agotado){
       $("soldoutT").textContent = a.agotado_titulo || "Agotamos stock";
