@@ -404,7 +404,7 @@ const UNIDADES = ["g", "ml", "un"];
 // =====================================================================
 //  Datos: en la nube (Supabase, tabla "cuentas") o en este dispositivo
 // =====================================================================
-const COLS = ["ventas", "gastos", "insumos", "recetas", "carta", "proveedores", "fijos"];
+const COLS = ["ventas", "gastos", "insumos", "recetas", "carta", "proveedores", "fijos", "saldos"];
 const PAR_DEF = { flete:.1, foodCost:.33, comision:.035, iva:.19, afectaIva:false, dias:20, ticket:15000, meta:500000, deliveryCobro:2000, deliveryCosto:1500, diaCorte:16 };
 const LS_DATA = "saisei.cuentas.datos", LS_OUT = "saisei.cuentas.pendientes";
 let S = blank();
@@ -673,6 +673,16 @@ function mes(m){
     compras, dif: compras - costo, difp: costo ? (compras - costo) / costo : 0,
     fijosPag: sum(gs.filter(g => g.tipo === "Costo fijo"), g => n0(g.monto)), gastosTot: sum(gs, g => n0(g.monto)) };
 }
+// Dinero del mes: saldo con que empieza + lo que entra − lo que sale, separado en débito (cuenta) y efectivo.
+// Ventas con tarjeta o transferencia entran a la cuenta descontando la comisión; las compras a crédito no salen aún.
+function caja(m){
+  const s = mes(m), ini = S.saldos.find(x => x.id === m);
+  const r = { ini, debito:{ ini:n0(ini && ini.debito), ent:0, sal:0 }, efectivo:{ ini:n0(ini && ini.efectivo), ent:0, sal:0 }, credito:0 };
+  s.vs.forEach(v => { const t = vTot(v); if(v.pago === "Efectivo") r.efectivo.ent += t.bruto; else r.debito.ent += t.bruto - t.com; });
+  s.gs.forEach(g => { const x = n0(g.monto); if(g.pago === "Efectivo") r.efectivo.sal += x; else if(g.pago === "Crédito proveedor") r.credito += x; else r.debito.sal += x; });
+  [r.debito, r.efectivo].forEach(c => c.fin = c.ini + c.ent - c.sal);
+  return r;
+}
 function equilibrio(){
   const cf = totalFijos();
   let N = 0, MC = 0;
@@ -811,12 +821,25 @@ R.inicio = () => {
   if(!alerts.length) alerts.push(`<div class="alert ok">${ico("check")}<span>Todo en orden por ahora.</span></div>`);
 
   const falta = Math.max(eq.netoEq - s.neto, 0);
+  const cj = caja(curM), col = (l, c) => `<td class="n">${fmt(c[l])}</td>`;
+  const fila = (t, l, sg = "") => `<tr><td>${sg}${t}</td>${col(l, cj.debito)}${col(l, cj.efectivo)}<td class="n">${fmt(cj.debito[l] + cj.efectivo[l])}</td></tr>`;
   return `
   <div class="kpis">
     ${kpi("Ventas del mes", fmt(s.bruto), `${s.pedidos} pedido${s.pedidos === 1 ? "" : "s"} · ticket ${fmt(s.ticket)}`)}
     ${kpi("Margen de contribución", fmt(s.mc), `${pct(s.mcp)} de las ventas netas`)}
     ${kpi("Costos fijos", fmt(s.cf), `<a href="#fijos">${S.fijos.length} ítems</a>`)}
     ${kpi("Utilidad del mes", `<span class="${s.util >= 0 ? "pos" : "neg"}">${fmt(s.util)}</span>`, s.util >= 0 ? "¡Vas ganando!" : "Aún no cubres los costos fijos", "hero")}
+  </div>
+  <div class="card mt">
+    <h2>Dinero del mes <button class="b sm r" data-act="editSaldo">${ico(cj.ini ? "edit" : "plus")}${cj.ini ? "Editar saldo inicial" : "Anotar saldo inicial"}</button></h2>
+    ${cj.ini ? "" : `<p class="hint">Anota con cuánto dinero empezaste ${mName(curM)} en la cuenta (débito) y en efectivo para saber cuánto deberías tener ahora.</p>`}
+    <div class="tw"><table><thead><tr><th></th><th class="n">Débito</th><th class="n">Efectivo</th><th class="n">Total</th></tr></thead><tbody>
+      ${fila("Saldo inicial", "ini")}
+      ${fila("Ventas", "ent", "+ ")}
+      ${fila("Gastos", "sal", "− ")}
+      <tr><td><b>Saldo actual</b></td>${[cj.debito.fin, cj.efectivo.fin, cj.debito.fin + cj.efectivo.fin].map(x => `<td class="n"><b class="${x < 0 ? "neg" : ""}">${fmt(x)}</b></td>`).join("")}</tr>
+    </tbody></table></div>
+    <p class="hint">Ventas con tarjeta o transferencia van a débito descontando la comisión.${cj.credito ? ` Compras a crédito de proveedor por pagar: <b>${fmt(cj.credito)}</b> (no se descuentan aún).` : ""}</p>
   </div>
   <div class="grid g2 mt">
     <div class="card">
@@ -1725,6 +1748,20 @@ function formFijo(orig){
     put("fijos", t); closeModal(); render(); toast("Costo fijo guardado");
   };
 }
+function formSaldo(){
+  const o = S.saldos.find(x => x.id === curM) || { id:curM, debito:"", efectivo:"" };
+  const m = openModal("Saldo inicial · " + mName(curM), `
+    <p class="hint">El dinero que tenías el ${+pStart(curM).slice(8)} de ${mon(...pStart(curM).split("-").slice(0, 2).map(Number), {month:"long"})}, al empezar el mes de facturación.</p>
+    <div class="f2">
+      <div><label for="sD">Débito (cuenta)</label><div class="unit pre"><em>$</em><input id="sD" type="number" inputmode="numeric" step="1000" value="${esc(o.debito)}"></div></div>
+      <div><label for="sE">Efectivo</label><div class="unit pre"><em>$</em><input id="sE" type="number" inputmode="numeric" step="1000" value="${esc(o.efectivo)}"></div></div>
+    </div>`,
+    `<span class="sp"></span><button class="b" data-act="close">Cancelar</button><button class="b pri" id="sSave">Guardar</button>`);
+  m.querySelector("#sSave").onclick = () => {
+    put("saldos", { id:curM, debito:n0(m.querySelector("#sD").value), efectivo:n0(m.querySelector("#sE").value) });
+    closeModal(); render(); toast("Saldo inicial guardado");
+  };
+}
 function formProv(orig){
   const p = orig ? clone(orig) : { id:uid(), nombre:"", rubro:"", contacto:"", telefono:"", ciudad:"", dias:"", pago:"", web:"" };
   const F = (k, l, ph = "") => `<div><label for="pv_${k}">${l}</label><input id="pv_${k}" value="${esc(p[k] || "")}" placeholder="${ph}"></div>`;
@@ -1814,6 +1851,7 @@ const A = {
     if(await borrarPedido(p)){ closeModal(); render(); toast("Pedido rechazado y eliminado"); }
   },
   newGasto: () => formGasto(),
+  editSaldo: () => formSaldo(),
   editGasto: d => formGasto(S.gastos.find(g => g.id === d.id)),
   delGasto: async d => { if(await confirmDel("¿Eliminar este gasto?")){ del("gastos", d.id); closeModal(); render(); toast("Gasto eliminado"); } },
   gTipo: d => { UI.gastoTipo = d.t; render(); },
