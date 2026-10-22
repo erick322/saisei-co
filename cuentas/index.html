@@ -677,8 +677,14 @@ function mes(m){
 // Dinero del mes: saldo con que empieza + lo que entra − lo que sale, separado en débito (cuenta) y efectivo.
 // Ventas con tarjeta o transferencia entran a la cuenta descontando la comisión; las compras a crédito no salen aún.
 function caja(m){
-  const s = mes(m), ini = S.saldos.find(x => x.id === m);
-  const r = { ini, debito:{ ini:n0(ini && ini.debito), ent:0, sal:0 }, efectivo:{ ini:n0(ini && ini.efectivo), ent:0, sal:0 }, tarjeta:{ ini:n0(ini && ini.tarjeta), ent:0, sal:0 }, credito:0 };
+  const s = mes(m), rec = S.saldos.find(x => x.id === m);
+  // Sin saldo anotado, el mes empieza con el saldo final del mes anterior (desde el primer mes anotado)
+  let ini = rec, traido = false;
+  if(!rec && S.saldos.some(x => x.id < m)){
+    const p = caja(addMonth(m, -1));
+    ini = { debito:p.debito.fin, efectivo:p.efectivo.fin, tarjeta:p.tarjeta.fin }; traido = true;
+  }
+  const r = { ini, traido, debito:{ ini:n0(ini && ini.debito), ent:0, sal:0 }, efectivo:{ ini:n0(ini && ini.efectivo), ent:0, sal:0 }, tarjeta:{ ini:n0(ini && ini.tarjeta), ent:0, sal:0 }, credito:0 };
   s.vs.forEach(v => { const t = vTot(v); if(v.pago === "Efectivo") r.efectivo.ent += t.bruto; else r.debito.ent += t.bruto - t.com; });
   s.gs.forEach(g => { const x = n0(g.monto);
     if(g.pago === "Efectivo") r.efectivo.sal += x;
@@ -852,7 +858,7 @@ R.inicio = () => {
     <h2>Dinero del mes <button class="b sm r" data-act="editSaldo">${ico(cj.ini ? "edit" : "plus")}${cj.ini ? "Editar saldo inicial" : "Anotar saldo inicial"}</button></h2>
     ${cj.ini ? "" : `<p class="hint">Anota con cuánto dinero empezaste ${mName(curM)} en la cuenta (débito), en efectivo y el cupo de tu tarjeta de crédito para saber cuánto deberías tener ahora.</p>`}
     <div class="tw"><table><thead><tr><th></th><th class="n">Débito</th><th class="n">Efectivo</th><th class="n">Total</th></tr></thead><tbody>
-      ${fila("Saldo inicial", "ini")}
+      ${fila(cj.traido ? "Saldo inicial <span class=\"small muted\">(del mes anterior)</span>" : "Saldo inicial", "ini")}
       ${fila("Ventas", "ent", "+ ")}
       ${fila("Gastos", "sal", "− ")}
       <tr><td><b>Saldo actual</b></td>${[cj.debito.fin, cj.efectivo.fin, cj.debito.fin + cj.efectivo.fin].map(x => `<td class="n"><b class="${x < 0 ? "neg" : ""}">${fmt(x)}</b></td>`).join("")}</tr>
@@ -1810,9 +1816,10 @@ function formFijo(orig){
   };
 }
 function formSaldo(){
-  const o = S.saldos.find(x => x.id === curM) || { id:curM, debito:"", efectivo:"", tarjeta:"" };
+  const cj = caja(curM), t = cj.traido;
+  const o = S.saldos.find(x => x.id === curM) || (t ? { debito:Math.round(cj.debito.ini), efectivo:Math.round(cj.efectivo.ini), tarjeta:Math.round(cj.tarjeta.ini) } : { debito:"", efectivo:"", tarjeta:"" });
   const m = openModal("Saldo inicial · " + mName(curM), `
-    <p class="hint">El dinero que tenías el ${+pStart(curM).slice(8)} de ${mon(...pStart(curM).split("-").slice(0, 2).map(Number), {month:"long"})}, al empezar el mes de facturación.</p>
+    <p class="hint">El dinero que tenías el ${+pStart(curM).slice(8)} de ${mon(...pStart(curM).split("-").slice(0, 2).map(Number), {month:"long"})}, al empezar el mes de facturación.${t ? " Viene del saldo final del mes anterior; cámbialo si no coincide con lo que tienes." : ""}</p>
     <div class="f2">
       <div><label for="sD">Débito (cuenta)</label><div class="unit pre"><em>$</em><input id="sD" type="number" inputmode="numeric" step="1000" value="${esc(o.debito)}"></div></div>
       <div><label for="sE">Efectivo</label><div class="unit pre"><em>$</em><input id="sE" type="number" inputmode="numeric" step="1000" value="${esc(o.efectivo)}"></div></div>
