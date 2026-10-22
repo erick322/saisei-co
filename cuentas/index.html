@@ -399,7 +399,7 @@ const ico = (k, cls = "ico") => `<svg class="${cls}" viewBox="0 0 24 24" fill="n
 const CANALES = ["WhatsApp", "Instagram", "Sitio web", "Presencial", "Otro"];
 const PAGOS_V = ["Efectivo", "Transferencia", "Tarjeta / link de pago"];
 const TIPOS_G = ["Insumos", "Empaques", "Costo fijo", "Equipamiento", "Otro"];
-const PAGOS_G = ["Efectivo", "Transferencia", "Tarjeta", "Crédito proveedor"];
+const PAGOS_G = ["Efectivo", "Transferencia", "Tarjeta de débito", "Tarjeta de crédito", "Crédito proveedor"];
 const UNIDADES = ["g", "ml", "un"];
 
 // =====================================================================
@@ -678,10 +678,14 @@ function mes(m){
 // Ventas con tarjeta o transferencia entran a la cuenta descontando la comisión; las compras a crédito no salen aún.
 function caja(m){
   const s = mes(m), ini = S.saldos.find(x => x.id === m);
-  const r = { ini, debito:{ ini:n0(ini && ini.debito), ent:0, sal:0 }, efectivo:{ ini:n0(ini && ini.efectivo), ent:0, sal:0 }, credito:0 };
+  const r = { ini, debito:{ ini:n0(ini && ini.debito), ent:0, sal:0 }, efectivo:{ ini:n0(ini && ini.efectivo), ent:0, sal:0 }, tarjeta:{ ini:n0(ini && ini.tarjeta), ent:0, sal:0 }, credito:0 };
   s.vs.forEach(v => { const t = vTot(v); if(v.pago === "Efectivo") r.efectivo.ent += t.bruto; else r.debito.ent += t.bruto - t.com; });
-  s.gs.forEach(g => { const x = n0(g.monto); if(g.pago === "Efectivo") r.efectivo.sal += x; else if(g.pago === "Crédito proveedor") r.credito += x; else r.debito.sal += x; });
-  [r.debito, r.efectivo].forEach(c => c.fin = c.ini + c.ent - c.sal);
+  s.gs.forEach(g => { const x = n0(g.monto);
+    if(g.pago === "Efectivo") r.efectivo.sal += x;
+    else if(g.pago === "Tarjeta de crédito") r.tarjeta.sal += x;
+    else if(g.pago === "Crédito proveedor") r.credito += x;
+    else r.debito.sal += x; });
+  [r.debito, r.efectivo, r.tarjeta].forEach(c => c.fin = c.ini + c.ent - c.sal);
   return r;
 }
 // Dinero apartado para pagos del mes: los costos fijos del negocio + otros pagos (tarjeta de crédito, etc.).
@@ -846,7 +850,7 @@ R.inicio = () => {
   </div>
   <div class="card mt">
     <h2>Dinero del mes <button class="b sm r" data-act="editSaldo">${ico(cj.ini ? "edit" : "plus")}${cj.ini ? "Editar saldo inicial" : "Anotar saldo inicial"}</button></h2>
-    ${cj.ini ? "" : `<p class="hint">Anota con cuánto dinero empezaste ${mName(curM)} en la cuenta (débito) y en efectivo para saber cuánto deberías tener ahora.</p>`}
+    ${cj.ini ? "" : `<p class="hint">Anota con cuánto dinero empezaste ${mName(curM)} en la cuenta (débito), en efectivo y el cupo de tu tarjeta de crédito para saber cuánto deberías tener ahora.</p>`}
     <div class="tw"><table><thead><tr><th></th><th class="n">Débito</th><th class="n">Efectivo</th><th class="n">Total</th></tr></thead><tbody>
       ${fila("Saldo inicial", "ini")}
       ${fila("Ventas", "ent", "+ ")}
@@ -856,6 +860,12 @@ R.inicio = () => {
       <tr class="tot"><td>Libre para usar</td><td></td><td></td><td class="n"><span class="${libre < 0 ? "neg" : "pos"}">${fmt(libre)}</span></td></tr>` : ""}
     </tbody></table></div>
     ${ap.falta > 0 ? `<a class="alert" href="#apartar">${ico("safe")}<span>Te falta apartar <b>${fmt(ap.falta)}</b> para los pagos del mes.</span></a>` : ""}
+    ${cj.tarjeta.ini || cj.tarjeta.sal ? `<h2 class="mt" style="font-size:1rem">Tarjeta de crédito</h2>
+    <div class="tw"><table><tbody>
+      <tr><td>Cupo disponible al inicio</td><td class="n">${fmt(cj.tarjeta.ini)}</td></tr>
+      <tr><td>− Compras con la tarjeta</td><td class="n">${fmt(cj.tarjeta.sal)}</td></tr>
+      <tr class="tot"><td>Cupo disponible ahora</td><td class="n"><span class="${cj.tarjeta.fin < 0 ? "neg" : ""}">${fmt(cj.tarjeta.fin)}</span></td></tr>
+    </tbody></table></div>` : ""}
     <p class="hint">Ventas con tarjeta o transferencia van a débito descontando la comisión.${cj.credito ? ` Compras a crédito de proveedor por pagar: <b>${fmt(cj.credito)}</b> (no se descuentan aún).` : ""}</p>
   </div>
   <div class="grid g2 mt">
@@ -1564,6 +1574,7 @@ function detPedido(id){
 // ---------- Formulario de gasto ----------
 function formGasto(orig){
   const g = orig ? clone(orig) : { id:uid(), fecha: curM === curMonth() ? today() : pStart(curM), tipo:"Insumos", proveedor:"", desc:"", monto:"", doc:"", pago:"Transferencia" };
+  if(g.pago === "Tarjeta") g.pago = "Tarjeta de débito";
   const provs = [...new Set([...S.proveedores.map(p => p.nombre), ...S.gastos.map(x => x.proveedor)].filter(Boolean))].sort();
   const ins = S.insumos.slice().sort(byName);
   const body = `
@@ -1799,16 +1810,18 @@ function formFijo(orig){
   };
 }
 function formSaldo(){
-  const o = S.saldos.find(x => x.id === curM) || { id:curM, debito:"", efectivo:"" };
+  const o = S.saldos.find(x => x.id === curM) || { id:curM, debito:"", efectivo:"", tarjeta:"" };
   const m = openModal("Saldo inicial · " + mName(curM), `
     <p class="hint">El dinero que tenías el ${+pStart(curM).slice(8)} de ${mon(...pStart(curM).split("-").slice(0, 2).map(Number), {month:"long"})}, al empezar el mes de facturación.</p>
     <div class="f2">
       <div><label for="sD">Débito (cuenta)</label><div class="unit pre"><em>$</em><input id="sD" type="number" inputmode="numeric" step="1000" value="${esc(o.debito)}"></div></div>
       <div><label for="sE">Efectivo</label><div class="unit pre"><em>$</em><input id="sE" type="number" inputmode="numeric" step="1000" value="${esc(o.efectivo)}"></div></div>
-    </div>`,
+    </div>
+    <label for="sT">Tarjeta de crédito (cupo disponible)</label><div class="unit pre"><em>$</em><input id="sT" type="number" inputmode="numeric" min="0" step="1000" value="${esc(o.tarjeta ?? "")}"></div>
+    <p class="hint">El cupo no se suma a tu dinero: es lo que aún puedes gastar con la tarjeta.</p>`,
     `<span class="sp"></span><button class="b" data-act="close">Cancelar</button><button class="b pri" id="sSave">Guardar</button>`);
   m.querySelector("#sSave").onclick = () => {
-    put("saldos", { id:curM, debito:n0(m.querySelector("#sD").value), efectivo:n0(m.querySelector("#sE").value) });
+    put("saldos", { id:curM, debito:n0(m.querySelector("#sD").value), efectivo:n0(m.querySelector("#sE").value), tarjeta:n0(m.querySelector("#sT").value) });
     closeModal(); render(); toast("Saldo inicial guardado");
   };
 }
