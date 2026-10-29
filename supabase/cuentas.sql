@@ -16,8 +16,20 @@ create table if not exists public.cuentas (
   primary key (coleccion, id)
 );
 
--- Solo el administrador puede ver y cambiar las cuentas (nadie más, ni siquiera para leer).
+-- El administrador ve y cambia todo. El colaborador lee lo necesario para anotar
+-- ventas, gastos e inventario (sin saldos, dinero apartado ni costos fijos);
+-- anota y corrige, pero no elimina. El invitado no ve nada.
 alter table public.cuentas enable row level security;
 drop policy if exists "admin cuentas" on public.cuentas;
+drop policy if exists "colaborador lee cuentas" on public.cuentas;
+drop policy if exists "colaborador anota cuentas" on public.cuentas;
+drop policy if exists "colaborador corrige cuentas" on public.cuentas;
 create policy "admin cuentas" on public.cuentas for all to authenticated
   using (public.es_admin()) with check (public.es_admin());
+create policy "colaborador lee cuentas" on public.cuentas for select to authenticated
+  using (public.es_equipo() and coleccion in ('ventas', 'gastos', 'insumos', 'recetas', 'carta', 'proveedores', 'config'));
+create policy "colaborador anota cuentas" on public.cuentas for insert to authenticated
+  with check (public.es_equipo() and coleccion in ('ventas', 'gastos', 'insumos'));
+create policy "colaborador corrige cuentas" on public.cuentas for update to authenticated
+  using (public.es_equipo() and coleccion in ('ventas', 'gastos', 'insumos'))
+  with check (public.es_equipo() and coleccion in ('ventas', 'gastos', 'insumos'));

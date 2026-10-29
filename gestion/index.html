@@ -115,6 +115,17 @@
   .igitem code{flex:1;font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .igitem a{font-size:12px;white-space:nowrap}
   .navbadge{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--accent);color:var(--bg);font-size:11px;font-weight:700}
+  /* Roles: lo marcado como solo-admin no se muestra al colaborador */
+  body[data-rol="colaborador"] .solo-admin{display:none !important}
+  .roles{display:grid;gap:10px;margin-top:12px}
+  .roles div{padding:10px 14px;border:1px solid var(--line);border-radius:12px}
+  .roles b{display:block}
+  .roles span{color:var(--muted);font-size:14px}
+  .usadd{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) auto auto;gap:8px;margin:12px 0 4px}
+  @media (max-width:600px){.usadd{grid-template-columns:1fr}}
+  .usw{flex:1;min-width:0;overflow-wrap:anywhere}
+  .usw small{display:block;color:var(--muted);font-size:12px}
+  .igitem select{width:auto}
   .oplist{display:flex;flex-direction:column;gap:10px}
   .opmod{display:flex;flex-direction:column;gap:6px;padding:12px 14px;border:1px solid var(--line);border-radius:12px}
   .opmod.pend{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent)}
@@ -247,7 +258,7 @@
       <a href="../cuentas/">Cuentas</a>
     </nav>
   </div>
-  <div class="r" id="who" hidden><span id="email"></span>
+  <div class="r" id="who" hidden><span id="email"></span><span class="state" id="rolTag" style="margin-left:0"></span>
     <a class="b sm" href="../" target="_blank" rel="noopener" aria-label="Ver página" title="Ver página"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span class="txt">Ver página</span></a>
     <button class="b sm" id="pwOpen" aria-label="Cambiar contraseña" title="Cambiar contraseña"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span class="txt">Cambiar contraseña</span></button>
     <button class="b sm" id="logout" aria-label="Salir" title="Salir"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg><span class="txt">Salir</span></button>
@@ -266,7 +277,7 @@
 <div class="wrap" id="loginView" hidden>
   <form class="card login" id="loginForm">
     <h2>Ingresar</h2>
-    <p style="color:var(--muted);margin:6px 0 0;font-size:14px">Acceso exclusivo para la administración de Saisei &amp; Co.</p>
+    <p style="color:var(--muted);margin:6px 0 0;font-size:14px">Acceso exclusivo para el equipo de Saisei &amp; Co.</p>
     <label for="lEmail">Correo</label>
     <input id="lEmail" type="email" autocomplete="username" required>
     <label for="lPass">Contraseña</label>
@@ -274,6 +285,7 @@
     <button class="b pri full" id="lBtn">Ingresar</button>
     <div class="msg err" id="lMsg"></div>
     <button type="button" class="b sm" id="lForgot" style="border:0;padding:4px 0;color:var(--muted);text-decoration:underline">¿Olvidaste tu contraseña?</button>
+    <button type="button" class="b sm" id="lAlta" style="border:0;padding:4px 0;color:var(--muted);text-decoration:underline">¿Primera vez? Activa tu cuenta</button>
   </form>
 </div>
 
@@ -296,24 +308,25 @@
 <div class="wrap" id="panel" hidden>
   <nav class="seccs" id="seccs">
     <button data-s="sCarta" class="on"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Carta y productos</button>
-    <button data-s="sApariencia"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a10 10 0 1 1 10-10c0 2.8-2.2 4-4 4h-2a2 2 0 0 0-1.5 3.3A1.6 1.6 0 0 1 12 22Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor"/><circle cx="12" cy="7" r="1.2" fill="currentColor"/><circle cx="16.5" cy="11" r="1.2" fill="currentColor"/></svg>Apariencia</button>
-    <button data-s="sAvisos"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1ZM16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>Avisos y portada</button>
+    <button data-s="sApariencia" class="solo-admin"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a10 10 0 1 1 10-10c0 2.8-2.2 4-4 4h-2a2 2 0 0 0-1.5 3.3A1.6 1.6 0 0 1 12 22Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor"/><circle cx="12" cy="7" r="1.2" fill="currentColor"/><circle cx="16.5" cy="11" r="1.2" fill="currentColor"/></svg>Apariencia</button>
+    <button data-s="sAvisos" class="solo-admin"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1ZM16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>Avisos y portada</button>
     <button data-s="sOpiniones"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9 6.8 19.2l1-5.8-4.3-4.1 5.9-.9z"/></svg>Opiniones<span class="navbadge" id="opBadge" hidden></span></button>
+    <button data-s="sUsuarios" class="solo-admin"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg>Usuarios</button>
   </nav>
 
   <!-- ===== Carta ===== -->
   <div id="sCarta">
     <div class="layout">
       <div>
-        <div class="head" style="margin:0"><h2 style="font-size:20px">Categorías</h2><button class="b sm pri" id="addCat">+ Nueva</button></div>
+        <div class="head" style="margin:0"><h2 style="font-size:20px">Categorías</h2><button class="b sm pri solo-admin" id="addCat">+ Nueva</button></div>
         <div class="cats" id="cats"></div>
       </div>
       <div>
         <div class="head">
           <div><h2 id="catTitle"></h2><p id="catSub"></p></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="b sm" id="editCat">Editar categoría</button>
-            <button class="b sm pri" id="addProd">+ Nuevo producto</button>
+            <button class="b sm solo-admin" id="editCat">Editar categoría</button>
+            <button class="b sm pri solo-admin" id="addProd">+ Nuevo producto</button>
           </div>
         </div>
         <div class="grid" id="prods"></div>
@@ -446,6 +459,29 @@
       <div class="row"><h2>Opiniones de clientes</h2><span class="state" id="opState"></span></div>
       <p class="hint">Las opiniones que dejan los clientes en la página llegan aquí. Solo se muestran en la web las que <b>apruebes</b>. Puedes ocultar una aprobada o eliminarla.</p>
       <div class="oplist" id="opAdmin"></div>
+    </section>
+  </div>
+
+  <!-- ===== Usuarios (solo administrador) ===== -->
+  <div id="sUsuarios" hidden>
+    <section class="card">
+      <div class="row"><h2>Tipos de usuario</h2><span class="state" id="usState"></span></div>
+      <div class="roles">
+        <div><b>1. Administrador</b><span>Control total: carta y precios, apariencia, avisos, opiniones, todas las cuentas (dinero, saldos, resultados, configuración) y quién entra al sistema.</span></div>
+        <div><b>2. Colaborador</b><span>El día a día. En Cuentas: pedidos de la página, ventas, gastos e inventario. Aquí: mostrar u ocultar productos y aprobar u ocultar opiniones. No ve el dinero del negocio, no cambia la configuración ni elimina registros.</span></div>
+        <div><b>3. Invitado</b><span>Cualquier otra persona, sin cuenta: solo la página pública (ver la carta, hacer pedidos y dejar opiniones).</span></div>
+      </div>
+    </section>
+    <section class="card" style="margin-top:16px">
+      <h2>Equipo</h2>
+      <form class="usadd" id="usForm">
+        <input id="usEmail" type="email" placeholder="correo@ejemplo.com" aria-label="Correo" required>
+        <input id="usNombre" placeholder="Nombre (opcional)" aria-label="Nombre" maxlength="60">
+        <select id="usRol" aria-label="Tipo de usuario"><option value="colaborador">Colaborador</option><option value="administrador">Administrador</option></select>
+        <button class="b pri">Agregar</button>
+      </form>
+      <p class="hint">Después de agregarlo, pídele que abra esta misma página, escriba su correo y la contraseña que quiera, toque <b>“¿Primera vez? Activa tu cuenta”</b> y confirme el correo que le llegará.</p>
+      <div class="iglist" id="usList"></div>
     </section>
   </div>
 </div>
@@ -645,19 +681,38 @@ $("lForgot").onclick = async () => {
   const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
   $("lForgot").disabled = false;
   $("lMsg").className = error ? "msg err" : "msg ok";
-  $("lMsg").textContent = error ? "No se pudo enviar el correo: " + error.message : "Si el correo es de un administrador, te llegará un enlace para crear una contraseña nueva.";
+  $("lMsg").textContent = error ? "No se pudo enviar el correo: " + error.message : "Si el correo es del equipo, te llegará un enlace para crear una contraseña nueva.";
 };
 
+// Activa la cuenta de alguien que el administrador ya agregó en Usuarios (o cualquiera, que queda como invitado)
+$("lAlta").onclick = async () => {
+  const email = $("lEmail").value.trim(), password = $("lPass").value;
+  $("lMsg").className = "msg err";
+  if(!email || password.length < 8){
+    $("lMsg").textContent = "Escribe tu correo y la contraseña que quieres usar (mínimo 8 caracteres) y vuelve a tocar “Activa tu cuenta”.";
+    return $(email ? "lPass" : "lEmail").focus();
+  }
+  $("lAlta").disabled = true;
+  const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } });
+  $("lAlta").disabled = false;
+  if(error) return $("lMsg").textContent = "No se pudo activar: " + error.message;
+  if(data.session) return enter(data.session);
+  $("lMsg").className = "msg ok";
+  $("lMsg").textContent = "Te enviamos un correo. Ábrelo, confirma tu cuenta y luego ingresa aquí con tu correo y contraseña.";
+};
+
+// Solo entran el administrador y el colaborador (supabase/usuarios.sql). El invitado no tiene panel.
 async function enter(session){
-  const { data: ok } = await sb.rpc("es_admin");
-  if(!ok){
+  const { data: rol } = await sb.rpc("mi_rol");
+  if(rol !== "administrador" && rol !== "colaborador"){
     await sb.auth.signOut();
-    show("loginView"); $("lMsg").textContent = "Esta cuenta no tiene permisos de administrador.";
+    show("loginView"); $("lMsg").textContent = "Esta cuenta no tiene acceso. Pide al administrador que te agregue al equipo.";
     return;
   }
-  $("email").textContent = session.user.email; $("who").hidden = false;
+  document.body.dataset.rol = rol;
+  $("email").textContent = session.user.email; $("rolTag").textContent = rol === "administrador" ? "Administrador" : "Colaborador"; $("who").hidden = false;
   show("panel");
-  await Promise.all([load(), loadAj(), loadOpi()]);
+  await Promise.all(rol === "administrador" ? [load(), loadAj(), loadOpi(), loadUs()] : [load(), loadOpi()]);
 }
 
 // Pestañas
@@ -727,7 +782,7 @@ function renderProds(){
       <p>${esc(p.descripcion)}</p>
       <b>${p.variantes?.length ? p.variantes.map(v=>`${esc(v.n)} ${fmt(v.p)}`).join(" · ") : fmt(p.precio)}</b>
       <div class="acts">
-        <button class="b sm" data-edit="${p.id}">Editar</button>
+        <button class="b sm solo-admin" data-edit="${p.id}">Editar</button>
         <button class="b sm" data-toggle="${p.id}">${p.activo?'Ocultar':'Mostrar'}</button>
       </div>
     </div>`).join("") : `<p class="empty" style="grid-column:1/-1">No hay productos en esta categoría.</p>`;
@@ -738,7 +793,7 @@ $("prods").onclick = async e => {
   if(ed) openProd(prods.find(p => p.id === +ed.dataset.edit));
   if(tg){
     const p = prods.find(x => x.id === +tg.dataset.toggle);
-    const { error } = await sb.from("productos").update({ activo: !p.activo }).eq("id", p.id);
+    const { error } = await sb.rpc("mostrar_producto", { p_id: p.id, p_activo: !p.activo });
     if(error) return toast(error.message, true);
     toast(p.activo ? "Producto oculto" : "Producto visible"); load();
   }
@@ -922,7 +977,7 @@ function renderOpi(){
       <div class="opmeta">${new Date(o.creado).toLocaleDateString("es-CL", { day: "numeric", month: "long", year: "numeric" })} · ${o.aprobado ? "Visible en la página" : "Oculta (por revisar)"}</div>
       <div class="opacts">
         ${o.aprobado ? `<button class="b sm" data-op-oc="${o.id}">Ocultar</button>` : `<button class="b sm pri" data-op-ap="${o.id}">Aprobar</button>`}
-        <button class="b sm del" data-op-del="${o.id}">Eliminar</button>
+        <button class="b sm del solo-admin" data-op-del="${o.id}">Eliminar</button>
       </div>
     </div>`).join("") : `<p class="hint">Aún no hay opiniones. Cuando un cliente deje una en la página, aparecerá aquí para que la apruebes.</p>`;
 }
@@ -947,6 +1002,47 @@ $("opAdmin").onclick = async e => {
     if(error) return toast("No se pudo eliminar: " + error.message, true);
     toast("Opinión eliminada"); loadOpi();
   }
+};
+
+// ---------- Usuarios (solo administrador) ----------
+let usuarios = [];
+async function loadUs(){
+  const { data, error } = await sb.from("usuarios").select("*").order("rol").order("email");
+  if(error){ $("usList").innerHTML = `<p class="hint">No se pudo cargar: ${esc(error.message)}</p>`; return; }
+  usuarios = data; renderUs();
+}
+function renderUs(){
+  const yo = $("email").textContent.toLowerCase(), nCol = usuarios.filter(u => u.rol === "colaborador").length;
+  $("usState").textContent = `${usuarios.length - nCol} administrador${usuarios.length - nCol === 1 ? "" : "es"} · ${nCol} colaborador${nCol === 1 ? "" : "es"}`;
+  $("usList").innerHTML = usuarios.map(u => `
+    <div class="igitem">
+      <div class="usw"><b>${esc(u.nombre || u.email)}${u.email === yo ? " (tú)" : ""}</b>${u.nombre ? `<small>${esc(u.email)}</small>` : ""}</div>
+      <select data-us-rol="${esc(u.email)}" aria-label="Tipo de usuario de ${esc(u.email)}"${u.email === yo ? " disabled" : ""}>
+        <option value="colaborador"${u.rol === "colaborador" ? " selected" : ""}>Colaborador</option>
+        <option value="administrador"${u.rol === "administrador" ? " selected" : ""}>Administrador</option>
+      </select>
+      ${u.email === yo ? "" : `<button class="b sm del" data-us-del="${esc(u.email)}">Quitar</button>`}
+    </div>`).join("");
+}
+$("usForm").onsubmit = async e => {
+  e.preventDefault();
+  const row = { email:$("usEmail").value.trim().toLowerCase(), nombre:$("usNombre").value.trim(), rol:$("usRol").value };
+  const { error } = await sb.from("usuarios").insert(row);
+  if(error) return toast(error.code === "23505" ? "Ese correo ya está en el equipo" : "No se pudo agregar: " + error.message, true);
+  $("usEmail").value = $("usNombre").value = "";
+  toast(`${row.email} agregado como ${row.rol}`); loadUs();
+};
+$("usList").onchange = async e => {
+  const s = e.target.closest("[data-us-rol]"); if(!s) return;
+  const { error } = await sb.from("usuarios").update({ rol:s.value }).eq("email", s.dataset.usRol);
+  toast(error ? "No se pudo cambiar: " + error.message : "Tipo de usuario cambiado", !!error); loadUs();
+};
+$("usList").onclick = async e => {
+  const b = e.target.closest("[data-us-del]"); if(!b) return;
+  if(!confirm(`¿Quitar a ${b.dataset.usDel} del equipo? Pasa a ser invitado: ya no podrá entrar a Gestión ni a Cuentas.`)) return;
+  const { error } = await sb.from("usuarios").delete().eq("email", b.dataset.usDel);
+  if(error) return toast("No se pudo quitar: " + error.message, true);
+  toast("Quitado del equipo"); loadUs();
 };
 
 // Paleta

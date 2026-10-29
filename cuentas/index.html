@@ -407,10 +407,15 @@ const UNIDADES = ["g", "ml", "un"];
 // =====================================================================
 const COLS = ["ventas", "gastos", "insumos", "recetas", "carta", "proveedores", "fijos", "saldos", "reservas", "apartados"];
 const PAR_DEF = { flete:.1, foodCost:.33, comision:.035, iva:.19, afectaIva:false, dias:20, ticket:15000, meta:500000, deliveryCobro:2000, deliveryCosto:1500, diaCorte:16 };
-const LS_DATA = "saisei.cuentas.datos", LS_OUT = "saisei.cuentas.pendientes";
+const LS_DATA = "saisei.cuentas.datos", LS_OUT = "saisei.cuentas.pendientes", LS_ROL = "saisei.cuentas.rol";
 let S = blank();
 let mode = "local";        // "nube" | "local"
 let sb = null, user = null;
+// "administrador" ve todo; "colaborador" solo el día a día (supabase/usuarios.sql). Sin nube, el dueño del dispositivo es administrador.
+let rol = "administrador";
+const esAdmin = () => rol === "administrador";
+const VISTAS_COLAB = ["pedidos", "ventas", "gastos", "inventario", "mas"];
+const puede = k => esAdmin() || VISTAS_COLAB.includes(k);
 let outbox = readJSON(LS_OUT) || [];
 
 function blank(){ const o = {}; COLS.forEach(c => o[c] = []); o.par = {...PAR_DEF}; return o; }
@@ -553,7 +558,7 @@ async function boot(){
   try { session = (await sb.auth.getSession()).data.session; } catch(e){}
   if(!session){
     const cache = readJSON(LS_DATA);
-    if(!navigator.onLine && cache){ mode = "nube"; S = normalize(cache); banner("offline"); return startApp(); }
+    if(!navigator.onLine && cache){ mode = "nube"; rol = readJSON(LS_ROL) || "colaborador"; S = normalize(cache); banner("offline"); return startApp(); }
     return showOnly("loginView");
   }
   enter(session);
@@ -563,17 +568,19 @@ async function enter(session){
   user = session.user;
   showOnly("boot");
   const cache = readJSON(LS_DATA);
-  let isAdmin = null;
-  try { const r = await sb.rpc("es_admin"); if(r.error) throw r.error; isAdmin = r.data; } catch(e){ isAdmin = null; }
-  if(isAdmin === false){
+  let r = null;
+  try { const x = await sb.rpc("mi_rol"); if(x.error) throw x.error; r = x.data; } catch(e){ r = null; }
+  if(r && r !== "administrador" && r !== "colaborador"){
     await sb.auth.signOut();
-    showOnly("loginView"); $("lMsg").textContent = "Esta cuenta no tiene permisos de administrador.";
+    showOnly("loginView"); $("lMsg").textContent = "Esta cuenta no tiene acceso. Pide al administrador que te agregue al equipo.";
     return;
   }
+  // Sin conexión se usa el último rol conocido en este dispositivo
+  rol = r || readJSON(LS_ROL) || "colaborador"; writeJSON(LS_ROL, rol);
   try{
     const rows = await pullAll();
     mode = "nube";
-    if(!rows.length){
+    if(!rows.length && esAdmin()){
       // Nube vacía: se sube lo que haya en este dispositivo o los datos de la planilla
       S = hasData(normalize(cache)) ? normalize(cache) : fromSeed();
       await uploadAll();
@@ -621,7 +628,7 @@ $("lForgot").onclick = async () => {
   if(!email){ $("lMsg").textContent = "Escribe tu correo arriba y vuelve a tocar “¿Olvidaste tu contraseña?”."; return $("lEmail").focus(); }
   const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + "/gestion/" });
   $("lMsg").className = error ? "msg err" : "msg ok";
-  $("lMsg").textContent = error ? "No se pudo enviar el correo: " + error.message : "Si el correo es de un administrador, te llegará un enlace para crear una contraseña nueva.";
+  $("lMsg").textContent = error ? "No se pudo enviar el correo: " + error.message : "Si el correo es del equipo, te llegará un enlace para crear una contraseña nueva.";
 };
 
 // =====================================================================
@@ -744,14 +751,15 @@ const VIEWS = {
   ajustes:     { t:"Ajustes",              i:"gear",    grp:"Configuración" },
   mas:         { t:"Más",                  i:"more" },
 };
-const TABS = ["inicio", "pedidos", "ventas", "gastos", "mas"];
+let TABS = ["inicio", "pedidos", "ventas", "gastos", "mas"];
 let view = "inicio", curM = curMonth();
 const UI = { ventasQ:"", insQ:"", invSolo:false, cartaF:"Todos", gastoTipo:"Todos" };
 
 function buildNav(){
   let h = "", g = "";
+  TABS = TABS.filter(puede);
   Object.entries(VIEWS).forEach(([k, v]) => {
-    if(!v.grp) return;
+    if(!v.grp || !puede(k)) return;
     if(v.grp !== g){ g = v.grp; h += `<div class="grp">${g}</div>`; }
     h += `<a href="#${k}" data-v="${k}">${ico(v.i)}${v.t}${k === "pedidos" ? `<span class="nb" data-nb hidden></span>` : ""}</a>`;
   });
@@ -761,7 +769,7 @@ function buildNav(){
 function route(){
   const h = location.hash.slice(1);
   if(!$("ov").hidden) closeModal();
-  view = VIEWS[h] ? h : "inicio";
+  view = VIEWS[h] && puede(h) ? h : esAdmin() ? "inicio" : "pedidos";
   render();
   window.scrollTo(0, 0);
 }
@@ -1269,7 +1277,7 @@ R.ajustes = () => {
   ${sb && user ? `<div class="card mt"><h2>Sesión</h2><p class="small muted">Conectado como ${esc(user.email)}.</p><div class="row"><a class="b" href="../gestion/">Ir al panel de la página</a><button class="b del" data-act="logout">Cerrar sesión</button></div></div>` : ""}`;
 };
 
-R.mas = () => `<div class="card" style="margin-bottom:12px"><div class="row"><div class="sync" style="color:var(--ink2);font-size:13.5px" id="sync3"><i></i><span>${mode === "local" ? "Datos guardados solo en este dispositivo" : outbox.length ? `${outbox.length} cambio(s) por subir a la nube` : "Todo guardado en la nube"}</span></div><span class="sp"></span>${user ? `<span class="small muted">${esc(user.email)}</span>` : ""}</div></div><div class="tiles">${Object.entries(VIEWS).filter(([k, v]) => v.grp && !TABS.includes(k)).map(([k, v]) => `<a class="tile" href="#${k}">${ico(v.i)}<b>${v.t}</b><span>${{
+R.mas = () => `<div class="card" style="margin-bottom:12px"><div class="row"><div class="sync" style="color:var(--ink2);font-size:13.5px" id="sync3"><i></i><span>${mode === "local" ? "Datos guardados solo en este dispositivo" : outbox.length ? `${outbox.length} cambio(s) por subir a la nube` : "Todo guardado en la nube"}</span></div><span class="sp"></span>${user ? `<span class="small muted">${esc(user.email)} · ${esAdmin() ? "Administrador" : "Colaborador"}</span><button class="b sm del" data-act="logout">Cerrar sesión</button>` : ""}</div></div><div class="tiles">${Object.entries(VIEWS).filter(([k, v]) => v.grp && !TABS.includes(k) && puede(k)).map(([k, v]) => `<a class="tile" href="#${k}">${ico(v.i)}<b>${v.t}</b><span>${{
   carta:"Precios, costos y márgenes", inventario:"Stock y lista de compras", recetas:"Gramos por producto", insumos:"Precios y costo real", resultados:"Mes a mes y mermas",
   equilibrio:"Cuánto vender para no perder", fijos:"Gas, luz, sueldos…", proveedores:"Contactos y entregas", ajustes:"Parámetros y respaldos" }[k] || ""}</span></a>`).join("")}</div>`;
 
@@ -1336,7 +1344,7 @@ function formVenta(orig, opt = {}){
     <div class="lines" id="vLines"></div>
     <label for="vNota">Nota (opcional)</label><input id="vNota" value="${esc(v.nota || "")}" placeholder="Ej: cliente, dirección, cambio de salsa">`;
   const foot = `<div class="tot" id="vTot"></div><span class="sp"></span>
-    ${orig ? `<button class="b del" data-act="delVenta" data-id="${esc(v.id)}">${ico("trash")}</button>` : ""}
+    ${orig && esAdmin() ? `<button class="b del" data-act="delVenta" data-id="${esc(v.id)}">${ico("trash")}</button>` : ""}
     <button class="b" data-act="close">Cancelar</button><button class="b acc" id="vSave">Guardar venta</button>`;
   const m = openModal(opt.title || (orig ? `Venta #${esc(v.num)}` : "Nueva venta"), body, foot, "full");
   wireChips(m, () => draw());
@@ -1563,7 +1571,7 @@ function detPedido(id){
       const ex = items.find(x => x.prod && x.prod === line.prod && x.precio === line.precio);
       if(ex) ex.cant += line.cant; else items.push(line);
     });
-    if(cambio) setPar({ ...S.par, webMap: map });   // se recuerda para los próximos pedidos
+    if(cambio && esAdmin()) setPar({ ...S.par, webMap: map });   // se recuerda para los próximos pedidos (los parámetros son del administrador)
     if(p.entrega === "Delivery"){
       const dp = S.carta.find(c => isServ(c) && /delivery|despacho/i.test(c.nombre));
       items.push({ prod: dp ? dp.id : null, nombre: dp ? dp.nombre : "Delivery", cant:1, precio:n0(P().deliveryCobro), desc:0, costo: dp ? prodCost(dp) : n0(P().deliveryCosto) });
@@ -1603,7 +1611,7 @@ function formGasto(orig){
         <div><label for="gSC">Cantidad comprada</label><div class="unit"><input id="gSC" type="number" inputmode="decimal" min="0" step="any"><em id="gSU">g</em></div></div>
       </div><p class="hint">Se suma al stock actual al guardar.</p></div>
     </div>`}`;
-  const foot = `${orig ? `<button class="b del" data-act="delGasto" data-id="${esc(g.id)}">${ico("trash")}Eliminar</button>` : ""}<span class="sp"></span>
+  const foot = `${orig && esAdmin() ? `<button class="b del" data-act="delGasto" data-id="${esc(g.id)}">${ico("trash")}Eliminar</button>` : ""}<span class="sp"></span>
     <button class="b" data-act="close">Cancelar</button><button class="b acc" id="gSave">Guardar gasto</button>`;
   const m = openModal(orig ? "Editar gasto" : "Nuevo gasto", body, foot);
   const showStock = t => { const s = m.querySelector("#gStock"); if(s) s.hidden = !(t === "Insumos" || t === "Empaques"); };

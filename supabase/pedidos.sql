@@ -33,11 +33,14 @@ drop policy if exists "cliente crea pedido" on public.pedidos;
 drop policy if exists "admin ve pedidos" on public.pedidos;
 drop policy if exists "admin cambia pedidos" on public.pedidos;
 drop policy if exists "admin borra pedidos" on public.pedidos;
+drop policy if exists "equipo ve pedidos" on public.pedidos;
+drop policy if exists "equipo cambia pedidos" on public.pedidos;
+drop policy if exists "equipo borra pedidos" on public.pedidos;
 
 -- Cualquiera puede ENVIAR un pedido nuevo (siempre entra como pendiente), pero no puede ver ni cambiar pedidos.
 create policy "cliente crea pedido" on public.pedidos for insert to anon, authenticated
   with check (estado = 'pendiente' and venta_id is null and revisado is null);
--- Solo el administrador los ve, confirma, rechaza o borra.
-create policy "admin ve pedidos"     on public.pedidos for select to authenticated using (public.es_admin());
-create policy "admin cambia pedidos" on public.pedidos for update to authenticated using (public.es_admin()) with check (public.es_admin());
-create policy "admin borra pedidos"  on public.pedidos for delete to authenticated using (public.es_admin());
+-- Solo el equipo (administrador y colaborador) los ve, confirma o rechaza (al rechazar se borran).
+create policy "equipo ve pedidos"     on public.pedidos for select to authenticated using (public.es_equipo());
+create policy "equipo cambia pedidos" on public.pedidos for update to authenticated using (public.es_equipo()) with check (public.es_equipo());
+create policy "equipo borra pedidos"  on public.pedidos for delete to authenticated using (public.es_equipo());

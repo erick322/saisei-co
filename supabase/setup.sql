@@ -34,19 +34,34 @@ create table if not exists public.productos (
 -- Por si la tabla ya existía de una versión anterior:
 alter table public.productos add column if not exists es_topping boolean default false;
 
--- 2) Administradores ----------------------------------------------------
-create table if not exists public.admins (email text primary key);
-alter table public.admins enable row level security;  -- nadie puede leerla desde la web
+-- 2) Usuarios y roles ---------------------------------------------------
+-- Solo 3 tipos de usuario: administrador, colaborador e invitado (quien no
+-- está en esta tabla). Qué puede hacer cada uno: ver supabase/usuarios.sql.
+create table if not exists public.usuarios (
+  email  text primary key check (email = lower(email) and email like '%@%'),
+  rol    text not null check (rol in ('administrador', 'colaborador')),
+  nombre text default '' check (char_length(nombre) <= 60),
+  creado timestamptz default now()
+);
+alter table public.usuarios enable row level security;  -- solo el administrador la ve (usuarios.sql)
 
 -- 👇 CAMBIA ESTE CORREO por el del administrador (el mismo que crearás en Authentication → Users)
-insert into public.admins (email) values ('CAMBIA-ESTE-CORREO@ejemplo.com') on conflict do nothing;
+insert into public.usuarios (email, rol) values ('cambia-este-correo@ejemplo.com', 'administrador') on conflict do nothing;
 
-create or replace function public.es_admin() returns boolean
+-- Rol de quien está conectado. Solo cuenta un correo confirmado, para que nadie
+-- pueda registrarse con el correo de otra persona y heredar su rol.
+create or replace function public.mi_rol() returns text
 language sql stable security definer set search_path = public as $$
-  select exists (select 1 from public.admins where lower(email) = lower(auth.jwt() ->> 'email'));
+  select coalesce((
+    select x.rol from public.usuarios x join auth.users u on lower(u.email) = x.email
+    where u.id = auth.uid() and u.email_confirmed_at is not null
+  ), 'invitado');
 $$;
+create or replace function public.es_admin()  returns boolean language sql stable security definer set search_path = public as $$ select public.mi_rol() = 'administrador'; $$;
+create or replace function public.es_equipo() returns boolean language sql stable security definer set search_path = public as $$ select public.mi_rol() in ('administrador', 'colaborador'); $$;
 
 -- 3) Seguridad: todos pueden VER la carta, solo el admin puede CAMBIARLA --
+--    (el colaborador ve los productos ocultos y solo puede mostrarlos u ocultarlos: usuarios.sql)
 alter table public.categorias enable row level security;
 alter table public.productos  enable row level security;
 
@@ -57,7 +72,7 @@ drop policy if exists "admin productos" on public.productos;
 
 create policy "ver categorias"   on public.categorias for select using (true);
 create policy "admin categorias" on public.categorias for all to authenticated using (public.es_admin()) with check (public.es_admin());
-create policy "ver productos"    on public.productos  for select using (activo or public.es_admin());
+create policy "ver productos"    on public.productos  for select using (activo or public.es_equipo());
 create policy "admin productos"  on public.productos  for all to authenticated using (public.es_admin()) with check (public.es_admin());
 
 -- 3b) Apariencia de la página (una sola fila, se edita en /gestion) -----
@@ -100,12 +115,17 @@ alter table public.opiniones enable row level security;
 drop policy if exists "ver opiniones aprobadas" on public.opiniones;
 drop policy if exists "crear opinion" on public.opiniones;
 drop policy if exists "admin opiniones" on public.opiniones;
+drop policy if exists "equipo ve opiniones" on public.opiniones;
+drop policy if exists "equipo modera opiniones" on public.opiniones;
+drop policy if exists "admin borra opiniones" on public.opiniones;
 -- Cualquiera ve SOLO las aprobadas
 create policy "ver opiniones aprobadas" on public.opiniones for select using (aprobado);
 -- Cualquiera puede dejar una opinión, pero entra SIN aprobar (no puede autoaprobarse)
 create policy "crear opinion" on public.opiniones for insert to anon, authenticated with check (aprobado = false);
--- El admin ve todas, aprueba/oculta y elimina
-create policy "admin opiniones" on public.opiniones for all to authenticated using (public.es_admin()) with check (public.es_admin());
+-- El equipo (administrador y colaborador) ve todas y las aprueba u oculta; solo el administrador las elimina
+create policy "equipo ve opiniones"     on public.opiniones for select to authenticated using (public.es_equipo());
+create policy "equipo modera opiniones" on public.opiniones for update to authenticated using (public.es_equipo()) with check (public.es_equipo());
+create policy "admin borra opiniones"   on public.opiniones for delete to authenticated using (public.es_admin());
 
 -- 4) Fotos (Storage) ----------------------------------------------------
 insert into storage.buckets (id, name, public) values ('fotos', 'fotos', true) on conflict (id) do nothing;
