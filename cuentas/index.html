@@ -392,6 +392,7 @@ const I = {
   copy:'<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
   bag:'<path d="M5 8h14l-1 13H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
   phone:'<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.8 2z"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
 };
 const ico = (k, cls = "ico") => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${I[k] || ""}</svg>`;
 
@@ -400,12 +401,15 @@ const CANALES = ["WhatsApp", "Instagram", "Sitio web", "Presencial", "Otro"];
 const PAGOS_V = ["Efectivo", "Transferencia", "Tarjeta / link de pago"];
 const TIPOS_G = ["Insumos", "Empaques", "Costo fijo", "Equipamiento", "Otro"];
 const PAGOS_G = ["Efectivo", "Transferencia", "Tarjeta de débito", "Tarjeta de crédito", "Crédito proveedor"];
+// Movimientos con los dueños: no son ventas ni gastos (no cambian la utilidad), pero sí el dinero del mes
+const TIPOS_D = { prestamo:"Préstamo al negocio", devolucion:"Devolución del préstamo", pago:"Pago al dueño" };
+const MEDIOS_D = ["Transferencia", "Efectivo"];
 const UNIDADES = ["g", "ml", "un"];
 
 // =====================================================================
 //  Datos: en la nube (Supabase, tabla "cuentas") o en este dispositivo
 // =====================================================================
-const COLS = ["ventas", "gastos", "insumos", "recetas", "carta", "proveedores", "fijos", "saldos", "reservas", "apartados"];
+const COLS = ["ventas", "gastos", "insumos", "recetas", "carta", "proveedores", "fijos", "saldos", "reservas", "apartados", "duenos"];
 const PAR_DEF = { flete:.1, foodCost:.33, comision:.035, iva:.19, afectaIva:false, dias:20, ticket:15000, meta:500000, deliveryCobro:2000, deliveryCosto:1500, diaCorte:16 };
 const LS_DATA = "saisei.cuentas.datos", LS_OUT = "saisei.cuentas.pendientes", LS_ROL = "saisei.cuentas.rol";
 let S = blank();
@@ -691,14 +695,17 @@ function caja(m){
     const p = caja(addMonth(m, -1));
     ini = { debito:p.debito.fin, efectivo:p.efectivo.fin, tarjeta:p.tarjeta.fin }; traido = true;
   }
-  const r = { ini, traido, debito:{ ini:n0(ini && ini.debito), ent:0, sal:0 }, efectivo:{ ini:n0(ini && ini.efectivo), ent:0, sal:0 }, tarjeta:{ ini:n0(ini && ini.tarjeta), ent:0, sal:0 }, credito:0 };
+  const r = { ini, traido, debito:{ ini:n0(ini && ini.debito), ent:0, sal:0, pres:0, pag:0 }, efectivo:{ ini:n0(ini && ini.efectivo), ent:0, sal:0, pres:0, pag:0 }, tarjeta:{ ini:n0(ini && ini.tarjeta), ent:0, sal:0, pres:0, pag:0 }, credito:0 };
   s.vs.forEach(v => { const t = vTot(v); if(v.pago === "Efectivo") r.efectivo.ent += t.bruto; else r.debito.ent += t.bruto - t.com; });
   s.gs.forEach(g => { const x = n0(g.monto);
     if(g.pago === "Efectivo") r.efectivo.sal += x;
     else if(g.pago === "Tarjeta de crédito") r.tarjeta.sal += x;
     else if(g.pago === "Crédito proveedor") r.credito += x;
     else r.debito.sal += x; });
-  [r.debito, r.efectivo, r.tarjeta].forEach(c => c.fin = c.ini + c.ent - c.sal);
+  // Préstamos de los dueños entran; devoluciones y pagos a los dueños salen
+  S.duenos.filter(x => pKey(x.fecha) === m).forEach(x => { const c = x.medio === "Efectivo" ? r.efectivo : r.debito;
+    if(x.tipo === "prestamo") c.pres += n0(x.monto); else c.pag += n0(x.monto); });
+  [r.debito, r.efectivo, r.tarjeta].forEach(c => c.fin = c.ini + c.ent - c.sal + c.pres - c.pag);
   return r;
 }
 // Dinero apartado para pagos del mes: los costos fijos del negocio + otros pagos (tarjeta de crédito, etc.).
@@ -740,6 +747,7 @@ const VIEWS = {
   ventas:      { t:"Ventas",               i:"cart",    month:true, grp:"Día a día" },
   gastos:      { t:"Gastos y compras",     i:"receipt", month:true, grp:"Día a día" },
   apartar:     { t:"Dinero apartado",      i:"safe",    month:true, grp:"Día a día" },
+  duenos:      { t:"Dueños",               i:"users",   month:true, grp:"Día a día" },
   inventario:  { t:"Inventario",           i:"box",     grp:"Día a día" },
   carta:       { t:"Carta y precios",      i:"menu",    grp:"Productos" },
   recetas:     { t:"Recetas",              i:"book",    grp:"Productos" },
@@ -869,6 +877,8 @@ R.inicio = () => {
       ${fila(cj.traido ? "Saldo inicial <span class=\"small muted\">(del mes anterior)</span>" : "Saldo inicial", "ini")}
       ${fila("Ventas", "ent", "+ ")}
       ${fila("Gastos", "sal", "− ")}
+      ${cj.debito.pres + cj.efectivo.pres ? fila(`<a href="#duenos">Préstamos de dueños</a>`, "pres", "+ ") : ""}
+      ${cj.debito.pag + cj.efectivo.pag ? fila(`<a href="#duenos">Pagos y devoluciones a dueños</a>`, "pag", "− ") : ""}
       <tr><td><b>Saldo actual</b></td>${[cj.debito.fin, cj.efectivo.fin, cj.debito.fin + cj.efectivo.fin].map(x => `<td class="n"><b class="${x < 0 ? "neg" : ""}">${fmt(x)}</b></td>`).join("")}</tr>
       ${ap.all.length ? `<tr><td>− <a href="#apartar">Apartado para pagos</a></td><td></td><td></td><td class="n">${fmt(ap.guardado)}</td></tr>
       <tr class="tot"><td>Libre para usar</td><td></td><td></td><td class="n"><span class="${libre < 0 ? "neg" : "pos"}">${fmt(libre)}</span></td></tr>` : ""}
@@ -1051,6 +1061,40 @@ R.insumos = () => {
 };
 
 // ---------- Inventario ----------
+// ---------- Dueños: préstamos y pagos ----------
+// Totales de cada dueño desde el primer registro: lo que prestó, lo que se le devolvió y lo que se le pagó
+function porDueno(){
+  const por = {};
+  S.duenos.forEach(x => { const d = por[x.dueno] = por[x.dueno] || { dueno:x.dueno, prestamo:0, devolucion:0, pago:0 }; d[x.tipo] += n0(x.monto); });
+  return Object.values(por).map(d => ({ ...d, debe:d.prestamo - d.devolucion })).sort((a, b) => a.dueno.localeCompare(b.dueno, "es"));
+}
+R.duenos = () => {
+  const ms = S.duenos.filter(x => pKey(x.fecha) === curM).sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.upd || 0) - (a.upd || 0));
+  const tot = t => sum(ms.filter(x => x.tipo === t), x => n0(x.monto));
+  const ds = porDueno(), btn = `<button class="b acc" data-act="newDueno">${ico("plus")}Registrar movimiento</button>`;
+  let h = "", day = "";
+  ms.forEach(x => {
+    if(x.fecha !== day){ day = x.fecha; h += `<div class="day"><span>${dName(day)}</span></div>`; }
+    h += `<button class="item" data-act="editDueno" data-id="${esc(x.id)}">
+      <div class="main-t"><div class="tt">${esc(x.dueno)}</div><div class="st">${TIPOS_D[x.tipo]} · ${esc(x.medio)}${x.nota ? " · " + esc(x.nota) : ""}</div></div>
+      <div class="am num ${x.tipo === "prestamo" ? "pos" : ""}">${x.tipo === "prestamo" ? "+" : "−"}${fmt(x.monto)}</div></button>`;
+  });
+  return `
+  <div class="kpis">
+    ${kpi("El negocio les debe", fmt(sum(ds, d => d.debe)), "préstamos sin devolver", "hero")}
+    ${kpi("Préstamos del mes", fmt(tot("prestamo")), "dinero que pusieron")}
+    ${kpi("Devoluciones del mes", fmt(tot("devolucion")), "de préstamos")}
+    ${kpi("Pagos del mes", fmt(tot("pago")), "sueldos o retiros")}
+  </div>
+  ${ds.length ? `<div class="card mt"><h2>Por dueño</h2><div class="tw"><table>
+    <thead><tr><th>Dueño</th><th class="n">Prestó</th><th class="n">Se le devolvió</th><th class="n">Por devolver</th><th class="n">Pagos recibidos</th></tr></thead><tbody>
+    ${ds.map(d => `<tr><td><b>${esc(d.dueno)}</b></td><td class="n">${fmt(d.prestamo)}</td><td class="n">${fmt(d.devolucion)}</td><td class="n"><b class="${d.debe > 0 ? "neg" : ""}">${fmt(d.debe)}</b></td><td class="n">${fmt(d.pago)}</td></tr>`).join("")}
+    </tbody></table></div>
+    <p class="hint">Totales desde el primer registro. No son ventas ni gastos, así que no cambian la utilidad, pero sí el dinero del mes en el <a href="#inicio">Resumen</a>.</p></div>` : ""}
+  <div class="row mt"><h2 style="margin:0;font-size:1rem">Movimientos de ${mName(curM)}</h2><span class="sp"></span>${btn}</div>
+  <div class="list" style="margin-top:6px">${h || empty("users", "Sin movimientos en " + mName(curM), "Anota cuando un dueño presta dinero al negocio, cuando se le devuelve y lo que se le paga.", btn)}</div>`;
+};
+
 R.inventario = () => {
   let list = S.insumos.slice().sort(byName);
   const comprar = list.filter(i => invEstado(i) === "COMPRAR");
@@ -1279,7 +1323,7 @@ R.ajustes = () => {
 
 R.mas = () => `<div class="card" style="margin-bottom:12px"><div class="row"><div class="sync" style="color:var(--ink2);font-size:13.5px" id="sync3"><i></i><span>${mode === "local" ? "Datos guardados solo en este dispositivo" : outbox.length ? `${outbox.length} cambio(s) por subir a la nube` : "Todo guardado en la nube"}</span></div><span class="sp"></span>${user ? `<span class="small muted">${esc(user.email)} · ${esAdmin() ? "Administrador" : "Colaborador"}</span><button class="b sm del" data-act="logout">Cerrar sesión</button>` : ""}</div></div><div class="tiles">${Object.entries(VIEWS).filter(([k, v]) => v.grp && !TABS.includes(k) && puede(k)).map(([k, v]) => `<a class="tile" href="#${k}">${ico(v.i)}<b>${v.t}</b><span>${{
   carta:"Precios, costos y márgenes", inventario:"Stock y lista de compras", recetas:"Gramos por producto", insumos:"Precios y costo real", resultados:"Mes a mes y mermas",
-  equilibrio:"Cuánto vender para no perder", fijos:"Gas, luz, sueldos…", proveedores:"Contactos y entregas", ajustes:"Parámetros y respaldos" }[k] || ""}</span></a>`).join("")}</div>`;
+  equilibrio:"Cuánto vender para no perder", fijos:"Gas, luz, sueldos…", proveedores:"Contactos y entregas", ajustes:"Parámetros y respaldos", duenos:"Préstamos y pagos" }[k] || ""}</span></a>`).join("")}</div>`;
 
 // =====================================================================
 //  Modal
@@ -1840,6 +1884,39 @@ function formSaldo(){
     closeModal(); render(); toast("Saldo inicial guardado");
   };
 }
+function formDueno(orig){
+  const ult = S.duenos.slice().sort((a, b) => (b.upd || 0) - (a.upd || 0))[0];
+  const x = orig ? clone(orig) : { id:uid(), fecha: curM === curMonth() ? today() : pStart(curM), dueno: ult ? ult.dueno : "", tipo:"prestamo", monto:"", medio:"Transferencia", nota:"" };
+  const nombres = [...new Set(S.duenos.map(d => d.dueno))].sort();
+  const m = openModal(orig ? "Editar movimiento" : "Movimiento con un dueño", `
+    <div class="f2">
+      <div><label for="dF">Fecha</label><input id="dF" type="date" value="${esc(x.fecha)}" required></div>
+      <div><label for="dM">Monto</label><div class="unit pre"><em>$</em><input id="dM" type="number" inputmode="numeric" min="0" step="1" value="${esc(x.monto)}" required></div></div>
+    </div>
+    <label for="dD">Dueño</label><input id="dD" list="duenoList" value="${esc(x.dueno)}" placeholder="Nombre del dueño"><datalist id="duenoList">${nombres.map(n => `<option value="${esc(n)}">`).join("")}</datalist>
+    <label>Movimiento</label>${chipsHTML("tipo", Object.values(TIPOS_D), TIPOS_D[x.tipo])}
+    <label id="dMedL">El dinero entró por</label>${chipsHTML("medio", MEDIOS_D, x.medio)}
+    <label for="dN">Nota</label><input id="dN" value="${esc(x.nota || "")}" placeholder="Ej: para comprar el congelador">
+    <p class="hint" id="dHint"></p>`,
+    `${orig ? `<button class="b del" data-act="delDueno" data-id="${esc(x.id)}">${ico("trash")}Eliminar</button>` : ""}<span class="sp"></span><button class="b" data-act="close">Cancelar</button><button class="b acc" id="dSave">Guardar</button>`);
+  const tipo = () => Object.keys(TIPOS_D).find(k => TIPOS_D[k] === chipVal(m, "tipo"));
+  const hint = () => {
+    const t = tipo(), d = porDueno().find(y => y.dueno === m.querySelector("#dD").value.trim());
+    m.querySelector("#dMedL").textContent = `El dinero ${t === "prestamo" ? "entró" : "salió"} por`;
+    m.querySelector("#dHint").textContent = t === "prestamo" ? "Suma al dinero del mes y queda como deuda del negocio con este dueño."
+      : t === "devolucion" ? `Resta del dinero del mes y baja la deuda${d ? ` (hoy se le deben ${fmt(d.debe)})` : ""}.`
+      : "Resta del dinero del mes. No cambia lo que se le debe por préstamos.";
+  };
+  wireChips(m, hint); m.querySelector("#dD").oninput = hint; hint();
+  m.querySelector("#dSave").onclick = () => {
+    const t = { ...x, fecha:m.querySelector("#dF").value, monto:n0(m.querySelector("#dM").value), dueno:m.querySelector("#dD").value.trim(), tipo:tipo(), medio:chipVal(m, "medio"), nota:m.querySelector("#dN").value.trim() };
+    if(!t.fecha) return toast("Elige la fecha", true);
+    if(!(t.monto > 0)) return toast("Escribe el monto", true);
+    if(!t.dueno) return toast("Escribe el nombre del dueño", true);
+    put("duenos", t); closeModal(); curM = pKey(t.fecha); render();
+    toast(orig ? "Movimiento actualizado" : "Movimiento guardado");
+  };
+}
 function formReserva(orig){
   const r = orig ? clone(orig) : { id:uid(), item:"", monto:"", nota:"" };
   const m = openModal(orig ? "Editar pago" : "Otro pago para apartar", `
@@ -1974,6 +2051,9 @@ const A = {
   delFijo: async d => { if(await confirmDel("¿Eliminar este costo fijo?")){ del("fijos", d.id); closeModal(); render(); } },
   newReserva: () => formReserva(),
   editReserva: d => formReserva(S.reservas.find(r => r.id === d.id)),
+  newDueno: () => formDueno(),
+  editDueno: d => formDueno(S.duenos.find(x => x.id === d.id)),
+  delDueno: async d => { if(await confirmDel("¿Eliminar este movimiento?")){ del("duenos", d.id); closeModal(); render(); toast("Movimiento eliminado"); } },
   delReserva: async d => { if(await confirmDel("¿Eliminar este pago?\nDeja de aparecer en todos los meses.")){ del("reservas", d.id); closeModal(); render(); } },
   apartarTodo: () => {
     const a = apartados(curM);
