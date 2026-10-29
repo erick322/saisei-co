@@ -402,7 +402,9 @@ const PAGOS_V = ["Efectivo", "Transferencia", "Tarjeta / link de pago"];
 const TIPOS_G = ["Insumos", "Empaques", "Costo fijo", "Equipamiento", "Otro"];
 const PAGOS_G = ["Efectivo", "Transferencia", "Tarjeta de débito", "Tarjeta de crédito", "Crédito proveedor"];
 // Movimientos con los dueños: no son ventas ni gastos (no cambian la utilidad), pero sí el dinero del mes
-const TIPOS_D = { prestamo:"Préstamo al negocio", devolucion:"Devolución del préstamo", pago:"Pago al dueño" };
+const TIPOS_D = { prestamo:"Préstamo al negocio", devolucion:"Devolución del préstamo", pago:"Pago al dueño",
+  prestamo_local:"Préstamo del local al dueño", abono:"El dueño devuelve al local" };
+const ENTRA_D = ["prestamo", "abono"];   // estos entran a la caja del local; el resto sale
 const MEDIOS_D = ["Transferencia", "Efectivo"];
 const UNIDADES = ["g", "ml", "un"];
 
@@ -702,9 +704,9 @@ function caja(m){
     else if(g.pago === "Tarjeta de crédito") r.tarjeta.sal += x;
     else if(g.pago === "Crédito proveedor") r.credito += x;
     else r.debito.sal += x; });
-  // Préstamos de los dueños entran; devoluciones y pagos a los dueños salen
+  // Lo que ponen o devuelven los dueños entra; lo que se les devuelve, paga o presta sale
   S.duenos.filter(x => pKey(x.fecha) === m).forEach(x => { const c = x.medio === "Efectivo" ? r.efectivo : r.debito;
-    if(x.tipo === "prestamo") c.pres += n0(x.monto); else c.pag += n0(x.monto); });
+    if(ENTRA_D.includes(x.tipo)) c.pres += n0(x.monto); else c.pag += n0(x.monto); });
   [r.debito, r.efectivo, r.tarjeta].forEach(c => c.fin = c.ini + c.ent - c.sal + c.pres - c.pag);
   return r;
 }
@@ -877,8 +879,8 @@ R.inicio = () => {
       ${fila(cj.traido ? "Saldo inicial <span class=\"small muted\">(del mes anterior)</span>" : "Saldo inicial", "ini")}
       ${fila("Ventas", "ent", "+ ")}
       ${fila("Gastos", "sal", "− ")}
-      ${cj.debito.pres + cj.efectivo.pres ? fila(`<a href="#duenos">Préstamos de dueños</a>`, "pres", "+ ") : ""}
-      ${cj.debito.pag + cj.efectivo.pag ? fila(`<a href="#duenos">Pagos y devoluciones a dueños</a>`, "pag", "− ") : ""}
+      ${cj.debito.pres + cj.efectivo.pres ? fila(`<a href="#duenos">Dinero de dueños</a>`, "pres", "+ ") : ""}
+      ${cj.debito.pag + cj.efectivo.pag ? fila(`<a href="#duenos">Dinero a dueños</a>`, "pag", "− ") : ""}
       <tr><td><b>Saldo actual</b></td>${[cj.debito.fin, cj.efectivo.fin, cj.debito.fin + cj.efectivo.fin].map(x => `<td class="n"><b class="${x < 0 ? "neg" : ""}">${fmt(x)}</b></td>`).join("")}</tr>
       ${ap.all.length ? `<tr><td>− <a href="#apartar">Apartado para pagos</a></td><td></td><td></td><td class="n">${fmt(ap.guardado)}</td></tr>
       <tr class="tot"><td>Libre para usar</td><td></td><td></td><td class="n"><span class="${libre < 0 ? "neg" : "pos"}">${fmt(libre)}</span></td></tr>` : ""}
@@ -1062,11 +1064,12 @@ R.insumos = () => {
 
 // ---------- Inventario ----------
 // ---------- Dueños: préstamos y pagos ----------
-// Totales de cada dueño desde el primer registro: lo que prestó, lo que se le devolvió y lo que se le pagó
+// Totales de cada dueño desde el primer registro, en los dos sentidos:
+// debe = lo que el local le debe al dueño; leDebe = lo que el dueño le debe al local
 function porDueno(){
   const por = {};
-  S.duenos.forEach(x => { const d = por[x.dueno] = por[x.dueno] || { dueno:x.dueno, prestamo:0, devolucion:0, pago:0 }; d[x.tipo] += n0(x.monto); });
-  return Object.values(por).map(d => ({ ...d, debe:d.prestamo - d.devolucion })).sort((a, b) => a.dueno.localeCompare(b.dueno, "es"));
+  S.duenos.forEach(x => { const d = por[x.dueno] = por[x.dueno] || { dueno:x.dueno, prestamo:0, devolucion:0, pago:0, prestamo_local:0, abono:0 }; d[x.tipo] += n0(x.monto); });
+  return Object.values(por).map(d => ({ ...d, debe:d.prestamo - d.devolucion, leDebe:d.prestamo_local - d.abono })).sort((a, b) => a.dueno.localeCompare(b.dueno, "es"));
 }
 R.duenos = () => {
   const ms = S.duenos.filter(x => pKey(x.fecha) === curM).sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.upd || 0) - (a.upd || 0));
@@ -1077,22 +1080,26 @@ R.duenos = () => {
     if(x.fecha !== day){ day = x.fecha; h += `<div class="day"><span>${dName(day)}</span></div>`; }
     h += `<button class="item" data-act="editDueno" data-id="${esc(x.id)}">
       <div class="main-t"><div class="tt">${esc(x.dueno)}</div><div class="st">${TIPOS_D[x.tipo]} · ${esc(x.medio)}${x.nota ? " · " + esc(x.nota) : ""}</div></div>
-      <div class="am num ${x.tipo === "prestamo" ? "pos" : ""}">${x.tipo === "prestamo" ? "+" : "−"}${fmt(x.monto)}</div></button>`;
+      <div class="am num ${ENTRA_D.includes(x.tipo) ? "pos" : ""}">${ENTRA_D.includes(x.tipo) ? "+" : "−"}${fmt(x.monto)}</div></button>`;
   });
+  const debeA = sum(ds, d => d.debe), debenA = sum(ds, d => d.leDebe);
   return `
   <div class="kpis">
-    ${kpi("El negocio les debe", fmt(sum(ds, d => d.debe)), "préstamos sin devolver", "hero")}
-    ${kpi("Préstamos del mes", fmt(tot("prestamo")), "dinero que pusieron")}
-    ${kpi("Devoluciones del mes", fmt(tot("devolucion")), "de préstamos")}
-    ${kpi("Pagos del mes", fmt(tot("pago")), "sueldos o retiros")}
+    ${kpi("El local les debe", fmt(debeA), "préstamos de los dueños sin devolver", "hero")}
+    ${kpi("Le deben al local", fmt(debenA), "préstamos del local sin devolver")}
+    ${kpi("Entró de los dueños", fmt(tot("prestamo") + tot("abono")), "este mes")}
+    ${kpi("Salió a los dueños", fmt(tot("devolucion") + tot("pago") + tot("prestamo_local")), `este mes · ${fmt(tot("pago"))} en pagos`)}
   </div>
   ${ds.length ? `<div class="card mt"><h2>Por dueño</h2><div class="tw"><table>
-    <thead><tr><th>Dueño</th><th class="n">Prestó</th><th class="n">Se le devolvió</th><th class="n">Por devolver</th><th class="n">Pagos recibidos</th></tr></thead><tbody>
-    ${ds.map(d => `<tr><td><b>${esc(d.dueno)}</b></td><td class="n">${fmt(d.prestamo)}</td><td class="n">${fmt(d.devolucion)}</td><td class="n"><b class="${d.debe > 0 ? "neg" : ""}">${fmt(d.debe)}</b></td><td class="n">${fmt(d.pago)}</td></tr>`).join("")}
+    <thead><tr><th>Dueño</th><th class="n">El local le debe</th><th class="n">Le debe al local</th><th class="n">Pagos recibidos</th></tr></thead><tbody>
+    ${ds.map(d => `<tr><td><b>${esc(d.dueno)}</b></td>
+      <td class="n"><b class="${d.debe > 0 ? "neg" : ""}">${fmt(d.debe)}</b><div class="small muted">prestó ${fmt(d.prestamo)} · devuelto ${fmt(d.devolucion)}</div></td>
+      <td class="n"><b>${fmt(d.leDebe)}</b><div class="small muted">recibió ${fmt(d.prestamo_local)} · devolvió ${fmt(d.abono)}</div></td>
+      <td class="n">${fmt(d.pago)}</td></tr>`).join("")}
     </tbody></table></div>
     <p class="hint">Totales desde el primer registro. No son ventas ni gastos, así que no cambian la utilidad, pero sí el dinero del mes en el <a href="#inicio">Resumen</a>.</p></div>` : ""}
   <div class="row mt"><h2 style="margin:0;font-size:1rem">Movimientos de ${mName(curM)}</h2><span class="sp"></span>${btn}</div>
-  <div class="list" style="margin-top:6px">${h || empty("users", "Sin movimientos en " + mName(curM), "Anota cuando un dueño presta dinero al negocio, cuando se le devuelve y lo que se le paga.", btn)}</div>`;
+  <div class="list" style="margin-top:6px">${h || empty("users", "Sin movimientos en " + mName(curM), "Anota los préstamos entre los dueños y el local (en los dos sentidos), sus devoluciones y lo que se les paga.", btn)}</div>`;
 };
 
 R.inventario = () => {
@@ -1902,10 +1909,14 @@ function formDueno(orig){
   const tipo = () => Object.keys(TIPOS_D).find(k => TIPOS_D[k] === chipVal(m, "tipo"));
   const hint = () => {
     const t = tipo(), d = porDueno().find(y => y.dueno === m.querySelector("#dD").value.trim());
-    m.querySelector("#dMedL").textContent = `El dinero ${t === "prestamo" ? "entró" : "salió"} por`;
-    m.querySelector("#dHint").textContent = t === "prestamo" ? "Suma al dinero del mes y queda como deuda del negocio con este dueño."
-      : t === "devolucion" ? `Resta del dinero del mes y baja la deuda${d ? ` (hoy se le deben ${fmt(d.debe)})` : ""}.`
-      : "Resta del dinero del mes. No cambia lo que se le debe por préstamos.";
+    m.querySelector("#dMedL").textContent = `El dinero ${ENTRA_D.includes(t) ? "entró" : "salió"} por`;
+    m.querySelector("#dHint").textContent = {
+      prestamo: "Suma al dinero del mes y queda como deuda del local con este dueño.",
+      devolucion: `Resta del dinero del mes y baja lo que el local le debe${d ? ` (hoy le debe ${fmt(d.debe)})` : ""}.`,
+      pago: "Resta del dinero del mes. No cambia ninguna deuda.",
+      prestamo_local: "Resta del dinero del mes y queda como deuda de este dueño con el local.",
+      abono: `Suma al dinero del mes y baja lo que el dueño le debe al local${d ? ` (hoy debe ${fmt(d.leDebe)})` : ""}.`,
+    }[t];
   };
   wireChips(m, hint); m.querySelector("#dD").oninput = hint; hint();
   m.querySelector("#dSave").onclick = () => {
