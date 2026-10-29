@@ -393,6 +393,7 @@ const I = {
   bag:'<path d="M5 8h14l-1 13H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
   phone:'<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.8 2z"/>',
   users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
 };
 const ico = (k, cls = "ico") => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${I[k] || ""}</svg>`;
 
@@ -405,13 +406,16 @@ const PAGOS_G = ["Efectivo", "Transferencia", "Tarjeta de débito", "Tarjeta de 
 const TIPOS_D = { prestamo:"Préstamo al negocio", devolucion:"Devolución del préstamo", pago:"Pago al dueño",
   prestamo_local:"Préstamo del local al dueño", abono:"El dueño devuelve al local" };
 const ENTRA_D = ["prestamo", "abono"];   // estos entran a la caja del local; el resto sale
+// Trabajadores: pasadas estas horas corridas en un día, el resto son horas extra con recargo
+const JORNADA = 8;
+const MODOS_T = { dia:"Por día", hora:"Por hora" };
 const MEDIOS_D = ["Transferencia", "Efectivo"];
 const UNIDADES = ["g", "ml", "un"];
 
 // =====================================================================
 //  Datos: en la nube (Supabase, tabla "cuentas") o en este dispositivo
 // =====================================================================
-const COLS = ["ventas", "gastos", "insumos", "recetas", "carta", "proveedores", "fijos", "saldos", "reservas", "apartados", "duenos"];
+const COLS = ["ventas", "gastos", "insumos", "recetas", "carta", "proveedores", "fijos", "saldos", "reservas", "apartados", "duenos", "trabajadores", "jornadas", "sueldos"];
 const PAR_DEF = { flete:.1, foodCost:.33, comision:.035, iva:.19, afectaIva:false, dias:20, ticket:15000, meta:500000, deliveryCobro:2000, deliveryCosto:1500, diaCorte:16 };
 const LS_DATA = "saisei.cuentas.datos", LS_OUT = "saisei.cuentas.pendientes", LS_ROL = "saisei.cuentas.rol";
 let S = blank();
@@ -697,7 +701,7 @@ function caja(m){
     const p = caja(addMonth(m, -1));
     ini = { debito:p.debito.fin, efectivo:p.efectivo.fin, tarjeta:p.tarjeta.fin }; traido = true;
   }
-  const r = { ini, traido, debito:{ ini:n0(ini && ini.debito), ent:0, sal:0, pres:0, pag:0 }, efectivo:{ ini:n0(ini && ini.efectivo), ent:0, sal:0, pres:0, pag:0 }, tarjeta:{ ini:n0(ini && ini.tarjeta), ent:0, sal:0, pres:0, pag:0 }, credito:0 };
+  const r = { ini, traido, debito:{ ini:n0(ini && ini.debito), ent:0, sal:0, pres:0, pag:0, sue:0 }, efectivo:{ ini:n0(ini && ini.efectivo), ent:0, sal:0, pres:0, pag:0, sue:0 }, tarjeta:{ ini:n0(ini && ini.tarjeta), ent:0, sal:0, pres:0, pag:0, sue:0 }, credito:0 };
   s.vs.forEach(v => { const t = vTot(v); if(v.pago === "Efectivo") r.efectivo.ent += t.bruto; else r.debito.ent += t.bruto - t.com; });
   s.gs.forEach(g => { const x = n0(g.monto);
     if(g.pago === "Efectivo") r.efectivo.sal += x;
@@ -707,7 +711,8 @@ function caja(m){
   // Lo que ponen o devuelven los dueños entra; lo que se les devuelve, paga o presta sale
   S.duenos.filter(x => pKey(x.fecha) === m).forEach(x => { const c = x.medio === "Efectivo" ? r.efectivo : r.debito;
     if(ENTRA_D.includes(x.tipo)) c.pres += n0(x.monto); else c.pag += n0(x.monto); });
-  [r.debito, r.efectivo, r.tarjeta].forEach(c => c.fin = c.ini + c.ent - c.sal + c.pres - c.pag);
+  S.sueldos.filter(x => pKey(x.fecha) === m).forEach(x => (x.medio === "Efectivo" ? r.efectivo : r.debito).sue += n0(x.monto));
+  [r.debito, r.efectivo, r.tarjeta].forEach(c => c.fin = c.ini + c.ent - c.sal + c.pres - c.pag - c.sue);
   return r;
 }
 // Dinero apartado para pagos del mes: los costos fijos del negocio + otros pagos (tarjeta de crédito, etc.).
@@ -750,6 +755,7 @@ const VIEWS = {
   gastos:      { t:"Gastos y compras",     i:"receipt", month:true, grp:"Día a día" },
   apartar:     { t:"Dinero apartado",      i:"safe",    month:true, grp:"Día a día" },
   duenos:      { t:"Dueños",               i:"users",   month:true, grp:"Día a día" },
+  trabajadores:{ t:"Trabajadores",         i:"clock",   month:true, grp:"Día a día" },
   inventario:  { t:"Inventario",           i:"box",     grp:"Día a día" },
   carta:       { t:"Carta y precios",      i:"menu",    grp:"Productos" },
   recetas:     { t:"Recetas",              i:"book",    grp:"Productos" },
@@ -881,6 +887,7 @@ R.inicio = () => {
       ${fila("Gastos", "sal", "− ")}
       ${cj.debito.pres + cj.efectivo.pres ? fila(`<a href="#duenos">Dinero de dueños</a>`, "pres", "+ ") : ""}
       ${cj.debito.pag + cj.efectivo.pag ? fila(`<a href="#duenos">Dinero a dueños</a>`, "pag", "− ") : ""}
+      ${cj.debito.sue + cj.efectivo.sue ? fila(`<a href="#trabajadores">Pagos a trabajadores</a>`, "sue", "− ") : ""}
       <tr><td><b>Saldo actual</b></td>${[cj.debito.fin, cj.efectivo.fin, cj.debito.fin + cj.efectivo.fin].map(x => `<td class="n"><b class="${x < 0 ? "neg" : ""}">${fmt(x)}</b></td>`).join("")}</tr>
       ${ap.all.length ? `<tr><td>− <a href="#apartar">Apartado para pagos</a></td><td></td><td></td><td class="n">${fmt(ap.guardado)}</td></tr>
       <tr class="tot"><td>Libre para usar</td><td></td><td></td><td class="n"><span class="${libre < 0 ? "neg" : "pos"}">${fmt(libre)}</span></td></tr>` : ""}
@@ -1100,6 +1107,70 @@ R.duenos = () => {
     <p class="hint">Totales desde el primer registro. No son ventas ni gastos, así que no cambian la utilidad, pero sí el dinero del mes en el <a href="#inicio">Resumen</a>.</p></div>` : ""}
   <div class="row mt"><h2 style="margin:0;font-size:1rem">Movimientos de ${mName(curM)}</h2><span class="sp"></span>${btn}</div>
   <div class="list" style="margin-top:6px">${h || empty("users", "Sin movimientos en " + mName(curM), "Anota los préstamos entre los dueños y el local (en los dos sentidos), sus devoluciones y lo que se les paga.", btn)}</div>`;
+};
+
+// ---------- Trabajadores: días trabajados y pagos ----------
+// Cada día trabajado guarda el modo, valor y recargo que tenía el trabajador, así cambiar su sueldo no altera lo anterior.
+const trabById = id => S.trabajadores.find(t => t.id === id);
+const fmtH = h => (Math.round(h * 100) / 100).toLocaleString("es-CL") + " h";
+function horasJ(j){
+  const min = t => { const [h, m] = String(t || "").split(":").map(Number); return h * 60 + (m || 0); };
+  const a = min(j.entrada), b = min(j.salida);
+  if(isNaN(a) || isNaN(b)) return 0;
+  return ((b - a + 1440) % 1440 || 1440) / 60;   // si sale después de medianoche, cuenta hasta el otro día
+}
+// Hasta JORNADA horas corridas: por hora se paga cada hora y por día el valor del día.
+// Lo que pasa de JORNADA son horas extra: valor hora (por día: día ÷ JORNADA) × (1 + recargo).
+function pagoJ(j){
+  const h = horasJ(j), norm = Math.min(h, JORNADA), ext = Math.max(h - JORNADA, 0);
+  const vh = j.modo === "hora" ? n0(j.valor) : n0(j.valor) / JORNADA;
+  const base = j.modo === "hora" ? norm * vh : n0(j.valor), extra = ext * vh * (1 + n0(j.recargo));
+  return { h, norm, ext, base, extra, total: base + extra };
+}
+function trabRes(t, m){
+  const js = S.jornadas.filter(j => j.trab === t.id), ps = S.sueldos.filter(p => p.trab === t.id);
+  const jm = js.filter(j => pKey(j.fecha) === m), pm = ps.filter(p => pKey(p.fecha) === m), pj = jm.map(pagoJ);
+  return { t, dias: jm.length, horas: sum(pj, x => x.h), extras: sum(pj, x => x.ext), extraMes: sum(pj, x => x.extra), ganadoMes: sum(pj, x => x.total),
+    pagadoMes: sum(pm, p => n0(p.monto)), saldo: sum(js, j => pagoJ(j).total) - sum(ps, p => n0(p.monto)) };
+}
+R.trabajadores = () => {
+  const rs = S.trabajadores.slice().sort(byName).map(t => trabRes(t, curM)).filter(r => r.t.activo !== false || r.dias || r.pagadoMes || Math.round(r.saldo));
+  const btns = `<button class="b" data-act="newTrab">${ico("plus")}Trabajador</button>${S.trabajadores.length ? `<button class="b" data-act="newSueldo">${ico("plus")}Pago</button><button class="b acc" data-act="newJornada">${ico("plus")}Día trabajado</button>` : ""}`;
+  const js = S.jornadas.filter(j => pKey(j.fecha) === curM).sort((a, b) => b.fecha.localeCompare(a.fecha) || String(b.entrada).localeCompare(String(a.entrada)));
+  const ps = S.sueldos.filter(p => pKey(p.fecha) === curM).sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.upd || 0) - (a.upd || 0));
+  const nom = id => esc(trabById(id)?.nombre || "Trabajador eliminado");
+  let h = "", day = "";
+  js.forEach(j => {
+    const p = pagoJ(j);
+    if(j.fecha !== day){ day = j.fecha; h += `<div class="day"><span>${dName(day)}</span></div>`; }
+    h += `<button class="item" data-act="editJornada" data-id="${esc(j.id)}">
+      <div class="main-t"><div class="tt">${nom(j.trab)}</div><div class="st">${esc(j.entrada)}–${esc(j.salida)} · ${fmtH(p.h)}${p.ext ? ` · <b>${fmtH(p.ext)} extra</b> (+${pct(n0(j.recargo))})` : ""}${j.nota ? " · " + esc(j.nota) : ""}</div></div>
+      <div class="am num">${fmt(p.total)}</div></button>`;
+  });
+  const hp = ps.map(p => `<button class="item" data-act="editSueldo" data-id="${esc(p.id)}">
+      <div class="main-t"><div class="tt">${nom(p.trab)}</div><div class="st">${dName(p.fecha)} · ${esc(p.medio)}${p.nota ? " · " + esc(p.nota) : ""}</div></div>
+      <div class="am num">−${fmt(p.monto)}</div></button>`).join("");
+  return `
+  <div class="kpis">
+    ${kpi("Por pagar", fmt(Math.max(sum(rs, r => r.saldo), 0)), "trabajado y aún no pagado", "hero")}
+    ${kpi("Ganado en el mes", fmt(sum(rs, r => r.ganadoMes)), `${fmt(sum(rs, r => r.extraMes))} en horas extra`)}
+    ${kpi("Pagado en el mes", fmt(sum(rs, r => r.pagadoMes)), "sale del dinero del mes")}
+    ${kpi("Días trabajados", String(sum(rs, r => r.dias)), `${fmtH(sum(rs, r => r.horas))} · ${fmtH(sum(rs, r => r.extras))} extra`)}
+  </div>
+  <div class="row mt"><span class="sp"></span>${btns}</div>
+  ${rs.length ? `<div class="card mt"><h2>Trabajadores en ${mName(curM)}</h2><div class="tw"><table>
+    <thead><tr><th>Trabajador</th><th class="n">Días</th><th class="n">Horas</th><th class="n">Ganado</th><th class="n">Pagado</th><th class="n">Por pagar</th><th></th></tr></thead><tbody>
+    ${rs.map(r => `<tr><td><button class="linkbtn" data-act="editTrab" data-id="${esc(r.t.id)}" style="text-align:left"><b>${esc(r.t.nombre)}</b></button>
+        <div class="small muted">${MODOS_T[r.t.modo]} · ${fmt(r.t.valor)}${r.t.modo === "hora" ? "/h" : "/día"} · extra +${pct(n0(r.t.recargo))}${r.t.activo === false ? " · inactivo" : ""}</div></td>
+      <td class="n">${r.dias}</td><td class="n">${fmtH(r.horas)}${r.extras ? `<div class="small muted">${fmtH(r.extras)} extra</div>` : ""}</td>
+      <td class="n">${fmt(r.ganadoMes)}</td><td class="n">${fmt(r.pagadoMes)}</td>
+      <td class="n"><b class="${r.saldo > 0.5 ? "neg" : ""}">${fmt(r.saldo)}</b></td>
+      <td class="n">${r.saldo > 0.5 ? `<button class="b sm" data-act="newSueldo" data-id="${esc(r.t.id)}">Pagar</button>` : ""}</td></tr>`).join("")}
+    </tbody></table></div>
+    <p class="hint">Ganado y pagado son de ${mName(curM)}; <b>por pagar</b> suma todo lo trabajado menos todo lo pagado. Pasadas ${JORNADA} horas corridas en un día, cada hora extra se paga con el recargo del trabajador (si gana por día, la hora vale el día ÷ ${JORNADA}).</p></div>`
+    : `<div class="mt">${empty("clock", "Aún no hay trabajadores", "Agrega a cada trabajador con su forma de pago (por día o por hora) y su recargo por horas extra.", `<button class="b acc" data-act="newTrab">${ico("plus")}Agregar trabajador</button>`)}</div>`}
+  ${rs.length ? `<div class="card mt"><h2>Días trabajados</h2><div class="list">${h || `<p class="muted small">Sin días anotados en ${mName(curM)}.</p>`}</div></div>
+  <div class="card mt"><h2>Pagos</h2><div class="list">${hp || `<p class="muted small">Sin pagos en ${mName(curM)}.</p>`}</div></div>` : ""}`;
 };
 
 R.inventario = () => {
@@ -1330,7 +1401,7 @@ R.ajustes = () => {
 
 R.mas = () => `<div class="card" style="margin-bottom:12px"><div class="row"><div class="sync" style="color:var(--ink2);font-size:13.5px" id="sync3"><i></i><span>${mode === "local" ? "Datos guardados solo en este dispositivo" : outbox.length ? `${outbox.length} cambio(s) por subir a la nube` : "Todo guardado en la nube"}</span></div><span class="sp"></span>${user ? `<span class="small muted">${esc(user.email)} · ${esAdmin() ? "Administrador" : "Colaborador"}</span><button class="b sm del" data-act="logout">Cerrar sesión</button>` : ""}</div></div><div class="tiles">${Object.entries(VIEWS).filter(([k, v]) => v.grp && !TABS.includes(k) && puede(k)).map(([k, v]) => `<a class="tile" href="#${k}">${ico(v.i)}<b>${v.t}</b><span>${{
   carta:"Precios, costos y márgenes", inventario:"Stock y lista de compras", recetas:"Gramos por producto", insumos:"Precios y costo real", resultados:"Mes a mes y mermas",
-  equilibrio:"Cuánto vender para no perder", fijos:"Gas, luz, sueldos…", proveedores:"Contactos y entregas", ajustes:"Parámetros y respaldos", duenos:"Préstamos y pagos" }[k] || ""}</span></a>`).join("")}</div>`;
+  equilibrio:"Cuánto vender para no perder", fijos:"Gas, luz, sueldos…", proveedores:"Contactos y entregas", ajustes:"Parámetros y respaldos", duenos:"Préstamos y pagos", trabajadores:"Días, horas y pagos" }[k] || ""}</span></a>`).join("")}</div>`;
 
 // =====================================================================
 //  Modal
@@ -1928,6 +1999,99 @@ function formDueno(orig){
     toast(orig ? "Movimiento actualizado" : "Movimiento guardado");
   };
 }
+function formTrab(orig){
+  const t = orig ? clone(orig) : { id:uid(), nombre:"", modo:"dia", valor:"", recargo:.5, activo:true };
+  const m = openModal(orig ? "Editar trabajador" : "Nuevo trabajador", `
+    <label for="tN">Nombre</label><input id="tN" value="${esc(t.nombre)}" placeholder="Ej: Camila">
+    <label>Se le paga</label>${chipsHTML("modo", Object.values(MODOS_T), MODOS_T[t.modo])}
+    <div class="f2">
+      <div><label for="tV" id="tVL">Valor</label><div class="unit pre"><em>$</em><input id="tV" type="number" inputmode="numeric" min="0" step="100" value="${esc(t.valor)}"></div></div>
+      <div><label for="tR">Recargo hora extra</label><div class="unit"><input id="tR" type="number" inputmode="decimal" min="0" step="5" value="${Math.round(n0(t.recargo) * 100)}"><em>%</em></div></div>
+    </div>
+    <label class="row" style="margin-top:14px;color:var(--ink);font-size:14px"><input type="checkbox" id="tA" ${t.activo !== false ? "checked" : ""}> Trabaja actualmente</label>
+    <p class="hint" id="tH"></p>`,
+    `${orig ? `<button class="b del" data-act="delTrab" data-id="${esc(t.id)}">${ico("trash")}Eliminar</button>` : ""}<span class="sp"></span><button class="b" data-act="close">Cancelar</button><button class="b pri" id="tSave">Guardar</button>`);
+  const modo = () => chipVal(m, "modo") === MODOS_T.hora ? "hora" : "dia";
+  const hint = () => {
+    const v = n0(m.querySelector("#tV").value), r = n0(m.querySelector("#tR").value) / 100, vh = modo() === "hora" ? v : v / JORNADA;
+    m.querySelector("#tVL").textContent = modo() === "hora" ? "Valor por hora" : "Valor por día";
+    m.querySelector("#tH").textContent = `Pasadas ${JORNADA} horas corridas, cada hora extra se paga a ${fmt(vh * (1 + r))}${modo() === "dia" ? ` (día ÷ ${JORNADA} + ${pct(r)})` : ` (+${pct(r)})`}.`;
+  };
+  wireChips(m, hint); m.querySelector("#tV").oninput = m.querySelector("#tR").oninput = hint; hint();
+  m.querySelector("#tSave").onclick = () => {
+    const x = { ...t, nombre:m.querySelector("#tN").value.trim(), modo:modo(), valor:n0(m.querySelector("#tV").value), recargo:n0(m.querySelector("#tR").value) / 100, activo:m.querySelector("#tA").checked };
+    if(!x.nombre) return toast("Escribe el nombre", true);
+    if(!(x.valor > 0)) return toast("Escribe cuánto se le paga", true);
+    put("trabajadores", x); closeModal(); render(); toast("Trabajador guardado");
+  };
+}
+// Elige trabajador: los activos, más el del registro que se edita
+const trabOpts = sel => S.trabajadores.filter(t => t.activo !== false || t.id === sel).sort(byName).map(t => `<option value="${esc(t.id)}" ${t.id === sel ? "selected" : ""}>${esc(t.nombre)}</option>`).join("");
+function formJornada(orig){
+  const ult = S.jornadas.slice().sort((a, b) => (b.upd || 0) - (a.upd || 0))[0];
+  const j = orig ? clone(orig) : { id:uid(), trab: ult && trabById(ult.trab)?.activo !== false ? ult.trab : (S.trabajadores.find(t => t.activo !== false) || {}).id, fecha: curM === curMonth() ? today() : pStart(curM),
+    entrada: ult ? ult.entrada : "10:00", salida: ult ? ult.salida : "18:00", nota:"" };
+  const m = openModal(orig ? "Editar día trabajado" : "Día trabajado", `
+    <div class="f2">
+      <div><label for="jT">Trabajador</label><select id="jT">${trabOpts(j.trab)}</select></div>
+      <div><label for="jF">Fecha</label><input id="jF" type="date" value="${esc(j.fecha)}"></div>
+    </div>
+    <div class="f2">
+      <div><label for="jE">Entrada</label><input id="jE" type="time" value="${esc(j.entrada)}"></div>
+      <div><label for="jS">Salida</label><input id="jS" type="time" value="${esc(j.salida)}"></div>
+    </div>
+    <label for="jN">Nota</label><input id="jN" value="${esc(j.nota || "")}" placeholder="Ej: evento, reemplazo">
+    <div class="card" style="margin-top:14px;padding:12px 14px" id="jCalc"></div>`,
+    `${orig ? `<button class="b del" data-act="delJornada" data-id="${esc(j.id)}">${ico("trash")}Eliminar</button>` : ""}<span class="sp"></span><button class="b" data-act="close">Cancelar</button><button class="b acc" id="jSave">Guardar</button>`);
+  // Al editar se respeta el valor con que se anotó; si cambia el trabajador, se toma el valor de él
+  const leer = () => {
+    const id = m.querySelector("#jT").value, t = trabById(id) || {}, mismo = orig && id === orig.trab;
+    return { ...j, trab:id, fecha:m.querySelector("#jF").value, entrada:m.querySelector("#jE").value, salida:m.querySelector("#jS").value, nota:m.querySelector("#jN").value.trim(),
+      modo: mismo ? j.modo : t.modo, valor: mismo ? j.valor : n0(t.valor), recargo: mismo ? j.recargo : n0(t.recargo) };
+  };
+  const calc = () => {
+    const x = leer(), p = pagoJ(x);
+    m.querySelector("#jCalc").innerHTML = !x.trab ? `<span class="muted small">Primero agrega un trabajador.</span>` : `
+      <div class="row small"><span>${fmtH(p.h)} corridas · ${MODOS_T[x.modo]} ${fmt(x.valor)}</span><span class="sp"></span></div>
+      <div class="row small" style="margin-top:6px"><span>${x.modo === "hora" ? `${fmtH(p.norm)} normales` : "Día"}</span><span class="sp"></span><b class="num">${fmt(p.base)}</b></div>
+      ${p.ext ? `<div class="row small" style="margin-top:6px"><span>${fmtH(p.ext)} extra (+${pct(n0(x.recargo))})</span><span class="sp"></span><b class="num">${fmt(p.extra)}</b></div>` : ""}
+      <div class="row" style="margin-top:8px"><b>Total del día</b><span class="sp"></span><b class="num">${fmt(p.total)}</b></div>`;
+  };
+  ["#jT", "#jE", "#jS"].forEach(s => m.querySelector(s).addEventListener("input", calc)); m.querySelector("#jT").onchange = calc; calc();
+  m.querySelector("#jSave").onclick = () => {
+    const x = leer();
+    if(!x.trab) return toast("Primero agrega un trabajador", true);
+    if(!x.fecha) return toast("Elige la fecha", true);
+    if(!x.entrada || !x.salida) return toast("Anota la hora de entrada y de salida", true);
+    put("jornadas", x); closeModal(); curM = pKey(x.fecha); render();
+    toast(orig ? "Día actualizado" : `Día guardado: ${fmt(pagoJ(x).total)}`);
+  };
+}
+function formSueldo(orig, trab){
+  const p = orig ? clone(orig) : { id:uid(), trab: trab || (S.trabajadores.find(t => t.activo !== false) || {}).id, fecha: curM === curMonth() ? today() : pStart(curM), monto:"", medio:"Transferencia", nota:"" };
+  const saldo = id => { const t = trabById(id); return t ? trabRes(t, curM).saldo + (orig && orig.trab === id ? n0(orig.monto) : 0) : 0; };
+  if(!orig && p.trab) p.monto = Math.max(Math.round(saldo(p.trab)), 0) || "";
+  const m = openModal(orig ? "Editar pago" : "Pago a trabajador", `
+    <div class="f2">
+      <div><label for="sTr">Trabajador</label><select id="sTr">${trabOpts(p.trab)}</select></div>
+      <div><label for="sF">Fecha</label><input id="sF" type="date" value="${esc(p.fecha)}"></div>
+    </div>
+    <label for="sM">Monto</label><div class="unit pre"><em>$</em><input id="sM" type="number" inputmode="numeric" min="0" step="1" value="${esc(p.monto)}"></div>
+    <p class="hint" id="sH"></p>
+    <label>Se pagó con</label>${chipsHTML("medio", MEDIOS_D, p.medio)}
+    <label for="sN">Nota</label><input id="sN" value="${esc(p.nota || "")}" placeholder="Ej: semana del 1 al 7">`,
+    `${orig ? `<button class="b del" data-act="delSueldo" data-id="${esc(p.id)}">${ico("trash")}Eliminar</button>` : ""}<span class="sp"></span><button class="b" data-act="close">Cancelar</button><button class="b acc" id="sSave">Guardar pago</button>`);
+  const hint = () => { const s = saldo(m.querySelector("#sTr").value); m.querySelector("#sH").textContent = `Por pagar a la fecha: ${fmt(s)}. Sale del dinero del mes.`; };
+  m.querySelector("#sTr").onchange = () => { hint(); if(!orig) m.querySelector("#sM").value = Math.max(Math.round(saldo(m.querySelector("#sTr").value)), 0) || ""; };
+  wireChips(m); hint();
+  m.querySelector("#sSave").onclick = () => {
+    const x = { ...p, trab:m.querySelector("#sTr").value, fecha:m.querySelector("#sF").value, monto:n0(m.querySelector("#sM").value), medio:chipVal(m, "medio"), nota:m.querySelector("#sN").value.trim() };
+    if(!x.trab) return toast("Primero agrega un trabajador", true);
+    if(!x.fecha) return toast("Elige la fecha", true);
+    if(!(x.monto > 0)) return toast("Escribe el monto", true);
+    put("sueldos", x); closeModal(); curM = pKey(x.fecha); render(); toast(orig ? "Pago actualizado" : "Pago guardado");
+  };
+}
 function formReserva(orig){
   const r = orig ? clone(orig) : { id:uid(), item:"", monto:"", nota:"" };
   const m = openModal(orig ? "Editar pago" : "Otro pago para apartar", `
@@ -2065,6 +2229,18 @@ const A = {
   newDueno: () => formDueno(),
   editDueno: d => formDueno(S.duenos.find(x => x.id === d.id)),
   delDueno: async d => { if(await confirmDel("¿Eliminar este movimiento?")){ del("duenos", d.id); closeModal(); render(); toast("Movimiento eliminado"); } },
+  newTrab: () => formTrab(),
+  editTrab: d => formTrab(trabById(d.id)),
+  delTrab: async d => {
+    if(S.jornadas.some(j => j.trab === d.id) || S.sueldos.some(p => p.trab === d.id)) return toast("Tiene días o pagos anotados. Para que no aparezca más, desmarca “Trabaja actualmente”.", true);
+    if(await confirmDel("¿Eliminar este trabajador?")){ del("trabajadores", d.id); closeModal(); render(); toast("Trabajador eliminado"); }
+  },
+  newJornada: () => formJornada(),
+  editJornada: d => formJornada(S.jornadas.find(x => x.id === d.id)),
+  delJornada: async d => { if(await confirmDel("¿Eliminar este día trabajado?")){ del("jornadas", d.id); closeModal(); render(); toast("Día eliminado"); } },
+  newSueldo: d => formSueldo(null, d.id),
+  editSueldo: d => formSueldo(S.sueldos.find(x => x.id === d.id)),
+  delSueldo: async d => { if(await confirmDel("¿Eliminar este pago?")){ del("sueldos", d.id); closeModal(); render(); toast("Pago eliminado"); } },
   delReserva: async d => { if(await confirmDel("¿Eliminar este pago?\nDeja de aparecer en todos los meses.")){ del("reservas", d.id); closeModal(); render(); } },
   apartarTodo: () => {
     const a = apartados(curM);
