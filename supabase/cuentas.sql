@@ -33,3 +33,13 @@ create policy "colaborador anota cuentas" on public.cuentas for insert to authen
 create policy "colaborador corrige cuentas" on public.cuentas for update to authenticated
   using (public.es_equipo() and coleccion in ('ventas', 'gastos', 'insumos'))
   with check (public.es_equipo() and coleccion in ('ventas', 'gastos', 'insumos'));
+
+-- Forma mínima de cada registro, para que uno escrito a mano por la API no rompa
+-- las pantallas: un objeto, la fecha como AAAA-MM-DD y la venta con su lista de ítems.
+alter table public.cuentas drop constraint if exists cuentas_datos_forma;
+alter table public.cuentas add constraint cuentas_datos_forma check (
+  jsonb_typeof(datos) = 'object'
+  and (not datos ? 'fecha' or (jsonb_typeof(datos->'fecha') = 'string' and datos->>'fecha' ~ '^\d{4}-\d{2}-\d{2}$'))
+  and (coleccion <> 'ventas' or (jsonb_typeof(datos->'items') = 'array'
+       and not jsonb_path_exists(datos, '$.items[*] ? (@.type() != "object")')))
+);

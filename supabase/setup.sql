@@ -45,8 +45,10 @@ create table if not exists public.usuarios (
 );
 alter table public.usuarios enable row level security;  -- solo el administrador la ve (usuarios.sql)
 
--- 👇 CAMBIA ESTE CORREO por el del administrador (el mismo que crearás en Authentication → Users)
-insert into public.usuarios (email, rol) values ('cambia-este-correo@ejemplo.com', 'administrador') on conflict do nothing;
+-- 👇 Solo la primera vez: quita el "--" de la línea de abajo y pon el correo del
+--    administrador (el mismo que crearás en Authentication → Users). Si se deja un
+--    correo de ejemplo, quien se registre con él sería administrador.
+-- insert into public.usuarios (email, rol) values ('correo-del-administrador@...', 'administrador') on conflict do nothing;
 
 -- Rol de quien está conectado. Solo cuenta un correo confirmado, para que nadie
 -- pueda registrarse con el correo de otra persona y heredar su rol.

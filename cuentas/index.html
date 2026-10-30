@@ -417,7 +417,7 @@ const UNIDADES = ["g", "ml", "un"];
 // =====================================================================
 const COLS = ["ventas", "gastos", "insumos", "recetas", "carta", "proveedores", "fijos", "saldos", "reservas", "apartados", "duenos", "trabajadores", "jornadas", "sueldos"];
 const PAR_DEF = { flete:.1, foodCost:.33, comision:.035, iva:.19, afectaIva:false, dias:20, ticket:15000, meta:500000, deliveryCobro:2000, deliveryCosto:1500, diaCorte:16 };
-const LS_DATA = "saisei.cuentas.datos", LS_OUT = "saisei.cuentas.pendientes", LS_ROL = "saisei.cuentas.rol";
+const LS_DATA = "saisei.cuentas.datos", LS_OUT = "saisei.cuentas.pendientes", LS_ROL = "saisei.cuentas.rol", LS_USR = "saisei.cuentas.usuario";
 let S = blank();
 let mode = "local";        // "nube" | "local"
 let sb = null, user = null;
@@ -524,11 +524,16 @@ async function refreshCloud(){
 }
 setInterval(() => { if(document.visibilityState === "visible") refreshCloud(); }, 30000);
 document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") refreshCloud(); });
+// Un registro mal formado (escrito a mano por la API) se ignora para que no rompa las pantallas
+const esObj = d => !!d && typeof d === "object" && !Array.isArray(d);
+const sano = (col, d) => esObj(d)
+  && (d.fecha === undefined || (typeof d.fecha === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d.fecha)))
+  && (col !== "ventas" || (Array.isArray(d.items) && d.items.every(esObj)));
 function fromRows(rows){
   const b = blank();
   rows.forEach(r => {
-    if(r.coleccion === "config"){ if(r.id === "parametros") b.par = {...PAR_DEF, ...r.datos}; }
-    else if(b[r.coleccion]) b[r.coleccion].push(r.datos);
+    if(r.coleccion === "config"){ if(r.id === "parametros" && esObj(r.datos)) b.par = {...PAR_DEF, ...r.datos}; }
+    else if(b[r.coleccion] && sano(r.coleccion, r.datos)) b[r.coleccion].push(r.datos);
   });
   // Cambios hechos sin conexión que aún no suben
   outbox.forEach(o => {
@@ -577,6 +582,10 @@ async function boot(){
 async function enter(session){
   user = session.user;
   showOnly("boot");
+  // La copia local y los cambios pendientes son de quien los anotó: con otra cuenta se descartan
+  const dueno = readJSON(LS_USR);
+  if(dueno && dueno !== user.id){ [LS_DATA, LS_OUT, LS_ROL].forEach(k => localStorage.removeItem(k)); outbox = []; }
+  writeJSON(LS_USR, user.id);
   const cache = readJSON(LS_DATA);
   let r = null;
   try { const x = await sb.rpc("mi_rol"); if(x.error) throw x.error; r = x.data; } catch(e){ r = null; }
@@ -1195,8 +1204,8 @@ R.inventario = () => {
     <thead><tr><th>Insumo</th><th class="n">Stock actual</th><th class="n">Mínimo</th><th>Estado</th><th class="n hide-sm">Valor</th><th class="hide-sm">Contado</th></tr></thead><tbody>
     ${list.map(i => { const e = invEstado(i); return `<tr>
       <td><b>${esc(i.nombre)}</b><div class="small muted hide-sm">${esc(i.proveedor || "")}</div></td>
-      <td class="n"><div class="unit"><input class="tin num" type="number" inputmode="decimal" min="0" step="any" data-inv="stock" data-id="${esc(i.id)}" value="${i.stock ?? ""}" aria-label="Stock de ${esc(i.nombre)}"><em>${esc(i.unidad)}</em></div></td>
-      <td class="n"><div class="unit"><input class="tin num" type="number" inputmode="decimal" min="0" step="any" data-inv="minimo" data-id="${esc(i.id)}" value="${i.minimo ?? ""}" aria-label="Mínimo de ${esc(i.nombre)}"><em>${esc(i.unidad)}</em></div></td>
+      <td class="n"><div class="unit"><input class="tin num" type="number" inputmode="decimal" min="0" step="any" data-inv="stock" data-id="${esc(i.id)}" value="${esc(i.stock)}" aria-label="Stock de ${esc(i.nombre)}"><em>${esc(i.unidad)}</em></div></td>
+      <td class="n"><div class="unit"><input class="tin num" type="number" inputmode="decimal" min="0" step="any" data-inv="minimo" data-id="${esc(i.id)}" value="${esc(i.minimo)}" aria-label="Mínimo de ${esc(i.nombre)}"><em>${esc(i.unidad)}</em></div></td>
       <td><span class="pill ${invCls(e)}">${e}</span></td>
       <td class="n hide-sm">${i.stock != null && i.stock !== "" ? fmt(n0(i.stock) * cu(i)) : ""}</td>
       <td class="small muted hide-sm">${i.conteo ? new Date(i.conteo + "T12:00").toLocaleDateString("es-CL", {day:"numeric", month:"short"}) : ""}</td></tr>`; }).join("") || `<tr><td colspan="6" class="muted">Nada que comprar. 🎉</td></tr>`}
@@ -1299,7 +1308,7 @@ R.fijos = () => {
     ${cats.map(c => `<tr><td colspan="3" class="sec">${esc(c)} · ${fmt(sum(S.fijos.filter(f => (f.categoria || "Otros") === c), f => n0(f.monto)))}</td></tr>` +
       S.fijos.filter(f => (f.categoria || "Otros") === c).map(f => `<tr>
         <td>${esc(f.item)}${f.nota ? `<div class="small muted">${esc(f.nota)}</div>` : ""}</td>
-        <td class="n"><div class="unit pre" style="display:inline-block"><em>$</em><input class="tin num" style="max-width:130px" type="number" inputmode="numeric" min="0" step="1000" data-fijo="${esc(f.id)}" value="${f.monto ?? ""}" aria-label="Monto ${esc(f.item)}"></div></td>
+        <td class="n"><div class="unit pre" style="display:inline-block"><em>$</em><input class="tin num" style="max-width:130px" type="number" inputmode="numeric" min="0" step="1000" data-fijo="${esc(f.id)}" value="${esc(f.monto)}" aria-label="Monto ${esc(f.item)}"></div></td>
         <td class="n"><button class="ib" data-act="editFijo" data-id="${esc(f.id)}" aria-label="Editar">${ico("edit")}</button></td></tr>`).join("")).join("")}
     <tr class="tot"><td>TOTAL COSTOS FIJOS MENSUALES</td><td class="n">${fmt(tot)}</td><td></td></tr>
     </tbody></table></div>
@@ -1310,7 +1319,7 @@ R.fijos = () => {
 // ---------- Dinero apartado ----------
 R.apartar = () => {
   const a = apartados(curM);
-  const money = (r, k, ph) => `<div class="unit pre" style="display:inline-block"><em>$</em><input class="tin num" style="width:112px;max-width:none" type="number" inputmode="numeric" min="0" step="1000" data-ap="${k}" data-k="${esc(r.key)}" value="${k === "monto" ? (r.monto === r.base ? "" : r.monto) : (r.apartado || "")}" placeholder="${ph}" aria-label="${k === "monto" ? "Monto" : "Apartado"} ${esc(r.item)}" ${r.pagado ? "disabled" : ""}></div>`;
+  const money = (r, k, ph) => `<div class="unit pre" style="display:inline-block"><em>$</em><input class="tin num" style="width:112px;max-width:none" type="number" inputmode="numeric" min="0" step="1000" data-ap="${k}" data-k="${esc(r.key)}" value="${esc(k === "monto" ? (r.monto === r.base ? "" : r.monto) : (r.apartado || ""))}" placeholder="${ph}" aria-label="${k === "monto" ? "Monto" : "Apartado"} ${esc(r.item)}" ${r.pagado ? "disabled" : ""}></div>`;
   const rows = l => l.map(r => `<tr>
     <td>${r.edit ? `<button class="linkbtn" data-act="editReserva" data-id="${esc(r.edit)}" style="text-align:left">${esc(r.item)}</button>` : esc(r.item)}${r.sub ? `<div class="small muted">${esc(r.sub)}</div>` : ""}</td>
     <td class="n">${money(r, "monto", Math.round(r.base))}</td>
@@ -1354,7 +1363,7 @@ R.proveedores = () => `
 // ---------- Ajustes ----------
 R.ajustes = () => {
   const p = P();
-  const f = (k, l, unit, help, step = "any") => `<div><label for="p_${k}">${l}</label><div class="unit ${unit === "$" ? "pre" : ""}"><input id="p_${k}" type="number" inputmode="decimal" step="${step}" value="${unit === "%" ? +(n0(p[k]) * 100).toFixed(2) : p[k] ?? ""}"><em>${unit}</em></div>${help ? `<p class="hint">${help}</p>` : ""}</div>`;
+  const f = (k, l, unit, help, step = "any") => `<div><label for="p_${k}">${l}</label><div class="unit ${unit === "$" ? "pre" : ""}"><input id="p_${k}" type="number" inputmode="decimal" step="${step}" value="${unit === "%" ? +(n0(p[k]) * 100).toFixed(2) : esc(p[k])}"><em>${unit}</em></div>${help ? `<p class="hint">${help}</p>` : ""}</div>`;
   return `
   <div class="card">
     <h2>Parámetros del negocio</h2>
@@ -1475,9 +1484,9 @@ function formVenta(orig, opt = {}){
     L.innerHTML = v.items.map((it, k) => `<div class="line">
       <div class="lt"><b>${esc(it.nombre)}</b><span class="num">${fmt(n0(it.cant) * n0(it.precio) - n0(it.desc))}</span><button type="button" class="ib" data-rm="${k}" aria-label="Quitar">${ico("trash")}</button></div>
       <div class="lc">
-        <div><label>Cantidad</label><div class="step"><button type="button" data-dq="${k}" data-d="-1">−</button><input type="number" inputmode="decimal" min="0" step="any" data-f="cant" data-k="${k}" value="${it.cant}"><button type="button" data-dq="${k}" data-d="1">+</button></div></div>
-        <div><label>Precio unitario</label><input type="number" inputmode="numeric" min="0" step="100" data-f="precio" data-k="${k}" value="${it.precio}"></div>
-        <div><label>Descuento $</label><input type="number" inputmode="numeric" min="0" step="100" data-f="desc" data-k="${k}" value="${it.desc || ""}" placeholder="0"></div>
+        <div><label>Cantidad</label><div class="step"><button type="button" data-dq="${k}" data-d="-1">−</button><input type="number" inputmode="decimal" min="0" step="any" data-f="cant" data-k="${k}" value="${esc(it.cant)}"><button type="button" data-dq="${k}" data-d="1">+</button></div></div>
+        <div><label>Precio unitario</label><input type="number" inputmode="numeric" min="0" step="100" data-f="precio" data-k="${k}" value="${esc(it.precio)}"></div>
+        <div><label>Descuento $</label><input type="number" inputmode="numeric" min="0" step="100" data-f="desc" data-k="${k}" value="${esc(it.desc || "")}" placeholder="0"></div>
       </div></div>`).join("") || `<p class="muted small" style="margin:6px 0">Aún no agregas productos.</p>`;
     m.querySelectorAll("[data-add]").forEach(b => {
       const q = sum(v.items.filter(i => i.prod === b.dataset.add), i => n0(i.cant));
@@ -1548,7 +1557,8 @@ async function loadPedidos(){
       const { error: e2 } = await sb.from("pedidos").delete().eq("estado", "rechazado");
       if(!e2) data = data.filter(p => p.estado !== "rechazado");
     }
-    PED.list = data.filter(p => p.estado !== "rechazado");
+    // Los pedidos los escribe cualquiera desde la página: un ítem mal formado no debe romper la lista
+    PED.list = data.filter(p => p.estado !== "rechazado").map(p => ({ ...p, items: Array.isArray(p.items) ? p.items.filter(esObj) : [] }));
     // Si la venta se guardó pero el pedido no alcanzó a marcarse (sin conexión), se corrige ahora
     PED.list.filter(p => p.estado === "pendiente").forEach(p => { const v = S.ventas.find(x => x.pedidoWeb === p.id); if(v) marcarPedido(p, "confirmado", v.id, true); });
   }
@@ -1561,7 +1571,7 @@ async function loadPedidos(){
 setInterval(() => { if(document.visibilityState === "visible") loadPedidos(); }, 30000);
 
 // Si la app quedó abierta (o instalada en el teléfono) con una versión antigua, avisa y se actualiza
-const APP_VERSION = "2026-10-18a";
+const APP_VERSION = "2026-10-29a";
 async function checkVersion(){
   try{
     const html = await (await fetch(location.pathname + "?v=" + Date.now(), { cache:"no-store" })).text();
@@ -1794,7 +1804,7 @@ function partsEditor(rows, opts, key, label, unitFn){
   return `<div class="ed-h"><span>${label}</span><span>${key === "veces" ? "Veces" : "Cantidad"}</span><span style="text-align:right">Costo</span><span></span></div>
     <div data-rows>${rows.map((r, k) => `<div class="ed-row">
       <select data-k="${k}" data-f="ref">${opts.map(o => `<option value="${esc(o.id)}" ${o.id === r.ref ? "selected" : ""}>${esc(o.label)}</option>`).join("")}</select>
-      <div class="unit"><input type="number" inputmode="decimal" min="0" step="any" data-k="${k}" data-f="q" value="${r.q ?? ""}"><em>${esc(unitFn(r.ref))}</em></div>
+      <div class="unit"><input type="number" inputmode="decimal" min="0" step="any" data-k="${k}" data-f="q" value="${esc(r.q)}"><em>${esc(unitFn(r.ref))}</em></div>
       <span class="c"></span><button type="button" class="ib" data-rmrow="${k}" aria-label="Quitar">${ico("trash")}</button></div>`).join("")}</div>
     <button type="button" class="b sm mt" data-addrow>${ico("plus")}Agregar</button>`;
 }
@@ -1905,7 +1915,7 @@ function formIns(orig){
     </div>
     <div class="f2">
       <div><label for="iM">Merma</label><div class="unit"><input id="iM" type="number" inputmode="decimal" min="0" max="99" step="any" value="${+(n0(i.merma) * 100).toFixed(2)}"><em>%</em></div><p class="hint">Lo que se pierde: piel, cáscara, recortes.</p></div>
-      <div><label for="iMin">Stock mínimo</label><div class="unit"><input id="iMin" type="number" inputmode="decimal" min="0" step="any" value="${i.minimo ?? ""}"><em class="uu">${esc(i.unidad)}</em></div></div>
+      <div><label for="iMin">Stock mínimo</label><div class="unit"><input id="iMin" type="number" inputmode="decimal" min="0" step="any" value="${esc(i.minimo)}"><em class="uu">${esc(i.unidad)}</em></div></div>
     </div>
     <label for="iNo">Nota / fuente del precio</label><input id="iNo" value="${esc(i.nota || "")}">
     <div class="calc" id="iCalc" style="grid-template-columns:1fr 1fr"></div>`;
@@ -2134,7 +2144,8 @@ function download(name, text, type){
   a.download = name; document.body.appendChild(a); a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
 }
-const csvCell = v => { const s = String(v ?? ""); return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+// Un texto que empieza con = + - @ lo ejecutaría Excel como fórmula: se le antepone ' (los números se dejan tal cual)
+const csvCell = v => { let s = String(v ?? ""); if(typeof v !== "number" && /^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 const toCSV = rows => "﻿" + rows.map(r => r.map(csvCell).join(";")).join("\r\n");
 function csvVentas(){
   const rows = [["Fecha", "N° pedido", "Canal", "Producto", "Cantidad", "Precio unitario ($)", "Descuento ($)", "Total venta ($)", "Medio de pago", "Comisión ($)", "Costo directo ($)", "Margen ($)", "Mes", "Notas"]];
@@ -2263,7 +2274,7 @@ const A = {
     if(mode === "nube" && outbox.length && !(await ask("Hay cambios que aún no se suben a la nube. Si cierras sesión ahora se perderán. ¿Cerrar igual?", "Cerrar sesión", true))) return;
     if(sb) await sb.auth.signOut();
     // La copia local solo se borra si todo está en la nube
-    if(mode === "nube"){ localStorage.removeItem(LS_DATA); localStorage.removeItem(LS_OUT); }
+    if(mode === "nube") [LS_DATA, LS_OUT, LS_ROL, LS_USR].forEach(k => localStorage.removeItem(k));
     location.reload();
   },
 };

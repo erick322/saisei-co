@@ -653,7 +653,13 @@ $("loginForm").onsubmit = async e => {
   if(error) return $("lMsg").textContent = "Correo o contraseña incorrectos.";
   enter(data.session);
 };
-$("logout").onclick = async () => { await sb.auth.signOut(); location.reload(); };
+// Al salir se borra también la copia de Cuentas en este navegador, para que el siguiente usuario no la vea
+const limpiarCuentas = () => ["datos", "pendientes", "rol", "usuario"].forEach(k => localStorage.removeItem("saisei.cuentas." + k));
+$("logout").onclick = async () => {
+  const pend = JSON.parse(localStorage.getItem("saisei.cuentas.pendientes") || "[]");
+  if(pend.length && !confirm("Hay cambios de Cuentas que aún no se suben a la nube. Si cierras sesión ahora se perderán. ¿Cerrar igual?")) return;
+  await sb.auth.signOut(); limpiarCuentas(); location.reload();
+};
 
 // ---------- Contraseña ----------
 function openPw(recuperando){

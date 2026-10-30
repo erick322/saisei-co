@@ -44,3 +44,17 @@ create policy "cliente crea pedido" on public.pedidos for insert to anon, authen
 create policy "equipo ve pedidos"     on public.pedidos for select to authenticated using (public.es_equipo());
 create policy "equipo cambia pedidos" on public.pedidos for update to authenticated using (public.es_equipo()) with check (public.es_equipo());
 create policy "equipo borra pedidos"  on public.pedidos for delete to authenticated using (public.es_equipo());
+
+-- La fecha del pedido la pone la base de datos (si la pusiera el cliente, pedidos con
+-- fecha futura dejarían fuera de la lista a los reales) y cada ítem debe ser un objeto.
+create or replace function public.pedido_nuevo() returns trigger
+language plpgsql set search_path = public as $$
+begin
+  new.creado := now();
+  if exists (select 1 from jsonb_array_elements(new.items) e where jsonb_typeof(e) <> 'object') then
+    raise exception 'Cada ítem del pedido debe ser un objeto';
+  end if;
+  return new;
+end $$;
+drop trigger if exists pedido_nuevo on public.pedidos;
+create trigger pedido_nuevo before insert on public.pedidos for each row execute function public.pedido_nuevo();
