@@ -416,7 +416,7 @@ const UNIDADES = ["g", "ml", "un"];
 //  Datos: en la nube (Supabase, tabla "cuentas") o en este dispositivo
 // =====================================================================
 const COLS = ["ventas", "gastos", "insumos", "recetas", "carta", "proveedores", "fijos", "saldos", "reservas", "apartados", "duenos", "trabajadores", "jornadas", "sueldos"];
-const PAR_DEF = { flete:.1, foodCost:.33, comision:.035, iva:.19, afectaIva:false, dias:20, ticket:15000, meta:500000, deliveryCobro:2000, deliveryCosto:1500, diaCorte:16 };
+const PAR_DEF = { flete:.1, foodCost:.33, comision:.035, iva:.19, afectaIva:false, dias:20, ticket:15000, meta:500000, deliveryCobro:2000, deliveryCosto:1500, diaCorte:16, prepBase:15, prepUnidad:5, despachoMin:20 };
 const LS_DATA = "saisei.cuentas.datos", LS_OUT = "saisei.cuentas.pendientes", LS_ROL = "saisei.cuentas.rol", LS_USR = "saisei.cuentas.usuario";
 let S = blank();
 let mode = "local";        // "nube" | "local"
@@ -1380,6 +1380,9 @@ R.ajustes = () => {
         ${f("deliveryCobro", "Cobro de delivery al cliente", "$", "", "100")}
         ${f("deliveryCosto", "Costo del repartidor por delivery", "$", "Es el costo del producto “Delivery”.", "100")}
         ${f("diaCorte", "Día en que empieza el mes de ventas", "", "Con 16, cada mes va del 16 al 15 del mes siguiente. Pon 1 para usar meses normales.", "1")}
+        ${f("prepBase", "Preparación de un pedido", "min", "Lo mínimo que toma cualquier pedido.", "1")}
+        ${f("prepUnidad", "Minutos extra por producto", "min", "Por cada producto del pedido (los toppings no suman).", "1")}
+        ${f("despachoMin", "Trayecto del delivery", "min", "Se suma a los pedidos con delivery.", "1")}
       </div>
       <label class="row" style="color:var(--ink);font-size:14px;margin-top:16px"><input type="checkbox" id="p_afectaIva" ${p.afectaIva ? "checked" : ""}> Mis ventas están afectas a IVA (emito boleta con IVA)</label>
       <div class="row mt"><button class="b pri">Guardar parámetros</button></div>
@@ -1543,7 +1546,7 @@ function formVenta(orig, opt = {}){
 //  Pedidos que llegan desde la página (tabla "pedidos" en Supabase)
 //  Entran como "pendiente"; solo al confirmarlos se registran como venta.
 // =====================================================================
-const PED = { list:[], ok:false, err:"", filtro:"pendiente", n:0, first:true };
+const PED = { list:[], ok:false, err:"", filtro:"encurso", n:0, first:true };
 const PED_EST = { pendiente:["Por confirmar", "warn"], confirmado:["Confirmado", "ok"] };
 async function loadPedidos(){
   if(!sb || !user || !navigator.onLine) return;
@@ -1571,7 +1574,7 @@ async function loadPedidos(){
 setInterval(() => { if(document.visibilityState === "visible") loadPedidos(); }, 30000);
 
 // Si la app quedó abierta (o instalada en el teléfono) con una versión antigua, avisa y se actualiza
-const APP_VERSION = "2026-10-29a";
+const APP_VERSION = "2026-11-01a";
 async function checkVersion(){
   try{
     const html = await (await fetch(location.pathname + "?v=" + Date.now(), { cache:"no-store" })).text();
@@ -1618,6 +1621,31 @@ function hace(iso){
   return new Date(iso).toLocaleDateString("es-CL", { day:"numeric", month:"short" });
 }
 const pedItems = p => (p.items || []).map(i => `${i.top ? "+ " : ""}${i.q}× ${i.n}`).join(", ");
+
+// ---------- Tiempo estimado y pedidos en curso ----------
+// En curso: confirmado y aún no entregado. La cocina hace un pedido a la vez, en orden de llegada:
+// cada uno empieza cuando se confirma o cuando termina el anterior, lo que pase después.
+const enCurso = p => p.estado === "confirmado" && !p.entregado;
+const prepMin = p => n0(P().prepBase) + n0(P().prepUnidad) * sum(p.items.filter(i => !i.top), i => n0(i.q));
+function colaPedidos(ahora = Date.now()){
+  let libre = 0;
+  return PED.list.filter(enCurso).sort((a, b) => new Date(a.creado) - new Date(b.creado)).map((p, k) => {
+    const inicio = Math.max(libre, new Date(p.revisado || p.creado).getTime());
+    const listo = inicio + prepMin(p) * 60000;
+    libre = Math.max(listo, ahora);   // si va atrasado, la cocina sigue ocupada al menos hasta ahora
+    return { p, pos: k + 1, listo, llega: listo + (p.entrega === "Delivery" ? n0(P().despachoMin) * 60000 : 0) };
+  });
+}
+const hhmm = t => new Date(t).toLocaleTimeString("es-CL", { hour:"2-digit", minute:"2-digit", hour12:false });
+const faltan = t => { const m = Math.round((t - Date.now()) / 60000); return m > 0 ? `en ${m} min` : m < 0 ? `atrasado ${-m} min` : "ahora"; };
+// "Listo ~20:45 (en 12 min)" o, con delivery, "Llega ~21:05 (en 32 min)"
+const estimado = c => c.p.entrega === "Delivery" ? `Llega ~${hhmm(c.llega)} (${faltan(c.llega)})` : `Listo ~${hhmm(c.listo)} (${faltan(c.listo)})`;
+async function entregarPedido(p, entregado){
+  const { error } = await sb.from("pedidos").update({ entregado }).eq("id", p.id);
+  if(error){ toast("No se pudo actualizar el pedido: " + error.message, true); return false; }
+  p.entregado = entregado;
+  return true;
+}
 const telWa = t => { const d = String(t || "").replace(/\D/g, ""); return d.length === 9 ? "56" + d : d.length === 8 ? "569" + d : d; };
 
 // Relaciona el nombre de la página ("Tabla 30 piezas Mixta") con el producto de la carta ("Tabla Mixta 30")
@@ -1641,22 +1669,33 @@ R.pedidos = () => {
   if(!PED.ok) return PED.err
     ? `<div class="banner">${ico("alert")}<div>No se pudieron cargar los pedidos (${esc(PED.err)}). <button class="linkbtn" data-act="reloadPed">Reintentar</button></div></div>`
     : `<p class="muted">Cargando pedidos…</p>`;
-  const cnt = e => PED.list.filter(p => p.estado === e).length;
-  const list = PED.list.filter(p => p.estado === PED.filtro);
-  const vacio = { pendiente:["Sin pedidos por confirmar", "Cuando un cliente envíe un pedido desde la página aparecerá aquí. Lo revisas, lo confirmas y queda registrado como venta."],
+  const cola = colaPedidos();
+  const cnt = e => e === "encurso" ? cola.length : PED.list.filter(p => p.estado === e).length;
+  const filtros = [["encurso", "En curso"], ...Object.entries(PED_EST).map(([k, [l]]) => [k, l])];
+  const vacio = { encurso:["Sin pedidos en curso", "Los pedidos confirmados aparecen aquí por orden de llegada, con su hora estimada, hasta que los marques como entregados."],
+    pendiente:["Sin pedidos por confirmar", "Cuando un cliente envíe un pedido desde la página aparecerá aquí. Lo revisas, lo confirmas y queda registrado como venta."],
     confirmado:["Sin pedidos confirmados", "Los últimos 60 días."] }[PED.filtro];
-  return `
+  const head = `
   <div class="row">
-    <div class="chips">${Object.entries(PED_EST).map(([k, [l]]) => `<button class="chip ${PED.filtro === k ? "on" : ""}" data-act="pedF" data-f="${k}">${l} · ${cnt(k)}</button>`).join("")}</div>
+    <div class="chips">${filtros.map(([k, l]) => `<button class="chip ${PED.filtro === k ? "on" : ""}" data-act="pedF" data-f="${k}">${l} · ${cnt(k)}</button>`).join("")}</div>
     <span class="sp"></span>
     <button class="b sm" data-act="reloadPed">Actualizar</button>
-  </div>
+  </div>`;
+  const pie = `<p class="hint mt">Se revisa si hay pedidos nuevos cada 30 segundos mientras la app está abierta${PED.at ? ` · última revisión ${PED.at.toLocaleTimeString("es-CL", { hour:"2-digit", minute:"2-digit" })}` : ""}.</p>`;
+  if(PED.filtro === "encurso") return head + `
+  <div class="list mt">${cola.map(c => `<button class="item" data-act="detPedido" data-id="${c.p.id}">
+      <div class="main-t"><div class="tt">${c.pos}° · N° ${esc(c.p.codigo)} · ${esc(c.p.cliente)}</div>
+      <div class="st">${esc(pedItems(c.p))}</div>
+      <div class="st">${esc(c.p.entrega)}${c.p.hora ? " · pidió " + esc(c.p.hora) : ""}</div></div>
+      <div class="am"><span class="pill ${c.listo < Date.now() ? "bad" : "ok"}">${estimado(c)}</span><small class="muted">llegó ${hhmm(c.p.creado)}</small></div></button>`).join("") || empty("clock", vacio[0], vacio[1])}</div>
+  <p class="hint mt">Hora estimada: ${n0(P().prepBase)} min por pedido + ${n0(P().prepUnidad)} min por producto${n0(P().despachoMin) ? ` + ${n0(P().despachoMin)} min de trayecto si es delivery` : ""}, uno tras otro en orden de llegada.${esAdmin() ? " Ajusta los minutos en Ajustes." : ""}</p>${pie}`;
+  const list = PED.list.filter(p => p.estado === PED.filtro);
+  return head + `
   <div class="list mt">${list.map(p => `<button class="item" data-act="detPedido" data-id="${p.id}">
       <div class="main-t"><div class="tt">N° ${esc(p.codigo)} · ${esc(p.cliente)}</div>
       <div class="st">${esc(pedItems(p))}</div>
       <div class="st">${esc(p.entrega)}${p.hora ? " · " + esc(p.hora) : ""}${p.pago ? " · " + esc(p.pago) : ""}</div></div>
-      <div class="am num">${fmt(p.total)}<small class="muted">${hace(p.creado)}</small></div></button>`).join("") || empty("bag", vacio[0], vacio[1])}</div>
-  <p class="hint mt">Se revisa si hay pedidos nuevos cada 30 segundos mientras la app está abierta${PED.at ? ` · última revisión ${PED.at.toLocaleTimeString("es-CL", { hour:"2-digit", minute:"2-digit" })}` : ""}.</p>`;
+      <div class="am num">${fmt(p.total)}<small class="muted">${hace(p.creado)}</small></div></button>`).join("") || empty("bag", vacio[0], vacio[1])}</div>${pie}`;
 };
 
 function detPedido(id){
@@ -1664,8 +1703,9 @@ function detPedido(id){
   const pend = p.estado === "pendiente";
   const opts = S.carta.slice().sort(byName).map(c => `<option value="${esc(c.id)}">${esc(c.nombre)} · ${fmt(c.precio)}</option>`).join("");
   const venta = S.ventas.find(v => v.id === p.venta_id);
+  const c = colaPedidos().find(x => x.p === p);
   const body = `
-    <p class="row" style="margin:12px 0 0"><span class="pill ${PED_EST[p.estado][1]}">${PED_EST[p.estado][0]}</span><span class="small muted">Recibido ${new Date(p.creado).toLocaleString("es-CL", { weekday:"long", day:"numeric", month:"long", hour:"2-digit", minute:"2-digit" })}</span></p>
+    <p class="row" style="margin:12px 0 0"><span class="pill ${PED_EST[p.estado][1]}">${PED_EST[p.estado][0]}</span>${c ? `<span class="pill ${c.listo < Date.now() ? "bad" : "ok"}">${c.pos}° en la cola · ${estimado(c)}</span>` : ""}${p.entregado ? `<span class="pill">Entregado ${hhmm(p.entregado)}</span>` : ""}<span class="small muted">Recibido ${new Date(p.creado).toLocaleString("es-CL", { weekday:"long", day:"numeric", month:"long", hour:"2-digit", minute:"2-digit" })}</span></p>
     <div class="calc" style="grid-template-columns:1fr 1fr">
       <div>Cliente<b style="font-size:15px">${esc(p.cliente)}</b>${esc(p.telefono)}</div>
       <div>${esc(p.entrega)}<b style="font-size:15px">${p.entrega === "Delivery" ? esc(p.direccion || "") : "Retira en el local"}</b>${esc(p.referencia || "")}</div>
@@ -1682,10 +1722,14 @@ function detPedido(id){
     </tbody></table></div>
     ${pend ? `<p class="hint mt">Al confirmar se abre la venta ya armada para que la revises${p.entrega === "Delivery" ? ", con el cobro de delivery incluido" : ""}. Solo cuando la guardes queda registrada en las cuentas.</p>` : ""}
     ${p.estado === "confirmado" ? `<p class="hint mt">${venta ? `Registrado como venta #${esc(venta.num)} del ${dName(venta.fecha)} por ${fmt(vTot(venta).bruto)}.` : "La venta de este pedido ya no está en las cuentas."}</p>` : ""}`;
-  const wa = `https://wa.me/${telWa(p.telefono)}?text=${encodeURIComponent(`Hola ${p.cliente}, te escribimos de Saisei & Co por tu pedido N° ${p.codigo}.`)}`;
+  // Con el pedido en curso, el mensaje ya lleva la hora estimada para el cliente
+  const aviso = c ? (p.entrega === "Delivery" ? ` Llegará aproximadamente a las ${hhmm(c.llega)}.` : ` Estará listo para retirar aproximadamente a las ${hhmm(c.listo)}.`) : "";
+  const wa = `https://wa.me/${telWa(p.telefono)}?text=${encodeURIComponent(`Hola ${p.cliente}, te escribimos de Saisei & Co por tu pedido N° ${p.codigo}.${aviso}`)}`;
   const foot = `<a class="b" href="${esc(wa)}" target="_blank" rel="noopener">${ico("phone")}WhatsApp</a><span class="sp"></span>
     ${pend ? `<button class="b del" data-act="rechPedido" data-id="${p.id}">Rechazar</button><button class="b acc" id="pConf">${ico("check")}Confirmar</button>` : ""}
-    ${p.estado === "confirmado" && venta ? `<button class="b" data-act="editVenta" data-id="${esc(venta.id)}">Ver venta</button>` : ""}`;
+    ${p.estado === "confirmado" && venta ? `<button class="b" data-act="editVenta" data-id="${esc(venta.id)}">Ver venta</button>` : ""}
+    ${c ? `<button class="b acc" data-act="entregar" data-id="${p.id}">${ico("check")}Entregado</button>` : ""}
+    ${p.entregado ? `<button class="b" data-act="aCola" data-id="${p.id}">Volver a en curso</button>` : ""}`;
   const m = openModal(`Pedido N° ${esc(p.codigo)}`, body, foot, "wide");
   if(!pend) return;
   m.querySelectorAll("[data-map]").forEach(s => s.value = matchProd(p.items[+s.dataset.map].n));
@@ -2201,6 +2245,14 @@ const A = {
   pedF: d => { PED.filtro = d.f; render(); },
   reloadPed: async () => { await loadPedidos(); toast("Pedidos actualizados"); },
   detPedido: d => detPedido(d.id),
+  entregar: async d => {
+    const p = PED.list.find(x => String(x.id) === d.id);
+    if(p && await entregarPedido(p, new Date().toISOString())){ closeModal(); render(); toast(`Pedido N° ${p.codigo} entregado`); }
+  },
+  aCola: async d => {
+    const p = PED.list.find(x => String(x.id) === d.id);
+    if(p && await entregarPedido(p, null)){ closeModal(); render(); toast(`Pedido N° ${p.codigo} volvió a en curso`); }
+  },
   rechPedido: async d => {
     const p = PED.list.find(x => String(x.id) === d.id);
     if(!p) return;
@@ -2314,7 +2366,8 @@ document.addEventListener("submit", e => {
   e.preventDefault();
   const g = k => $("p_" + k).value;
   setPar({ ...S.par, flete:n0(g("flete")) / 100, foodCost:n0(g("foodCost")) / 100, comision:n0(g("comision")) / 100, iva:n0(g("iva")) / 100,
-    dias:n0(g("dias")) || 1, ticket:n0(g("ticket")), meta:n0(g("meta")), deliveryCobro:n0(g("deliveryCobro")), deliveryCosto:n0(g("deliveryCosto")), diaCorte:Math.min(28, Math.max(1, Math.round(n0(g("diaCorte"))) || 1)), afectaIva:$("p_afectaIva").checked });
+    dias:n0(g("dias")) || 1, ticket:n0(g("ticket")), meta:n0(g("meta")), deliveryCobro:n0(g("deliveryCobro")), deliveryCosto:n0(g("deliveryCosto")), diaCorte:Math.min(28, Math.max(1, Math.round(n0(g("diaCorte"))) || 1)), afectaIva:$("p_afectaIva").checked,
+    prepBase:Math.max(0, n0(g("prepBase"))), prepUnidad:Math.max(0, n0(g("prepUnidad"))), despachoMin:Math.max(0, n0(g("despachoMin"))) });
   curM = curMonth();
   render(); toast("Parámetros guardados");
 });

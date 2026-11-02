@@ -24,8 +24,16 @@ create table if not exists public.pedidos (
   items      jsonb not null check (jsonb_typeof(items) = 'array' and jsonb_array_length(items) between 1 and 60),
   total      int not null default 0 check (total between 0 and 10000000),
   venta_id   text,          -- la venta creada en /cuentas al confirmar
-  revisado   timestamptz    -- cuándo lo confirmó o rechazó el administrador
+  revisado   timestamptz,   -- cuándo lo confirmó o rechazó el administrador
+  entregado  timestamptz    -- cuándo se entregó o salió el delivery (mientras sea null está "en curso")
 );
+-- Para tablas creadas antes de "entregado": los pedidos ya confirmados se dan por entregados
+do $$ begin
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'pedidos' and column_name = 'entregado') then
+    alter table public.pedidos add column entregado timestamptz;
+    update public.pedidos set entregado = coalesce(revisado, creado) where estado = 'confirmado';
+  end if;
+end $$;
 create index if not exists pedidos_estado_creado on public.pedidos (estado, creado desc);
 
 alter table public.pedidos enable row level security;
@@ -51,6 +59,7 @@ create or replace function public.pedido_nuevo() returns trigger
 language plpgsql set search_path = public as $$
 begin
   new.creado := now();
+  new.entregado := null;
   if exists (select 1 from jsonb_array_elements(new.items) e where jsonb_typeof(e) <> 'object') then
     raise exception 'Cada ítem del pedido debe ser un objeto';
   end if;
