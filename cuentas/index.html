@@ -1186,23 +1186,29 @@ R.trabajadores = () => {
   <div class="card mt"><h2>Pagos</h2><div class="list">${hp || `<p class="muted small">Sin pagos en ${mName(curM)}.</p>`}</div></div>` : ""}`;
 };
 
-// El colaborador que es trabajador ve sus días y horas (la base de datos le manda solo los suyos)
+// El colaborador que es trabajador ve sus días, lo que ganó, lo pagado y lo pendiente (la base de datos le manda solo lo suyo)
 R.misdias = () => {
   const yo = user ? user.email.toLowerCase() : "";
   const ts = S.trabajadores.filter(t => yo && t.email === yo);
   if(!ts.length) return empty("clock", "Aún no apareces como trabajador", "Pide al administrador que anote tu correo en tu ficha de Trabajadores.");
-  const ids = ts.map(t => t.id);
+  const ids = ts.map(t => t.id), rs = ts.map(t => trabRes(t, curM));
   const js = S.jornadas.filter(j => ids.includes(j.trab) && pKey(j.fecha) === curM).sort((a, b) => b.fecha.localeCompare(a.fecha) || String(b.entrada).localeCompare(String(a.entrada)));
+  const ps = S.sueldos.filter(p => ids.includes(p.trab) && pKey(p.fecha) === curM).sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.upd || 0) - (a.upd || 0));
   const pj = js.map(pagoJ);
   return `
   <div class="kpis">
-    ${kpi("Días trabajados", String(js.length), mName(curM), "hero")}
-    ${kpi("Horas", fmtH(sum(pj, x => x.h)), "")}
-    ${kpi("Horas extra", fmtH(sum(pj, x => x.ext)), `pasadas ${JORNADA} h en un día`)}
+    ${kpi("Por pagarte", fmt(Math.max(sum(rs, r => r.saldo), 0)), "trabajado y aún no pagado", "hero")}
+    ${kpi("Pagado en el mes", fmt(sum(rs, r => r.pagadoMes)), `${ps.length} pago${ps.length === 1 ? "" : "s"}`)}
+    ${kpi("Ganado en el mes", fmt(sum(rs, r => r.ganadoMes)), sum(rs, r => r.extraMes) ? `${fmt(sum(rs, r => r.extraMes))} en horas extra` : "")}
+    ${kpi("Días trabajados", String(js.length), `${fmtH(sum(pj, x => x.h))}${sum(pj, x => x.ext) ? ` · ${fmtH(sum(pj, x => x.ext))} extra` : ""}`)}
   </div>
   <div class="card mt"><h2>Tus días en ${mName(curM)}</h2><div class="list">${js.map((j, k) => `<div class="item">
-    <div class="main-t"><div class="tt">${dName(j.fecha)}</div><div class="st">${esc(j.entrada)}–${esc(j.salida)}${j.nota ? " · " + esc(j.nota) : ""}</div></div>
-    <div class="am num">${fmtH(pj[k].h)}${pj[k].ext ? `<small>${fmtH(pj[k].ext)} extra</small>` : ""}</div></div>`).join("") || `<p class="muted small">Sin días anotados en ${mName(curM)}.</p>`}</div></div>`;
+    <div class="main-t"><div class="tt">${dName(j.fecha)}</div><div class="st">${esc(j.entrada)}–${esc(j.salida)} · ${fmtH(pj[k].h)}${pj[k].ext ? ` · <b>${fmtH(pj[k].ext)} extra</b>` : ""}${j.nota ? " · " + esc(j.nota) : ""}</div></div>
+    <div class="am num">${fmt(pj[k].total)}</div></div>`).join("") || `<p class="muted small">Sin días anotados en ${mName(curM)}.</p>`}</div></div>
+  <div class="card mt"><h2>Tus pagos en ${mName(curM)}</h2><div class="list">${ps.map(p => `<div class="item">
+    <div class="main-t"><div class="tt">${dName(p.fecha)}</div><div class="st">${esc(p.medio)}${p.nota ? " · " + esc(p.nota) : ""}</div></div>
+    <div class="am num">${fmt(p.monto)}</div></div>`).join("") || `<p class="muted small">Sin pagos en ${mName(curM)}.</p>`}</div>
+    <p class="hint">Por pagarte suma todo lo que has trabajado menos todo lo que se te ha pagado, de todos los meses.</p></div>`;
 };
 
 R.inventario = () => {
@@ -1436,7 +1442,7 @@ R.ajustes = () => {
 
 R.mas = () => `<div class="card" style="margin-bottom:12px"><div class="row"><div class="sync" style="color:var(--ink2);font-size:13.5px" id="sync3"><i></i><span>${mode === "local" ? "Datos guardados solo en este dispositivo" : outbox.length ? `${outbox.length} cambio(s) por subir a la nube` : "Todo guardado en la nube"}</span></div><span class="sp"></span>${user ? `<span class="small muted">${esc(user.email)} · ${esAdmin() ? "Administrador" : "Colaborador"}</span><button class="b sm del" data-act="logout">Cerrar sesión</button>` : ""}</div></div><div class="tiles">${Object.entries(VIEWS).filter(([k, v]) => v.grp && !TABS.includes(k) && puede(k)).map(([k, v]) => `<a class="tile" href="#${k}">${ico(v.i)}<b>${v.t}</b><span>${{
   carta:"Precios, costos y márgenes", inventario:"Stock y lista de compras", recetas:"Gramos por producto", insumos:"Precios y costo real", resultados:"Mes a mes y mermas",
-  equilibrio:"Cuánto vender para no perder", fijos:"Gas, luz, sueldos…", proveedores:"Contactos y entregas", ajustes:"Parámetros y respaldos", duenos:"Préstamos y pagos", trabajadores:"Días, horas y pagos", misdias:"Tus días y horas" }[k] || ""}</span></a>`).join("")}</div>`;
+  equilibrio:"Cuánto vender para no perder", fijos:"Gas, luz, sueldos…", proveedores:"Contactos y entregas", ajustes:"Parámetros y respaldos", duenos:"Préstamos y pagos", trabajadores:"Días, horas y pagos", misdias:"Tus días y pagos" }[k] || ""}</span></a>`).join("")}</div>`;
 
 // =====================================================================
 //  Modal
@@ -1597,7 +1603,7 @@ async function loadPedidos(){
 setInterval(() => { if(document.visibilityState === "visible") loadPedidos(); }, 30000);
 
 // Si la app quedó abierta (o instalada en el teléfono) con una versión antigua, avisa y se actualiza
-const APP_VERSION = "2026-11-02c";
+const APP_VERSION = "2026-11-02d";
 async function checkVersion(){
   try{
     const html = await (await fetch(location.pathname + "?v=" + Date.now(), { cache:"no-store" })).text();
@@ -2101,7 +2107,7 @@ async function unirCuentas(){
   const ts = S.trabajadores.filter(t => t.activo !== false || t.email).sort(byName);
   const usados = new Set(ts.map(t => t.email).filter(Boolean));
   const m = openModal("Cuentas de los trabajadores", `
-    <p class="hint" style="margin-top:0">Elige la cuenta con que entra cada trabajador. Así verá sus días y horas en “Mis días”.</p>
+    <p class="hint" style="margin-top:0">Elige la cuenta con que entra cada trabajador. Así verá sus días y pagos en “Mis días”.</p>
     ${ts.map(t => { const sug = t.email ? "" : cuentaSugerida(t, us.filter(u => !usados.has(u.email))); return `
     <label for="uc-${esc(t.id)}">${esc(t.nombre)}${sug ? ` <span class="pill">sugerida</span>` : ""}</label>
     <select id="uc-${esc(t.id)}" data-uc="${esc(t.id)}">${cuentaOpts(us, t.email || sug)}</select>`; }).join("")}`,
@@ -2119,7 +2125,7 @@ function formTrab(orig){
   const m = openModal(orig ? "Editar trabajador" : "Nuevo trabajador", `
     <label for="tN">Nombre</label><input id="tN" value="${esc(t.nombre)}" placeholder="Ej: Camila">
     ${mode === "nube" ? `<label for="tE">Su cuenta (opcional)</label><select id="tE"><option value="${esc(t.email || "")}">${esc(t.email || "Sin cuenta")}</option></select>
-    <p class="hint">Elige la cuenta de colaborador con que entra (Gestión → Usuarios) para que vea sus días y horas en “Mis días”.</p>` : ""}
+    <p class="hint">Elige la cuenta de colaborador con que entra (Gestión → Usuarios) para que vea sus días y pagos en “Mis días”.</p>` : ""}
     <label>Se le paga</label>${chipsHTML("modo", Object.values(MODOS_T), MODOS_T[t.modo])}
     <div class="f2">
       <div><label for="tV" id="tVL">Valor</label><div class="unit pre"><em>$</em><input id="tV" type="number" inputmode="numeric" min="0" step="100" value="${esc(t.valor)}"></div></div>

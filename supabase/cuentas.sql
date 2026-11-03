@@ -35,7 +35,7 @@ create policy "colaborador corrige cuentas" on public.cuentas for update to auth
   with check (public.es_equipo() and coleccion in ('ventas', 'gastos', 'insumos'));
 
 -- El colaborador que es trabajador (su correo anotado en su ficha por el administrador)
--- ve solo su ficha y sus días trabajados. Cuenta solo un correo confirmado, como en mi_rol().
+-- ve solo su ficha, sus días trabajados y sus pagos. Cuenta solo un correo confirmado, como en mi_rol().
 create or replace function public.mis_trabajadores() returns setof text
 language sql stable security definer set search_path = public as $$
   select c.id from public.cuentas c join auth.users u on lower(u.email) = lower(c.datos->>'email')
@@ -47,7 +47,7 @@ drop policy if exists "trabajador ve sus dias" on public.cuentas;
 create policy "trabajador ve sus dias" on public.cuentas for select to authenticated
   using (public.es_equipo() and (
     (coleccion = 'trabajadores' and id in (select public.mis_trabajadores()))
-    or (coleccion = 'jornadas' and datos->>'trab' in (select public.mis_trabajadores()))));
+    or (coleccion in ('jornadas', 'sueldos') and datos->>'trab' in (select public.mis_trabajadores()))));
 
 -- Forma mínima de cada registro, para que uno escrito a mano por la API no rompa
 -- las pantallas: un objeto, la fecha como AAAA-MM-DD y la venta con su lista de ítems.
