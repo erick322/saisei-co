@@ -802,7 +802,7 @@ function render(){
   const v = VIEWS[view];
   $("ttl").textContent = v.t;
   document.title = v.t + " · Cuentas Saisei & Co";
-  $("monthBox").hidden = !v.month;
+  $("monthBox").hidden = !v.month || !esAdmin();
   $("mLbl").textContent = mName(curM);
   document.querySelectorAll("[data-v]").forEach(a => {
     const k = a.dataset.v;
@@ -954,8 +954,10 @@ R.inicio = () => {
 
 // ---------- Ventas ----------
 R.ventas = () => {
-  const s = mes(curM), q = UI.ventasQ.trim().toLowerCase();
-  let vs = s.vs.slice().sort((a, b) => (b.fecha + String(n0(b.num)).padStart(6, "0")).localeCompare(a.fecha + String(n0(a.num)).padStart(6, "0")));
+  // El colaborador solo ve las ventas de hoy y su total (sin el mes, costos ni márgenes)
+  const adm = esAdmin(), s = mes(curM), q = UI.ventasQ.trim().toLowerCase();
+  const base = adm ? s.vs : S.ventas.filter(v => v.fecha === today());
+  let vs = base.slice().sort((a, b) => (b.fecha + String(n0(b.num)).padStart(6, "0")).localeCompare(a.fecha + String(n0(a.num)).padStart(6, "0")));
   if(q) vs = vs.filter(v => [v.num, v.canal, v.pago, v.nota, ...v.items.map(i => i.nombre)].join(" ").toLowerCase().includes(q));
   let h = "", day = "";
   vs.forEach(v => {
@@ -968,28 +970,29 @@ R.ventas = () => {
     h += `<button class="item" data-act="editVenta" data-id="${esc(v.id)}">
       <div class="main-t"><div class="tt">${esc(v.items.map(i => (n0(i.cant) !== 1 ? qty(i.cant) + "× " : "") + i.nombre).join(", ") || "—")}</div>
       <div class="st">#${esc(v.num)} · ${esc(v.canal)} · ${esc(v.pago)}${v.nota ? " · " + esc(v.nota) : ""}</div></div>
-      <div class="am num">${fmt(t.bruto)}<small class="${t.margen >= 0 ? "pos" : "neg"}">margen ${fmt(t.margen)}</small></div></button>`;
+      <div class="am num">${fmt(t.bruto)}${adm ? `<small class="${t.margen >= 0 ? "pos" : "neg"}">margen ${fmt(t.margen)}</small>` : ""}</div></button>`;
   });
   return `
-  <div class="kpis">
+  <div class="kpis">${adm ? `
     ${kpi("Vendido", fmt(s.bruto), `${s.pedidos} pedidos`)}
     ${kpi("Ticket promedio", fmt(s.ticket), `meta: ${fmt(P().ticket)}`)}
     ${kpi("Costo de insumos", fmt(s.costo), `food cost ${pct(s.fc)}`)}
-    ${kpi("Margen", fmt(s.mc), pct(s.mcp), "hero")}
+    ${kpi("Margen", fmt(s.mc), pct(s.mcp), "hero")}` : kpi("Vendido hoy", fmt(sum(base, v => vTot(v).bruto)), `${base.length} pedido${base.length === 1 ? "" : "s"}`, "hero")}
   </div>
   <div class="row mt">
     <div class="search">${ico("search")}<input id="vQ" placeholder="Buscar producto, N° o nota" value="${esc(UI.ventasQ)}"></div>
     <button class="b acc" data-act="newVenta">${ico("plus")}Registrar venta</button>
-    <button class="b" data-act="csvVentas" title="Descargar para Excel">${ico("download")}<span>Excel</span></button>
+    ${adm ? `<button class="b" data-act="csvVentas" title="Descargar para Excel">${ico("download")}<span>Excel</span></button>` : ""}
   </div>
-  <div class="list" style="margin-top:6px">${h || (q ? `<p class="muted">Nada coincide con “${esc(UI.ventasQ)}”.</p>` : empty("cart", "Sin ventas en " + mName(curM), "Anota cada pedido: eliges los productos y la app calcula costo, comisión y margen.", `<button class="b acc" data-act="newVenta">${ico("plus")}Registrar la primera venta</button>`))}</div>`;
+  <div class="list" style="margin-top:6px">${h || (q ? `<p class="muted">Nada coincide con “${esc(UI.ventasQ)}”.</p>` : empty("cart", adm ? "Sin ventas en " + mName(curM) : "Sin ventas hoy", adm ? "Anota cada pedido: eliges los productos y la app calcula costo, comisión y margen." : "Anota cada pedido eligiendo los productos.", `<button class="b acc" data-act="newVenta">${ico("plus")}Registrar la primera venta</button>`))}</div>`;
 };
 
 // ---------- Gastos ----------
 R.gastos = () => {
-  const s = mes(curM);
+  // El colaborador ve y corrige solo los gastos de hoy, sin totales
+  const adm = esAdmin(), s = mes(curM);
   const tipos = {}; s.gs.forEach(g => tipos[g.tipo] = (tipos[g.tipo] || 0) + n0(g.monto));
-  let gs = s.gs.slice().sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.upd || 0) - (a.upd || 0));
+  let gs = (adm ? s.gs : S.gastos.filter(g => g.fecha === today())).slice().sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.upd || 0) - (a.upd || 0));
   if(UI.gastoTipo !== "Todos") gs = gs.filter(g => g.tipo === UI.gastoTipo);
   let h = "", day = "";
   gs.forEach(g => {
@@ -999,20 +1002,20 @@ R.gastos = () => {
       <div class="st">${esc(g.tipo)}${g.proveedor ? " · " + esc(g.proveedor) : ""}${g.pago ? " · " + esc(g.pago) : ""}${g.doc ? " · N° " + esc(g.doc) : ""}</div></div>
       <div class="am num">${fmt(g.monto)}</div></button>`;
   });
-  return `
+  return `${adm ? `
   <div class="kpis">
     ${kpi("Total gastado", fmt(s.gastosTot), `${s.gs.length} registro${s.gs.length === 1 ? "" : "s"}`, "hero")}
     ${kpi("Insumos y empaques", fmt(s.compras), s.costo ? `recetas usaron ${fmt(s.costo)}` : "")}
     ${kpi("Costos fijos pagados", fmt(s.fijosPag), `presupuesto ${fmt(totalFijos())}`)}
     ${kpi("Equipos y otros", fmt(n0(tipos["Equipamiento"]) + n0(tipos["Otro"])), "")}
-  </div>
-  <div class="row mt">
-    <div class="chips">${["Todos", ...TIPOS_G].map(t => `<button class="chip ${UI.gastoTipo === t ? "on" : ""}" data-act="gTipo" data-t="${t}">${t}${t !== "Todos" && tipos[t] ? " · " + fmtK(tipos[t]) : ""}</button>`).join("")}</div>
+  </div>` : ""}
+  <div class="row ${adm ? "mt" : ""}">
+    <div class="chips">${["Todos", ...TIPOS_G].map(t => `<button class="chip ${UI.gastoTipo === t ? "on" : ""}" data-act="gTipo" data-t="${t}">${t}${adm && t !== "Todos" && tipos[t] ? " · " + fmtK(tipos[t]) : ""}</button>`).join("")}</div>
     <span class="sp"></span>
     <button class="b acc" data-act="newGasto">${ico("plus")}Registrar gasto</button>
-    <button class="b" data-act="csvGastos" title="Descargar para Excel">${ico("download")}<span>Excel</span></button>
+    ${adm ? `<button class="b" data-act="csvGastos" title="Descargar para Excel">${ico("download")}<span>Excel</span></button>` : ""}
   </div>
-  <div class="list" style="margin-top:6px">${h || empty("receipt", "Sin gastos en " + mName(curM), "Anota cada boleta o factura. Así sabrás si compras más de lo que usan tus recetas.", `<button class="b acc" data-act="newGasto">${ico("plus")}Registrar gasto</button>`)}</div>`;
+  <div class="list" style="margin-top:6px">${h || empty("receipt", adm ? "Sin gastos en " + mName(curM) : "Sin gastos hoy", "Anota cada boleta o factura. Así sabrás si compras más de lo que usan tus recetas.", `<button class="b acc" data-act="newGasto">${ico("plus")}Registrar gasto</button>`)}</div>`;
 };
 
 // ---------- Carta ----------
@@ -1190,7 +1193,7 @@ R.inventario = () => {
   return `
   <div class="kpis">
     ${kpi("Para comprar", String(comprar.length), "bajo el stock mínimo", comprar.length ? "hero" : "")}
-    ${kpi("Valor del inventario", fmt(valor), "a costo real")}
+    ${esAdmin() ? kpi("Valor del inventario", fmt(valor), "a costo real") : ""}
     ${kpi("Sin contar", String(S.insumos.filter(i => invEstado(i) === "Contar").length), "insumos")}
     ${kpi("Insumos", String(S.insumos.length), "")}
   </div>
@@ -1201,13 +1204,13 @@ R.inventario = () => {
   </div>
   <div class="card mt"><p class="hint" style="margin:0 0 6px">Cuenta el stock antes de cada compra y escríbelo aquí; se guarda solo. Si queda bajo el mínimo aparece <span class="pill bad">COMPRAR</span>.</p>
   <div class="tw"><table>
-    <thead><tr><th>Insumo</th><th class="n">Stock actual</th><th class="n">Mínimo</th><th>Estado</th><th class="n hide-sm">Valor</th><th class="hide-sm">Contado</th></tr></thead><tbody>
+    <thead><tr><th>Insumo</th><th class="n">Stock actual</th><th class="n">Mínimo</th><th>Estado</th>${esAdmin() ? `<th class="n hide-sm">Valor</th>` : ""}<th class="hide-sm">Contado</th></tr></thead><tbody>
     ${list.map(i => { const e = invEstado(i); return `<tr>
       <td><b>${esc(i.nombre)}</b><div class="small muted hide-sm">${esc(i.proveedor || "")}</div></td>
       <td class="n"><div class="unit"><input class="tin num" type="number" inputmode="decimal" min="0" step="any" data-inv="stock" data-id="${esc(i.id)}" value="${esc(i.stock)}" aria-label="Stock de ${esc(i.nombre)}"><em>${esc(i.unidad)}</em></div></td>
       <td class="n"><div class="unit"><input class="tin num" type="number" inputmode="decimal" min="0" step="any" data-inv="minimo" data-id="${esc(i.id)}" value="${esc(i.minimo)}" aria-label="Mínimo de ${esc(i.nombre)}"><em>${esc(i.unidad)}</em></div></td>
       <td><span class="pill ${invCls(e)}">${e}</span></td>
-      <td class="n hide-sm">${i.stock != null && i.stock !== "" ? fmt(n0(i.stock) * cu(i)) : ""}</td>
+      ${esAdmin() ? `<td class="n hide-sm">${i.stock != null && i.stock !== "" ? fmt(n0(i.stock) * cu(i)) : ""}</td>` : ""}
       <td class="small muted hide-sm">${i.conteo ? new Date(i.conteo + "T12:00").toLocaleDateString("es-CL", {day:"numeric", month:"short"}) : ""}</td></tr>`; }).join("") || `<tr><td colspan="6" class="muted">Nada que comprar. 🎉</td></tr>`}
     </tbody></table></div></div>`;
 };
@@ -1504,7 +1507,7 @@ function formVenta(orig, opt = {}){
     const pago = chipVal(m, "pago");
     const t = vTot({ ...v, comision: 0 });
     const com = pago === "Tarjeta / link de pago" ? t.bruto * n0(P().comision) : 0;
-    m.querySelector("#vTot").innerHTML = `Total<b class="num">${fmt(t.bruto)}</b>margen ${fmt(t.margen - com)}${com ? ` · comisión ${fmt(com)}` : ""}`;
+    m.querySelector("#vTot").innerHTML = `Total<b class="num">${fmt(t.bruto)}</b>${esAdmin() ? `margen ${fmt(t.margen - com)}${com ? ` · comisión ${fmt(com)}` : ""}` : ""}`;
   }
   m.addEventListener("click", e => {
     const a = e.target.closest("[data-add]");
@@ -1574,7 +1577,7 @@ async function loadPedidos(){
 setInterval(() => { if(document.visibilityState === "visible") loadPedidos(); }, 30000);
 
 // Si la app quedó abierta (o instalada en el teléfono) con una versión antigua, avisa y se actualiza
-const APP_VERSION = "2026-11-01a";
+const APP_VERSION = "2026-11-02a";
 async function checkVersion(){
   try{
     const html = await (await fetch(location.pathname + "?v=" + Date.now(), { cache:"no-store" })).text();
