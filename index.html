@@ -992,7 +992,7 @@ let cart = []; // {key, name, detail, unit, q}
 
 function fotoStyle(key){
   if(!key) return "";
-  if(/^(https?:)?\/\//.test(key) || key.startsWith("img/")) return `background-image:url('${encodeURI(key)}');background-size:cover;background-position:center`;
+  if(/^(https?:)?\/\//.test(key) || key.startsWith("img/")) return `background-image:url('${encodeURI(key).replace(/'/g, "%27")}');background-size:cover;background-position:center`;
   const f = FOTO[key]; if(!f) return "";
   if(f.s == null) return `background-image:url('${f.src}');background-size:cover;background-position:center`;
   const W = 1080, H = 1350;

@@ -136,6 +136,12 @@
   .opmod .optx{color:var(--muted);font-size:14px;overflow-wrap:anywhere}
   .opmod .opmeta{font-size:12px;color:var(--muted)}
   .opmod .opacts{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
+  .actrow{display:flex;flex-direction:column;gap:3px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;overflow-wrap:anywhere}
+  .actrow.alerta{border-color:var(--bad)}
+  .acttop{display:flex;gap:4px 8px;flex-wrap:wrap;align-items:baseline;font-size:14px}
+  .actwhen{margin-left:auto;font-size:12px;color:var(--muted);white-space:nowrap}
+  .actdet{font-size:13px;color:var(--muted)}
+  .actal{font-size:13px;font-weight:700;color:var(--bad)}
   .pv-body{padding:14px;display:flex;gap:10px;align-items:stretch}
   .pv-card{background:var(--card,#fff);border-radius:14px;padding:12px;flex:1;display:flex;flex-direction:column;gap:6px;box-shadow:0 1px 0 var(--rice-2)}
   .pv-card h4{margin:0;font-family:Marcellus,serif;font-weight:400;font-size:16px}
@@ -312,6 +318,7 @@
     <button data-s="sAvisos" class="solo-admin"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1ZM16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>Avisos y portada</button>
     <button data-s="sOpiniones"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9 6.8 19.2l1-5.8-4.3-4.1 5.9-.9z"/></svg>Opiniones<span class="navbadge" id="opBadge" hidden></span></button>
     <button data-s="sUsuarios" class="solo-admin"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg>Usuarios</button>
+    <button data-s="sActividad" class="solo-admin"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Actividad<span class="navbadge" id="actBadge" hidden></span></button>
   </nav>
 
   <!-- ===== Carta ===== -->
@@ -484,6 +491,20 @@
       <div class="iglist" id="usList"></div>
     </section>
   </div>
+
+  <!-- ===== Actividad (solo administrador) ===== -->
+  <div id="sActividad" hidden>
+    <section class="card">
+      <div class="row"><h2>Actividad</h2><span class="state" id="actState"></span></div>
+      <p class="hint">Cada cambio en la base de datos queda anotado: quién lo hizo, qué cambió, cuándo y desde qué conexión. Se guarda 6 meses y nadie puede editarlo ni borrarlo.</p>
+      <p class="hint">Se marca <b>para revisar</b>: cambios en quién tiene acceso, ventas o gastos eliminados, un colaborador que cambia una venta o gasto ya anotado, varios pedidos u opiniones seguidos desde la misma conexión y cualquier cambio hecho con la clave secreta de Supabase.</p>
+      <div class="seg" id="actFiltro" style="max-width:360px;margin:14px 0 12px">
+        <label><input type="radio" name="actF" value="1" checked>Para revisar</label>
+        <label><input type="radio" name="actF" value="0">Todo</label>
+      </div>
+      <div class="iglist" id="actList"></div>
+    </section>
+  </div>
 </div>
 
 <!-- Modal categoría -->
@@ -561,7 +582,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="../config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js" integrity="sha384-0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o" crossorigin="anonymous"></script>
 <script>
 // Recortes de las cartas usados por la carta inicial (mismos que en la página), solo para la vista previa.
 const FOTO = {
@@ -620,7 +641,7 @@ const rel = src => /^(https?:|blob:|data:)/.test(src) ? src : "../" + src;   // 
 function fotoStyle(key){
   if(!key) return "";
   const f = FOTO[key];
-  if(!f) return `background-image:url('${encodeURI(rel(key))}');background-size:cover;background-position:center`;
+  if(!f) return `background-image:url('${encodeURI(rel(key)).replace(/'/g, "%27")}');background-size:cover;background-position:center`;
   return `background-image:url('${rel(f.src)}');background-size:${1080/f.s*100}% auto;background-position:${f.x/(1080-f.s)*100}% ${f.y/(1350-f.s)*100}%`;
 }
 function toast(t, bad){ const el=$("toast"); el.textContent=t; el.classList.toggle("bad", !!bad); el.classList.add("show"); clearTimeout(toast.t); toast.t=setTimeout(()=>el.classList.remove("show"),2600); }
@@ -718,7 +739,7 @@ async function enter(session){
   document.body.dataset.rol = rol;
   $("email").textContent = session.user.email; $("rolTag").textContent = rol === "administrador" ? "Administrador" : "Colaborador"; $("who").hidden = false;
   show("panel");
-  await Promise.all(rol === "administrador" ? [load(), loadAj(), loadOpi(), loadUs()] : [load(), loadOpi()]);
+  await Promise.all(rol === "administrador" ? [load(), loadAj(), loadOpi(), loadUs(), actAvisos()] : [load(), loadOpi()]);
 }
 
 // Pestañas
@@ -727,6 +748,7 @@ $("seccs").onclick = e => {
   [...$("seccs").children].forEach(x => { x.classList.toggle("on", x === b); $(x.dataset.s).hidden = x !== b; });
   if(b.dataset.s === "sAvisos") renderSlEd();   // por si cambiaron las categorías
   if(b.dataset.s === "sOpiniones") loadOpi();   // trae las últimas opiniones al abrir
+  if(b.dataset.s === "sActividad"){ actMarcarVisto(); loadAct(); }
   scrollTo(0, 0);
 };
 
@@ -1009,6 +1031,42 @@ $("opAdmin").onclick = async e => {
     toast("Opinión eliminada"); loadOpi();
   }
 };
+
+// ---------- Actividad (solo administrador): lo anota la base de datos, ver supabase/seguridad.sql ----------
+let actividad = [], actSolo = true;
+const ACT_TABLA = { cuentas:"Cuentas", pedidos:"Pedido", usuarios:"Acceso", productos:"Producto", categorias:"Categoría", ajustes:"Página", opiniones:"Opinión" };
+const ACT_VERBO = { crear:"creó", cambiar:"cambió", eliminar:"eliminó" };
+const ACT_QUIEN = { invitado:"Cliente de la página", sistema:"Panel de Supabase", servicio:"Clave secreta de Supabase" };
+const ACT_VISTO = "saisei.actividad.visto";
+async function loadAct(){
+  let q = sb.from("registro").select("*").order("cuando", { ascending:false }).limit(300);
+  if(actSolo) q = q.not("alerta", "is", null);
+  const { data, error } = await q;
+  if(error){ $("actList").innerHTML = `<p class="hint">No se pudo cargar. Si es la primera vez, corre <b>supabase/seguridad.sql</b> en Supabase.</p>`; return; }
+  actividad = data; renderAct();
+}
+function renderAct(){
+  $("actState").textContent = actividad.length ? `Últimos ${actividad.length}` : "";
+  $("actList").innerHTML = actividad.length ? actividad.map(r => `
+    <div class="actrow${r.alerta ? " alerta" : ""}">
+      <div class="acttop"><b>${esc(r.correo || ACT_QUIEN[r.rol] || r.rol)}</b><span>${esc(ACT_VERBO[r.accion] || r.accion)} · ${esc(ACT_TABLA[r.tabla] || r.tabla)}</span><span class="actwhen">${esc(new Date(r.cuando).toLocaleString("es-CL", { dateStyle:"short", timeStyle:"short" }))}</span></div>
+      <div class="actdet">${esc([r.ref, r.resumen].filter(Boolean).join(" · "))}${r.ip ? ` · conexión ${esc(r.ip)}` : ""}</div>
+      ${r.alerta ? `<div class="actal">${esc(r.alerta)}</div>` : ""}
+    </div>`).join("") : `<p class="hint">${actSolo ? "Nada para revisar." : "Sin movimientos todavía."}</p>`;
+}
+$("actFiltro").onchange = e => { actSolo = e.target.value === "1"; loadAct(); };
+// Aviso en la pestaña: alertas nuevas desde la última vez que se abrió (se recuerda en este dispositivo)
+async function actAvisos(){
+  let visto = ""; try { visto = localStorage.getItem(ACT_VISTO) || ""; } catch(e){}
+  let q = sb.from("registro").select("id", { count:"exact", head:true }).not("alerta", "is", null);
+  if(visto) q = q.gt("cuando", visto);
+  const { count, error } = await q;
+  $("actBadge").hidden = !!error || !count; $("actBadge").textContent = count || "";
+}
+function actMarcarVisto(){
+  try { localStorage.setItem(ACT_VISTO, new Date().toISOString()); } catch(e){}
+  $("actBadge").hidden = true;
+}
 
 // ---------- Usuarios (solo administrador) ----------
 let usuarios = [];

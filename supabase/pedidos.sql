@@ -35,6 +35,9 @@ do $$ begin
   end if;
 end $$;
 create index if not exists pedidos_estado_creado on public.pedidos (estado, creado desc);
+-- La lista de productos de un pedido no pesa más de 20 KB
+alter table public.pedidos drop constraint if exists pedidos_items_tamano;
+alter table public.pedidos add constraint pedidos_items_tamano check (octet_length(items::text) <= 20000);
 
 alter table public.pedidos enable row level security;
 drop policy if exists "cliente crea pedido" on public.pedidos;

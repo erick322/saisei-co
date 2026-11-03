@@ -61,6 +61,9 @@ language sql stable security definer set search_path = public as $$
 $$;
 create or replace function public.es_admin()  returns boolean language sql stable security definer set search_path = public as $$ select public.mi_rol() = 'administrador'; $$;
 create or replace function public.es_equipo() returns boolean language sql stable security definer set search_path = public as $$ select public.mi_rol() in ('administrador', 'colaborador'); $$;
+-- Solo quien inició sesión puede preguntar su rol; para el invitado no hay nada que preguntar
+revoke execute on function public.mi_rol(), public.es_admin(), public.es_equipo() from public, anon;
+grant execute on function public.mi_rol(), public.es_admin(), public.es_equipo() to authenticated;
 
 -- 3) Seguridad: todos pueden VER la carta, solo el admin puede CAMBIARLA --
 --    (el colaborador ve los productos ocultos y solo puede mostrarlos u ocultarlos: usuarios.sql)
@@ -70,11 +73,13 @@ alter table public.productos  enable row level security;
 drop policy if exists "ver categorias" on public.categorias;
 drop policy if exists "admin categorias" on public.categorias;
 drop policy if exists "ver productos" on public.productos;
+drop policy if exists "equipo ve productos" on public.productos;
 drop policy if exists "admin productos" on public.productos;
 
 create policy "ver categorias"   on public.categorias for select using (true);
 create policy "admin categorias" on public.categorias for all to authenticated using (public.es_admin()) with check (public.es_admin());
-create policy "ver productos"    on public.productos  for select using (activo or public.es_equipo());
+create policy "ver productos"    on public.productos  for select using (activo);
+create policy "equipo ve productos" on public.productos for select to authenticated using (public.es_equipo());
 create policy "admin productos"  on public.productos  for all to authenticated using (public.es_admin()) with check (public.es_admin());
 
 -- 3b) Apariencia de la página (una sola fila, se edita en /gestion) -----

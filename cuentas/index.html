@@ -319,7 +319,7 @@
 <div id="toast" class="toast"></div>
 
 <script src="../config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js" integrity="sha384-0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o" crossorigin="anonymous"></script>
 <script src="datos-iniciales.js"></script>
 <script>
 "use strict";
@@ -339,6 +339,10 @@ const ceil100 = x => Math.ceil(x/100 - 1e-9) * 100;
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const clone = o => JSON.parse(JSON.stringify(o));
 const today = () => new Date().toLocaleDateString("sv-SE");
+const ayer = () => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toLocaleDateString("sv-SE"); };
+// El colaborador solo anota y corrige ventas y gastos de hoy o ayer (lo mismo exige la base de datos: supabase/cuentas.sql)
+const fechaMin = () => esAdmin() ? "" : ` min="${ayer()}"`;
+const fechaVieja = f => !esAdmin() && f < ayer();
 const addMonth = (m, d) => { const [y, mo] = m.split("-").map(Number); const t = new Date(y, mo - 1 + d, 1); return t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0"); };
 // Período contable: empieza el "día de corte" (Ajustes, por defecto 16) y termina el día anterior del mes siguiente.
 // Se identifica con el mes en que empieza: "2026-10" = 16 oct – 15 nov 2026.
@@ -470,7 +474,9 @@ async function flush(){
       const r = o.op === "put"
         ? await sb.from("cuentas").upsert({coleccion:o.col, id:o.id, datos:o.datos, actualizado:new Date().toISOString()})
         : await sb.from("cuentas").delete().match({coleccion:o.col, id:o.id});
-      if(r.error) throw r.error;
+      // Sin permiso (ej. un registro fuera de lo que su rol puede cambiar): se descarta para no trabar los demás
+      if(r.error && r.error.code === "42501") toast("Un cambio no se guardó: tu cuenta no tiene permiso para ese registro", true);
+      else if(r.error) throw r.error;
       outbox.shift(); writeJSON(LS_OUT, outbox);
     }
     setSync("ok");
@@ -500,11 +506,12 @@ async function pullAll(){
     rows.push(...data);
     if(data.length < 1000) break;
   }
+  if(!esAdmin()){ const x = await sb.rpc("ultimo_num_venta"); if(!x.error) numNube = n0(x.data); }
   return rows;
 }
 // Trae lo que se anotó en otro dispositivo (ej. un pedido confirmado desde el celular) sin tener que recargar.
 // Primero compara una "firma" barata (cantidad de filas + última modificación) y solo descarga todo si cambió.
-let cloudSig = "";
+let cloudSig = "", numNube = 0;
 async function firmaNube(){
   const { data, count, error } = await sb.from("cuentas").select("actualizado", { count:"exact" }).order("actualizado", { ascending:false, nullsFirst:false }).limit(1);
   if(error) throw error;
@@ -1488,7 +1495,8 @@ function ask(msg, ok = "Aceptar", danger = false){
 const confirmDel = (t, ok = "Eliminar") => ask(t + "\n\nEsta acción no se puede deshacer.", ok, true);
 
 // ---------- Formulario de venta ----------
-function nextNum(){ return Math.max(0, ...S.ventas.map(v => n0(v.num))) + 1; }
+// numNube: el último N° de toda la nube, porque el colaborador no tiene las ventas antiguas
+function nextNum(){ return Math.max(numNube, ...S.ventas.map(v => n0(v.num))) + 1; }
 // opt.base: datos iniciales (ej. un pedido de la página) · opt.onSaved: se llama al guardar
 function formVenta(orig, opt = {}){
   const v = orig ? clone(orig) : { id:uid(), fecha: curM === curMonth() ? today() : pStart(curM), num:nextNum(), canal:"WhatsApp", pago:"Transferencia", items:[], nota:"", ...(opt.base || {}) };
@@ -1496,7 +1504,7 @@ function formVenta(orig, opt = {}){
   const cats = [...new Set(prods.map(p => p.categoria || "Otros"))];
   const body = `${opt.info ? `<div class="banner info" style="margin:12px 0 0">${ico("info")}<div>${opt.info}</div></div>` : ""}
     <div class="f2">
-      <div><label for="vF">Fecha</label><input id="vF" type="date" value="${esc(v.fecha)}" required></div>
+      <div><label for="vF">Fecha</label><input id="vF" type="date" value="${esc(v.fecha)}"${fechaMin()} required></div>
       <div><label for="vN">N° de pedido</label><input id="vN" type="number" inputmode="numeric" min="0" value="${esc(v.num)}"></div>
     </div>
     <label>Canal</label>${chipsHTML("canal", CANALES, v.canal)}
@@ -1559,6 +1567,7 @@ function formVenta(orig, opt = {}){
     v.items = v.items.filter(i => n0(i.cant) > 0);
     if(!v.items.length) return toast("Agrega al menos un producto", true);
     v.fecha = m.querySelector("#vF").value; if(!v.fecha) return toast("Elige la fecha", true);
+    if(fechaVieja(v.fecha)) return toast("Solo puedes anotar ventas de hoy o de ayer", true);
     v.num = n0(m.querySelector("#vN").value) || nextNum();
     v.canal = chipVal(m, "canal"); v.pago = chipVal(m, "pago");
     v.nota = m.querySelector("#vNota").value.trim();
@@ -1603,7 +1612,7 @@ async function loadPedidos(){
 setInterval(() => { if(document.visibilityState === "visible") loadPedidos(); }, 30000);
 
 // Si la app quedó abierta (o instalada en el teléfono) con una versión antigua, avisa y se actualiza
-const APP_VERSION = "2026-11-02d";
+const APP_VERSION = "2026-11-03a";
 async function checkVersion(){
   try{
     const html = await (await fetch(location.pathname + "?v=" + Date.now(), { cache:"no-store" })).text();
@@ -1798,7 +1807,7 @@ function formGasto(orig){
   const ins = S.insumos.slice().sort(byName);
   const body = `
     <div class="f2">
-      <div><label for="gF">Fecha</label><input id="gF" type="date" value="${esc(g.fecha)}" required></div>
+      <div><label for="gF">Fecha</label><input id="gF" type="date" value="${esc(g.fecha)}"${fechaMin()} required></div>
       <div><label for="gM">Monto</label><div class="unit pre"><em>$</em><input id="gM" type="number" inputmode="numeric" min="0" step="1" value="${esc(g.monto)}" required></div></div>
     </div>
     <label>Tipo</label>${chipsHTML("tipo", TIPOS_G, g.tipo)}
@@ -1831,6 +1840,7 @@ function formGasto(orig){
   m.querySelector("#gSave").onclick = () => {
     g.fecha = m.querySelector("#gF").value; g.monto = n0(m.querySelector("#gM").value);
     if(!g.fecha) return toast("Elige la fecha", true);
+    if(fechaVieja(g.fecha)) return toast("Solo puedes anotar gastos de hoy o de ayer", true);
     if(!(g.monto > 0)) return toast("Escribe el monto", true);
     g.tipo = chipVal(m, "tipo"); g.pago = chipVal(m, "pago");
     g.desc = m.querySelector("#gD").value.trim(); g.proveedor = m.querySelector("#gP").value.trim(); g.doc = m.querySelector("#gDoc").value.trim();
