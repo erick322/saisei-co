@@ -424,8 +424,8 @@ let sb = null, user = null;
 // "administrador" ve todo; "colaborador" solo el día a día (supabase/usuarios.sql). Sin nube, el dueño del dispositivo es administrador.
 let rol = "administrador";
 const esAdmin = () => rol === "administrador";
-const VISTAS_COLAB = ["pedidos", "ventas", "gastos", "inventario", "mas"];
-const puede = k => esAdmin() || VISTAS_COLAB.includes(k);
+const VISTAS_COLAB = ["pedidos", "ventas", "gastos", "inventario", "misdias", "mas"];
+const puede = k => esAdmin() ? k !== "misdias" : VISTAS_COLAB.includes(k);
 let outbox = readJSON(LS_OUT) || [];
 
 function blank(){ const o = {}; COLS.forEach(c => o[c] = []); o.par = {...PAR_DEF}; return o; }
@@ -765,6 +765,7 @@ const VIEWS = {
   apartar:     { t:"Dinero apartado",      i:"safe",    month:true, grp:"Día a día" },
   duenos:      { t:"Dueños",               i:"users",   month:true, grp:"Día a día" },
   trabajadores:{ t:"Trabajadores",         i:"clock",   month:true, grp:"Día a día" },
+  misdias:     { t:"Mis días",             i:"clock",   month:true, grp:"Día a día" },
   inventario:  { t:"Inventario",           i:"box",     grp:"Día a día" },
   carta:       { t:"Carta y precios",      i:"menu",    grp:"Productos" },
   recetas:     { t:"Recetas",              i:"book",    grp:"Productos" },
@@ -802,7 +803,7 @@ function render(){
   const v = VIEWS[view];
   $("ttl").textContent = v.t;
   document.title = v.t + " · Cuentas Saisei & Co";
-  $("monthBox").hidden = !v.month || !esAdmin();
+  $("monthBox").hidden = !v.month || (!esAdmin() && view !== "misdias");
   $("mLbl").textContent = mName(curM);
   document.querySelectorAll("[data-v]").forEach(a => {
     const k = a.dataset.v;
@@ -1173,7 +1174,7 @@ R.trabajadores = () => {
   ${rs.length ? `<div class="card mt"><h2>Trabajadores en ${mName(curM)}</h2><div class="tw"><table>
     <thead><tr><th>Trabajador</th><th class="n">Días</th><th class="n">Horas</th><th class="n">Ganado</th><th class="n">Pagado</th><th class="n">Por pagar</th><th></th></tr></thead><tbody>
     ${rs.map(r => `<tr><td><button class="linkbtn" data-act="editTrab" data-id="${esc(r.t.id)}" style="text-align:left"><b>${esc(r.t.nombre)}</b></button>
-        <div class="small muted">${MODOS_T[r.t.modo]} · ${fmt(r.t.valor)}${r.t.modo === "hora" ? "/h" : "/día"} · extra +${pct(n0(r.t.recargo))}${r.t.activo === false ? " · inactivo" : ""}</div></td>
+        <div class="small muted">${MODOS_T[r.t.modo]} · ${fmt(r.t.valor)}${r.t.modo === "hora" ? "/h" : "/día"} · extra +${pct(n0(r.t.recargo))}${r.t.activo === false ? " · inactivo" : ""}${r.t.email ? " · " + esc(r.t.email) : ""}</div></td>
       <td class="n">${r.dias}</td><td class="n">${fmtH(r.horas)}${r.extras ? `<div class="small muted">${fmtH(r.extras)} extra</div>` : ""}</td>
       <td class="n">${fmt(r.ganadoMes)}</td><td class="n">${fmt(r.pagadoMes)}</td>
       <td class="n"><b class="${r.saldo > 0.5 ? "neg" : ""}">${fmt(r.saldo)}</b></td>
@@ -1183,6 +1184,25 @@ R.trabajadores = () => {
     : `<div class="mt">${empty("clock", "Aún no hay trabajadores", "Agrega a cada trabajador con su forma de pago (por día o por hora) y su recargo por horas extra.", `<button class="b acc" data-act="newTrab">${ico("plus")}Agregar trabajador</button>`)}</div>`}
   ${rs.length ? `<div class="card mt"><h2>Días trabajados</h2><div class="list">${h || `<p class="muted small">Sin días anotados en ${mName(curM)}.</p>`}</div></div>
   <div class="card mt"><h2>Pagos</h2><div class="list">${hp || `<p class="muted small">Sin pagos en ${mName(curM)}.</p>`}</div></div>` : ""}`;
+};
+
+// El colaborador que es trabajador ve sus días y horas (la base de datos le manda solo los suyos)
+R.misdias = () => {
+  const yo = user ? user.email.toLowerCase() : "";
+  const ts = S.trabajadores.filter(t => yo && t.email === yo);
+  if(!ts.length) return empty("clock", "Aún no apareces como trabajador", "Pide al administrador que anote tu correo en tu ficha de Trabajadores.");
+  const ids = ts.map(t => t.id);
+  const js = S.jornadas.filter(j => ids.includes(j.trab) && pKey(j.fecha) === curM).sort((a, b) => b.fecha.localeCompare(a.fecha) || String(b.entrada).localeCompare(String(a.entrada)));
+  const pj = js.map(pagoJ);
+  return `
+  <div class="kpis">
+    ${kpi("Días trabajados", String(js.length), mName(curM), "hero")}
+    ${kpi("Horas", fmtH(sum(pj, x => x.h)), "")}
+    ${kpi("Horas extra", fmtH(sum(pj, x => x.ext)), `pasadas ${JORNADA} h en un día`)}
+  </div>
+  <div class="card mt"><h2>Tus días en ${mName(curM)}</h2><div class="list">${js.map((j, k) => `<div class="item">
+    <div class="main-t"><div class="tt">${dName(j.fecha)}</div><div class="st">${esc(j.entrada)}–${esc(j.salida)}${j.nota ? " · " + esc(j.nota) : ""}</div></div>
+    <div class="am num">${fmtH(pj[k].h)}${pj[k].ext ? `<small>${fmtH(pj[k].ext)} extra</small>` : ""}</div></div>`).join("") || `<p class="muted small">Sin días anotados en ${mName(curM)}.</p>`}</div></div>`;
 };
 
 R.inventario = () => {
@@ -1416,7 +1436,7 @@ R.ajustes = () => {
 
 R.mas = () => `<div class="card" style="margin-bottom:12px"><div class="row"><div class="sync" style="color:var(--ink2);font-size:13.5px" id="sync3"><i></i><span>${mode === "local" ? "Datos guardados solo en este dispositivo" : outbox.length ? `${outbox.length} cambio(s) por subir a la nube` : "Todo guardado en la nube"}</span></div><span class="sp"></span>${user ? `<span class="small muted">${esc(user.email)} · ${esAdmin() ? "Administrador" : "Colaborador"}</span><button class="b sm del" data-act="logout">Cerrar sesión</button>` : ""}</div></div><div class="tiles">${Object.entries(VIEWS).filter(([k, v]) => v.grp && !TABS.includes(k) && puede(k)).map(([k, v]) => `<a class="tile" href="#${k}">${ico(v.i)}<b>${v.t}</b><span>${{
   carta:"Precios, costos y márgenes", inventario:"Stock y lista de compras", recetas:"Gramos por producto", insumos:"Precios y costo real", resultados:"Mes a mes y mermas",
-  equilibrio:"Cuánto vender para no perder", fijos:"Gas, luz, sueldos…", proveedores:"Contactos y entregas", ajustes:"Parámetros y respaldos", duenos:"Préstamos y pagos", trabajadores:"Días, horas y pagos" }[k] || ""}</span></a>`).join("")}</div>`;
+  equilibrio:"Cuánto vender para no perder", fijos:"Gas, luz, sueldos…", proveedores:"Contactos y entregas", ajustes:"Parámetros y respaldos", duenos:"Préstamos y pagos", trabajadores:"Días, horas y pagos", misdias:"Tus días y horas" }[k] || ""}</span></a>`).join("")}</div>`;
 
 // =====================================================================
 //  Modal
@@ -1577,7 +1597,7 @@ async function loadPedidos(){
 setInterval(() => { if(document.visibilityState === "visible") loadPedidos(); }, 30000);
 
 // Si la app quedó abierta (o instalada en el teléfono) con una versión antigua, avisa y se actualiza
-const APP_VERSION = "2026-11-02a";
+const APP_VERSION = "2026-11-02b";
 async function checkVersion(){
   try{
     const html = await (await fetch(location.pathname + "?v=" + Date.now(), { cache:"no-store" })).text();
@@ -2060,6 +2080,8 @@ function formTrab(orig){
   const t = orig ? clone(orig) : { id:uid(), nombre:"", modo:"dia", valor:"", recargo:.5, activo:true };
   const m = openModal(orig ? "Editar trabajador" : "Nuevo trabajador", `
     <label for="tN">Nombre</label><input id="tN" value="${esc(t.nombre)}" placeholder="Ej: Camila">
+    <label for="tE">Correo de su cuenta (opcional)</label><input id="tE" type="email" value="${esc(t.email || "")}" placeholder="Para que vea sus días trabajados">
+    <p class="hint">Si es colaborador (Gestión → Usuarios) y entra con este correo, verá sus días y horas en “Mis días”.</p>
     <label>Se le paga</label>${chipsHTML("modo", Object.values(MODOS_T), MODOS_T[t.modo])}
     <div class="f2">
       <div><label for="tV" id="tVL">Valor</label><div class="unit pre"><em>$</em><input id="tV" type="number" inputmode="numeric" min="0" step="100" value="${esc(t.valor)}"></div></div>
@@ -2076,8 +2098,9 @@ function formTrab(orig){
   };
   wireChips(m, hint); m.querySelector("#tV").oninput = m.querySelector("#tR").oninput = hint; hint();
   m.querySelector("#tSave").onclick = () => {
-    const x = { ...t, nombre:m.querySelector("#tN").value.trim(), modo:modo(), valor:n0(m.querySelector("#tV").value), recargo:n0(m.querySelector("#tR").value) / 100, activo:m.querySelector("#tA").checked };
+    const x = { ...t, nombre:m.querySelector("#tN").value.trim(), email:m.querySelector("#tE").value.trim().toLowerCase(), modo:modo(), valor:n0(m.querySelector("#tV").value), recargo:n0(m.querySelector("#tR").value) / 100, activo:m.querySelector("#tA").checked };
     if(!x.nombre) return toast("Escribe el nombre", true);
+    if(x.email && !/^[^@\s]+@[^@\s]+$/.test(x.email)) return toast("Revisa el correo", true);
     if(!(x.valor > 0)) return toast("Escribe cuánto se le paga", true);
     put("trabajadores", x); closeModal(); render(); toast("Trabajador guardado");
   };
