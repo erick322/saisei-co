@@ -1148,7 +1148,7 @@ function trabRes(t, m){
 }
 R.trabajadores = () => {
   const rs = S.trabajadores.slice().sort(byName).map(t => trabRes(t, curM)).filter(r => r.t.activo !== false || r.dias || r.pagadoMes || Math.round(r.saldo));
-  const btns = `<button class="b" data-act="newTrab">${ico("plus")}Trabajador</button>${S.trabajadores.length ? `<button class="b" data-act="newSueldo">${ico("plus")}Pago</button><button class="b acc" data-act="newJornada">${ico("plus")}Día trabajado</button>` : ""}`;
+  const btns = `<button class="b" data-act="newTrab">${ico("plus")}Trabajador</button>${S.trabajadores.length && mode === "nube" ? `<button class="b" data-act="unirCuentas">${ico("users")}Cuentas</button>` : ""}${S.trabajadores.length ? `<button class="b" data-act="newSueldo">${ico("plus")}Pago</button><button class="b acc" data-act="newJornada">${ico("plus")}Día trabajado</button>` : ""}`;
   const js = S.jornadas.filter(j => pKey(j.fecha) === curM).sort((a, b) => b.fecha.localeCompare(a.fecha) || String(b.entrada).localeCompare(String(a.entrada)));
   const ps = S.sueldos.filter(p => pKey(p.fecha) === curM).sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.upd || 0) - (a.upd || 0));
   const nom = id => esc(trabById(id)?.nombre || "Trabajador eliminado");
@@ -1597,7 +1597,7 @@ async function loadPedidos(){
 setInterval(() => { if(document.visibilityState === "visible") loadPedidos(); }, 30000);
 
 // Si la app quedó abierta (o instalada en el teléfono) con una versión antigua, avisa y se actualiza
-const APP_VERSION = "2026-11-02b";
+const APP_VERSION = "2026-11-02c";
 async function checkVersion(){
   try{
     const html = await (await fetch(location.pathname + "?v=" + Date.now(), { cache:"no-store" })).text();
@@ -2076,12 +2076,50 @@ function formDueno(orig){
     toast(orig ? "Movimiento actualizado" : "Movimiento guardado");
   };
 }
+// Cuentas de colaborador (Gestión → Usuarios) para unirlas con los trabajadores: así cada uno ve sus días en "Mis días"
+async function colaboradores(){
+  if(mode !== "nube" || !sb) return [];
+  const { data, error } = await sb.from("usuarios").select("email,nombre").eq("rol", "colaborador").order("email");
+  if(error){ toast("No se pudieron leer las cuentas", true); return []; }
+  return data;
+}
+const cuentaTxt = u => u.nombre ? `${u.nombre} · ${u.email}` : u.email;
+const cuentaOpts = (us, sel) => `<option value="">Sin cuenta</option>${us.map(u => `<option value="${esc(u.email)}" ${u.email === sel ? "selected" : ""}>${esc(cuentaTxt(u))}</option>`).join("")}${sel && !us.some(u => u.email === sel) ? `<option value="${esc(sel)}" selected>${esc(sel)} (ya no es colaborador)</option>` : ""}`;
+// Sugiere la cuenta cuyo nombre (o el comienzo del correo) coincide con el del trabajador, si hay una sola
+function cuentaSugerida(t, us){
+  const nom = u => toks(u.nombre || u.email.split("@")[0]), tt = toks(t.nombre);
+  if(!tt.length) return "";
+  const full = us.filter(u => nom(u).join(" ") === tt.join(" "));
+  const first = us.filter(u => nom(u)[0] === tt[0]);
+  const c = full.length === 1 ? full : first.length === 1 ? first : [];
+  return c.length ? c[0].email : "";
+}
+const correoUsado = (email, id) => email && S.trabajadores.find(x => x.id !== id && x.email === email);
+async function unirCuentas(){
+  const us = await colaboradores();
+  if(!us.length) return toast("Aún no hay colaboradores. Agrégalos en Gestión → Usuarios.", true);
+  const ts = S.trabajadores.filter(t => t.activo !== false || t.email).sort(byName);
+  const usados = new Set(ts.map(t => t.email).filter(Boolean));
+  const m = openModal("Cuentas de los trabajadores", `
+    <p class="hint" style="margin-top:0">Elige la cuenta con que entra cada trabajador. Así verá sus días y horas en “Mis días”.</p>
+    ${ts.map(t => { const sug = t.email ? "" : cuentaSugerida(t, us.filter(u => !usados.has(u.email))); return `
+    <label for="uc-${esc(t.id)}">${esc(t.nombre)}${sug ? ` <span class="pill">sugerida</span>` : ""}</label>
+    <select id="uc-${esc(t.id)}" data-uc="${esc(t.id)}">${cuentaOpts(us, t.email || sug)}</select>`; }).join("")}`,
+    `<span class="sp"></span><button class="b" data-act="close">Cancelar</button><button class="b pri" id="ucSave">Guardar</button>`);
+  m.querySelector("#ucSave").onclick = () => {
+    const sel = [...m.querySelectorAll("[data-uc]")].map(s => ({ t:trabById(s.dataset.uc), email:s.value }));
+    const rep = sel.find((a, i) => a.email && sel.findIndex(b => b.email === a.email) !== i);
+    if(rep) return toast(`${rep.email} está elegida para dos trabajadores`, true);
+    sel.forEach(({ t, email }) => { if((t.email || "") !== email) put("trabajadores", { ...t, email }); });
+    closeModal(); render(); toast("Cuentas guardadas");
+  };
+}
 function formTrab(orig){
   const t = orig ? clone(orig) : { id:uid(), nombre:"", modo:"dia", valor:"", recargo:.5, activo:true };
   const m = openModal(orig ? "Editar trabajador" : "Nuevo trabajador", `
     <label for="tN">Nombre</label><input id="tN" value="${esc(t.nombre)}" placeholder="Ej: Camila">
-    <label for="tE">Correo de su cuenta (opcional)</label><input id="tE" type="email" value="${esc(t.email || "")}" placeholder="Para que vea sus días trabajados">
-    <p class="hint">Si es colaborador (Gestión → Usuarios) y entra con este correo, verá sus días y horas en “Mis días”.</p>
+    ${mode === "nube" ? `<label for="tE">Su cuenta (opcional)</label><select id="tE"><option value="${esc(t.email || "")}">${esc(t.email || "Sin cuenta")}</option></select>
+    <p class="hint">Elige la cuenta de colaborador con que entra (Gestión → Usuarios) para que vea sus días y horas en “Mis días”.</p>` : ""}
     <label>Se le paga</label>${chipsHTML("modo", Object.values(MODOS_T), MODOS_T[t.modo])}
     <div class="f2">
       <div><label for="tV" id="tVL">Valor</label><div class="unit pre"><em>$</em><input id="tV" type="number" inputmode="numeric" min="0" step="100" value="${esc(t.valor)}"></div></div>
@@ -2097,10 +2135,13 @@ function formTrab(orig){
     m.querySelector("#tH").textContent = `Pasadas ${JORNADA} horas corridas, cada hora extra se paga a ${fmt(vh * (1 + r))}${modo() === "dia" ? ` (día ÷ ${JORNADA} + ${pct(r)})` : ` (+${pct(r)})`}.`;
   };
   wireChips(m, hint); m.querySelector("#tV").oninput = m.querySelector("#tR").oninput = hint; hint();
+  const tE = m.querySelector("#tE");
+  if(tE) colaboradores().then(us => { if(tE.isConnected) tE.innerHTML = cuentaOpts(us, tE.value); });
   m.querySelector("#tSave").onclick = () => {
-    const x = { ...t, nombre:m.querySelector("#tN").value.trim(), email:m.querySelector("#tE").value.trim().toLowerCase(), modo:modo(), valor:n0(m.querySelector("#tV").value), recargo:n0(m.querySelector("#tR").value) / 100, activo:m.querySelector("#tA").checked };
+    const x = { ...t, nombre:m.querySelector("#tN").value.trim(), email:tE ? tE.value : (t.email || ""), modo:modo(), valor:n0(m.querySelector("#tV").value), recargo:n0(m.querySelector("#tR").value) / 100, activo:m.querySelector("#tA").checked };
     if(!x.nombre) return toast("Escribe el nombre", true);
-    if(x.email && !/^[^@\s]+@[^@\s]+$/.test(x.email)) return toast("Revisa el correo", true);
+    const otro = correoUsado(x.email, x.id);
+    if(otro) return toast(`Esa cuenta ya es de ${otro.nombre}`, true);
     if(!(x.valor > 0)) return toast("Escribe cuánto se le paga", true);
     put("trabajadores", x); closeModal(); render(); toast("Trabajador guardado");
   };
@@ -2319,6 +2360,7 @@ const A = {
   editDueno: d => formDueno(S.duenos.find(x => x.id === d.id)),
   delDueno: async d => { if(await confirmDel("¿Eliminar este movimiento?")){ del("duenos", d.id); closeModal(); render(); toast("Movimiento eliminado"); } },
   newTrab: () => formTrab(),
+  unirCuentas: () => unirCuentas(),
   editTrab: d => formTrab(trabById(d.id)),
   delTrab: async d => {
     if(S.jornadas.some(j => j.trab === d.id) || S.sueldos.some(p => p.trab === d.id)) return toast("Tiene días o pagos anotados. Para que no aparezca más, desmarca “Trabaja actualmente”.", true);
