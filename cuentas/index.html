@@ -195,6 +195,34 @@
   .f3{display:grid;grid-template-columns:repeat(3,1fr);gap:0 10px}
   .unit{position:relative}.unit input{padding-right:44px}.unit em{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-style:normal;color:var(--ink2);font-size:13px;pointer-events:none}
   .unit.pre input{padding-left:26px;padding-right:12px}.unit.pre em{left:12px;right:auto}
+  .iline{display:grid;grid-template-columns:minmax(0,1fr) minmax(100px,32%) 36px;gap:8px;align-items:center;margin-bottom:8px}
+  .itot{border-top:1px solid var(--line);padding-top:10px;margin-top:10px;font-size:15px}
+  .igrid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(min(100%,165px),1fr))}
+  .icard{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;cursor:pointer;text-align:left;padding:0;display:flex;flex-direction:column;box-shadow:var(--sh)}
+  .icard:hover{border-color:#c4d2bd}
+  .icard .cov{position:relative;aspect-ratio:16/10;background:var(--rice2);display:grid;place-items:center;color:#a9bbb0}
+  .icard .cov .ico{width:34px;height:34px}
+  .icard .cov img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .icard .cov .pill{position:absolute;top:8px;left:8px;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+  .icard .bd{padding:10px 12px 12px;display:grid;gap:4px}
+  .icard .tt{font-weight:700;font-size:15px;line-height:1.25;overflow-wrap:anywhere}
+  .icard .st{font-size:12.5px;color:var(--ink2);display:inline-flex;gap:4px;align-items:center}
+  .icard .st .ico{width:15px;height:15px}
+  .icard .ft{display:flex;align-items:center;gap:6px;margin-top:2px}
+  .icard .bar{height:6px;margin-top:4px}
+  .pport{position:relative;aspect-ratio:16/7;border-radius:14px;overflow:hidden;background:var(--rice2);display:grid;place-items:center;color:var(--ink2);font-size:13.5px;border:1px dashed #cfd9c9}
+  .pport img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .item .bar{height:6px;margin-top:8px}
+  .late{color:var(--bad);font-weight:600}
+  .hilo{display:grid;gap:8px;margin-top:6px}
+  .nota{background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 12px;max-width:88%;justify-self:start}
+  .nota.mia{background:var(--ok-bg);border-color:#cfe6d6;justify-self:end}
+  .nota .q{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--ink2);margin-bottom:3px}
+  .nota .q b{color:var(--ink)} .nota .q .ib{padding:2px;margin-left:auto}
+  .nota p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:14.5px}
+  .nota a{color:var(--pine);font-weight:600;overflow-wrap:anywhere}
+  .nota .lk{display:inline-flex;gap:6px;align-items:center;margin-top:6px;font-size:13.5px}
+  .redactar{display:grid;gap:8px;margin-top:10px}
   .tin{min-height:36px;padding:6px 8px;border-radius:9px;text-align:right;max-width:120px}
 
   .overlay{position:fixed;inset:0;z-index:50;background:rgba(6,36,25,.45);display:flex;align-items:flex-end;justify-content:center}
@@ -398,6 +426,9 @@ const I = {
   phone:'<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.8 2z"/>',
   users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
   clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  link:'<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
+  chat:'<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',
+  bulb:'<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>',
 };
 const ico = (k, cls = "ico") => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${I[k] || ""}</svg>`;
 
@@ -419,7 +450,7 @@ const UNIDADES = ["g", "ml", "un"];
 // =====================================================================
 //  Datos: en la nube (Supabase, tabla "cuentas") o en este dispositivo
 // =====================================================================
-const COLS = ["ventas", "gastos", "insumos", "recetas", "carta", "proveedores", "fijos", "saldos", "reservas", "apartados", "duenos", "trabajadores", "jornadas", "sueldos"];
+const COLS = ["ventas", "gastos", "insumos", "recetas", "carta", "proveedores", "fijos", "saldos", "reservas", "apartados", "duenos", "trabajadores", "jornadas", "sueldos", "ideas", "ideanotas"];
 const PAR_DEF = { flete:.1, foodCost:.33, comision:.035, iva:.19, afectaIva:false, dias:20, ticket:15000, meta:500000, deliveryCobro:2000, deliveryCosto:1500, diaCorte:16, prepBase:15, prepUnidad:5, despachoMin:20 };
 const LS_DATA = "saisei.cuentas.datos", LS_OUT = "saisei.cuentas.pendientes", LS_ROL = "saisei.cuentas.rol", LS_USR = "saisei.cuentas.usuario";
 let S = blank();
@@ -527,6 +558,7 @@ async function refreshCloud(){
     cloudSig = sig;
     S = fromRows(rows); saveCache();
     if($("ov").hidden) renderKeep();
+    else if(hiloAbierto) hiloAbierto();   // la conversación de una idea abierta se actualiza sola
   }catch(e){ console.warn("No se pudo revisar la nube", e); }
 }
 setInterval(() => { if(document.visibilityState === "visible") refreshCloud(); }, 30000);
@@ -779,14 +811,15 @@ const VIEWS = {
   insumos:     { t:"Insumos",              i:"leaf",    grp:"Productos" },
   resultados:  { t:"Estado de resultados", i:"chart",   month:true, grp:"Análisis" },
   equilibrio:  { t:"Punto de equilibrio",  i:"target",  grp:"Análisis" },
-  fijos:       { t:"Costos fijos",         i:"wallet",  grp:"Configuración" },
+  ideas:       { t:"Ideas",                i:"bulb",    grp:"Planes" },
+  fijos:       { t:"Costos fijos",        i:"wallet",  grp:"Configuración" },
   proveedores: { t:"Proveedores",          i:"truck",   grp:"Configuración" },
   ajustes:     { t:"Ajustes",              i:"gear",    grp:"Configuración" },
   mas:         { t:"Más",                  i:"more" },
 };
 let TABS = ["inicio", "pedidos", "ventas", "gastos", "mas"];
 let view = "inicio", curM = curMonth();
-const UI = { ventasQ:"", insQ:"", invSolo:false, cartaF:"Todos", gastoTipo:"Todos" };
+const UI = { ventasQ:"", insQ:"", invSolo:false, cartaF:"Todos", gastoTipo:"Todos", ideaF:"En curso" };
 
 function buildNav(){
   let h = "", g = "";
@@ -816,7 +849,7 @@ function render(){
     const k = a.dataset.v;
     a.classList.toggle("on", k === view || (k === "mas" && !TABS.includes(view)));
   });
-  const fab = { inicio:["Registrar venta", "cart"], ventas:["Registrar venta", "cart"], gastos:["Registrar gasto", "receipt"] }[view];
+  const fab = { inicio:["Registrar venta", "cart"], ventas:["Registrar venta", "cart"], gastos:["Registrar gasto", "receipt"], ideas:["Nueva idea", "bulb"] }[view];
   $("fab").hidden = !fab;
   if(fab){ $("fab").innerHTML = ico("plus"); $("fab").title = fab[0]; }
   $("view").innerHTML = R[view]();
@@ -1396,6 +1429,67 @@ R.proveedores = () => `
       <div class="am small muted">${n} insumo${n === 1 ? "" : "s"}</div></button>`;
   }).join("") || empty("truck", "Sin proveedores", "")}</div>`;
 
+// ---------- Ideas ----------
+// Planes a futuro con su presupuesto. Viven en su propia colección: ningún cálculo de las cuentas los lee.
+const IDEA_EST = ["Pensando", "En marcha", "Hecha", "Descartada"];
+const ideaEst = x => IDEA_EST.includes(x.estado) ? x.estado : "Pensando";
+const ideaViva = x => ["Pensando", "En marcha"].includes(ideaEst(x));
+const ideaTot = x => (x.items || []).reduce((s, it) => s + n0(it.monto), 0);
+function cuandoTxt(x){
+  if(!x.cuando) return "Sin fecha";
+  const d = Math.round((new Date(x.cuando + "T12:00") - new Date(today() + "T12:00")) / 864e5);
+  const fe = new Date(x.cuando + "T12:00").toLocaleDateString("es-CL", { day:"numeric", month:"short", year:"numeric" });
+  if(!ideaViva(x)) return fe;
+  if(d < 0) return `${fe} · <span class="late">hace ${-d} día${d === -1 ? "" : "s"}</span>`;
+  return fe + " · " + (d === 0 ? "hoy" : d < 60 ? `en ${d} día${d === 1 ? "" : "s"}` : `en ${Math.round(d / 30.4)} meses`);
+}
+// Notas y mensajes de cada idea: un registro por nota (colección "ideanotas"),
+// así dos administradores pueden escribir a la vez sin pisarse.
+const yo = () => user ? user.email : "Este dispositivo";
+const notasDe = id => S.ideanotas.filter(n => n.idea === id).sort((a, b) => String(a.creado).localeCompare(String(b.creado)));
+const linkify = s => esc(s).replace(/https?:\/\/[^\s<]+/g, u => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`);
+const normLink = s => { s = s.trim(); if(!s) return ""; if(!/^https?:\/\//i.test(s)) s = "https://" + s; try { const u = new URL(s); return /^https?:$/.test(u.protocol) && u.hostname.includes(".") ? u.href : null; } catch(e){ return null; } };
+let hiloAbierto = null;
+function notaHTML(n){
+  const mia = n.autor === yo(), cu = new Date(n.creado);
+  const linkTxt = n.link ? n.link.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "") : "";
+  return `<div class="nota ${mia ? "mia" : ""}">
+    <div class="q"><b>${mia ? "Tú" : esc(String(n.autor || "").split("@")[0])}</b><span>${isNaN(cu) ? "" : cu.toLocaleString("es-CL", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })}</span>
+      ${mia ? `<button type="button" class="ib" data-act="delNota" data-id="${esc(n.id)}" aria-label="Borrar nota">${ico("x")}</button>` : ""}</div>
+    ${n.texto ? `<p>${linkify(n.texto)}</p>` : ""}
+    ${n.link ? `<a class="lk" href="${esc(n.link)}" target="_blank" rel="noopener noreferrer">${ico("link")}${esc(linkTxt.length > 48 ? linkTxt.slice(0, 46) + "…" : linkTxt)}</a>` : ""}</div>`;
+}
+R.ideas = () => {
+  const filtros = ["En curso", "Hecha", "Descartada", "Todas"];
+  const pasa = (x, f) => f === "Todas" || (f === "En curso" ? ideaViva(x) : ideaEst(x) === f);
+  const vivas = S.ideas.filter(ideaViva);
+  const tot = vivas.reduce((s, x) => s + ideaTot(x), 0), jun = vivas.reduce((s, x) => s + n0(x.ahorrado), 0);
+  const lista = S.ideas.filter(x => pasa(x, UI.ideaF)).sort((a, b) => (a.cuando || "9999").localeCompare(b.cuando || "9999") || byName(a, b));
+  const pillCls = { "En marcha":"info", Hecha:"ok" };
+  const nuevo = `<button class="b pri" data-act="newIdea">${ico("plus")}Nueva idea</button>`;
+  if(!S.ideas.length) return `<div class="card">${empty("bulb", "Anota tu primera idea", "Un local nuevo, una freidora, un letrero… Ponle fecha y calcula cuánto cuesta. No cambia nada de tus cuentas.", nuevo)}</div>`;
+  return `
+  <div class="kpis">
+    ${kpi("Ideas en curso", vivas.length, "pensando o en marcha")}
+    ${kpi("Costarían", fmt(tot), "suma de sus presupuestos")}
+    ${kpi("Ya juntado", fmt(jun), tot ? pct(Math.min(jun / tot, 1)) + " del total" : "")}
+    ${kpi("Falta juntar", fmt(Math.max(tot - jun, 0)), "", "hero")}
+  </div>
+  <p class="hint mt">Las ideas son solo planes: no se suman a gastos, caja ni resultados.</p>
+  <div class="row mt"><div class="chips">${filtros.map(f => `<button class="chip ${UI.ideaF === f ? "on" : ""}" data-act="ideaF" data-f="${f}">${f} · ${S.ideas.filter(x => pasa(x, f)).length}</button>`).join("")}</div><span class="sp"></span>${nuevo}</div>
+  ${lista.length ? `<div class="igrid mt">${lista.map(x => {
+    const t = ideaTot(x), j = n0(x.ahorrado), nn = notasDe(x.id).length;
+    return `<button class="icard" data-act="editIdea" data-id="${esc(x.id)}">
+      <div class="cov">${x.portada ? `<img src="${esc(x.portada)}" alt="" loading="lazy">` : ico("bulb")}<span class="pill ${pillCls[ideaEst(x)] || ""}">${ideaEst(x)}</span></div>
+      <div class="bd">
+        <div class="tt">${esc(x.nombre)}</div>
+        <div class="st">${cuandoTxt(x)}</div>
+        <div class="ft"><b class="num">${t ? fmt(t) : `<span class="muted small">Sin presupuesto</span>`}</b><span class="sp"></span>${nn ? `<span class="st">${ico("chat")}${nn}</span>` : ""}</div>
+        ${t && ideaViva(x) ? `<div class="bar ${j >= t ? "" : "warn"}"><i style="width:${(Math.min(j / t, 1) * 100).toFixed(1)}%"></i></div><div class="st">Juntado ${fmt(j)}</div>` : ""}
+      </div></button>`;
+  }).join("")}</div>` : `<p class="muted small mt">No hay ideas en “${esc(UI.ideaF)}”.</p>`}`;
+};
+
 // ---------- Ajustes ----------
 R.ajustes = () => {
   const p = P();
@@ -1449,7 +1543,7 @@ R.ajustes = () => {
 
 R.mas = () => `<div class="card" style="margin-bottom:12px"><div class="row"><div class="sync" style="color:var(--ink2);font-size:13.5px" id="sync3"><i></i><span>${mode === "local" ? "Datos guardados solo en este dispositivo" : outbox.length ? `${outbox.length} cambio(s) por subir a la nube` : "Todo guardado en la nube"}</span></div><span class="sp"></span>${user ? `<span class="small muted">${esc(user.email)} · ${esAdmin() ? "Administrador" : "Colaborador"}</span><button class="b sm del" data-act="logout">Cerrar sesión</button>` : ""}</div></div><div class="tiles">${Object.entries(VIEWS).filter(([k, v]) => v.grp && !TABS.includes(k) && puede(k)).map(([k, v]) => `<a class="tile" href="#${k}">${ico(v.i)}<b>${v.t}</b><span>${{
   carta:"Precios, costos y márgenes", inventario:"Stock y lista de compras", recetas:"Gramos por producto", insumos:"Precios y costo real", resultados:"Mes a mes y mermas",
-  equilibrio:"Cuánto vender para no perder", fijos:"Gas, luz, sueldos…", proveedores:"Contactos y entregas", ajustes:"Parámetros y respaldos", duenos:"Préstamos y pagos", trabajadores:"Días, horas y pagos", misdias:"Tus días y pagos" }[k] || ""}</span></a>`).join("")}</div>`;
+  equilibrio:"Cuánto vender para no perder", fijos:"Gas, luz, sueldos…", proveedores:"Contactos y entregas", ajustes:"Parámetros y respaldos", duenos:"Préstamos y pagos", trabajadores:"Días, horas y pagos", misdias:"Tus días y pagos", ideas:"Planes con presupuesto y fecha" }[k] || ""}</span></a>`).join("")}</div>`;
 
 // =====================================================================
 //  Modal
@@ -2245,6 +2339,131 @@ function formReserva(orig){
     put("reservas", t); closeModal(); render(); toast("Pago guardado");
   };
 }
+// Portada de una idea: se achica en el navegador. Con la nube se sube a la carpeta "fotos" (la misma del panel,
+// solo administradores pueden subir); sin nube queda guardada dentro de la idea, más chica.
+// Achica la foto y baja la calidad hasta que pese menos de "kb" (una foto de celular de 4 MB queda en ~60 KB).
+async function achicar(file, max, tipo, kb){
+  const img = await new Promise((res, rej) => {
+    const i = new Image();
+    i.onload = () => { URL.revokeObjectURL(i.src); res(i); };
+    i.onerror = () => rej(new Error("Archivo de imagen no válido"));
+    i.src = URL.createObjectURL(file);
+  });
+  const k = Math.min(1, max / Math.max(img.width, img.height));
+  const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+  let b;
+  for(const q of [.72, .6, .5, .4]){
+    b = await new Promise(res => c.toBlob(res, tipo, q));
+    if(!b) throw new Error("No se pudo procesar la imagen");
+    if(b.size <= kb * 1024) break;
+  }
+  return b;
+}
+async function fotoIdea(file){
+  let webp = false; try { webp = document.createElement("canvas").toDataURL("image/webp").startsWith("data:image/webp"); } catch(e){}
+  const tipo = webp ? "image/webp" : "image/jpeg";
+  if(mode === "nube" && sb){
+    const blob = await achicar(file, 800, tipo, 90), path = `ideas/${uid()}.${webp ? "webp" : "jpg"}`;
+    const up = await sb.storage.from("fotos").upload(path, blob, { contentType:tipo, upsert:false });
+    if(up.error) throw up.error;
+    return sb.storage.from("fotos").getPublicUrl(path).data.publicUrl;
+  }
+  const blob = await achicar(file, 640, tipo, 45);
+  return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
+}
+function formIdea(orig){
+  const x = orig ? clone(orig) : { id:uid(), nombre:"", nota:"", estado:"Pensando", cuando:"", items:[], ahorrado:"", portada:"" };
+  const fila = (it = {}) => `<div class="iline"><input data-k="c" value="${esc(it.concepto || "")}" placeholder="Qué hay que comprar o pagar" aria-label="Ítem">
+    <div class="unit pre"><em>$</em><input data-k="m" type="number" inputmode="numeric" min="0" step="1000" value="${esc(it.monto ?? "")}" aria-label="Monto"></div>
+    <button type="button" class="ib" data-rm aria-label="Quitar ítem">${ico("x")}</button></div>`;
+  const m = openModal(orig ? "Editar idea" : "Nueva idea", `
+    <label>Portada</label>
+    <div class="pport" id="iP"></div>
+    <div class="row" style="margin-top:8px"><button type="button" class="b sm" id="iPick">${ico("upload")}Elegir foto</button><button type="button" class="b sm" id="iQuit">Quitar</button></div>
+    <input type="file" id="iFile" accept="image/*" hidden>
+    <label for="iN">Idea</label><input id="iN" value="${esc(x.nombre)}" placeholder="Ej: Comprar una segunda arrocera">
+    <label for="iD">Notas</label><textarea id="iD" placeholder="Para qué sirve, a quién preguntar, links…">${esc(x.nota || "")}</textarea>
+    <label>Estado</label>${chipsHTML("est", IDEA_EST, ideaEst(x))}
+    <div class="f2">
+      <div><label for="iF">¿Para cuándo?</label><input id="iF" type="date" value="${esc(x.cuando || "")}"></div>
+      <div><label for="iA">Ya tengo juntado</label><div class="unit pre"><em>$</em><input id="iA" type="number" inputmode="numeric" min="0" step="1000" value="${esc(x.ahorrado ?? "")}"></div></div>
+    </div>
+    <label>Presupuesto</label>
+    <div id="iL">${(x.items.length ? x.items : [{}]).map(fila).join("")}</div>
+    <button type="button" class="b sm" id="iAdd">${ico("plus")}Agregar ítem</button>
+    <div class="row itot"><span>Total</span><span class="sp"></span><b class="num" id="iT"></b></div>
+    <p class="hint" id="iR"></p>
+    <p class="hint">Es solo un plan: no se anota como gasto ni cambia tus cuentas.</p>
+    <h2 class="mt" style="font-size:17px">Seguimiento</h2>
+    ${orig ? `<p class="hint" style="margin-top:-4px">Deja notas en el camino, links (cotizaciones, fotos, productos) y conversa con los demás administradores.</p>
+    <div class="hilo" id="iH"></div>
+    <div class="redactar">
+      <textarea id="nT" placeholder="Escribe una nota o un mensaje…" aria-label="Nota"></textarea>
+      <div class="row"><input id="nL" type="url" inputmode="url" placeholder="Link (opcional)" aria-label="Link" style="flex:1;min-width:0"><button type="button" class="b pri" id="nSend">${ico("chat")}Enviar</button></div>
+    </div>` : `<p class="hint">Guarda la idea y vuelve a abrirla para dejar notas, links y mensajes.</p>`}`,
+    `${orig ? `<button class="b del" data-act="delIdea" data-id="${esc(x.id)}">${ico("trash")}Eliminar</button>` : ""}<span class="sp"></span><button class="b" data-act="close">Cancelar</button><button class="b pri" id="iSave">Guardar</button>`);
+  const L = m.querySelector("#iL");
+  const leer = () => [...L.querySelectorAll(".iline")].map(r => ({ concepto:r.querySelector('[data-k="c"]').value.trim(), monto:n0(r.querySelector('[data-k="m"]').value) })).filter(it => it.concepto || it.monto);
+  const sumar = () => {
+    const t = leer().reduce((s, it) => s + it.monto, 0), j = n0(m.querySelector("#iA").value);
+    m.querySelector("#iT").textContent = fmt(t);
+    m.querySelector("#iR").textContent = !t ? "" : j >= t ? "Ya tienes todo el dinero para esta idea." : `Te faltan ${fmt(t - j)}.` + (() => {
+      const f = m.querySelector("#iF").value, meses = f ? (new Date(f + "T12:00") - new Date(today() + "T12:00")) / (864e5 * 30.4) : 0;
+      return meses >= 1 ? ` Juntando ${fmt(Math.ceil((t - j) / Math.floor(meses) / 1000) * 1000)} al mes llegas a la fecha.` : "";
+    })();
+  };
+  m.addEventListener("input", sumar);
+  m.querySelector("#iAdd").onclick = () => { L.insertAdjacentHTML("beforeend", fila()); L.lastElementChild.querySelector("input").focus(); };
+  L.addEventListener("click", e => {
+    const b = e.target.closest("[data-rm]"); if(!b) return;
+    if(L.children.length > 1) b.parentElement.remove(); else b.parentElement.querySelectorAll("input").forEach(i => i.value = "");
+    sumar();
+  });
+  wireChips(m);
+  sumar();
+  const pintarPortada = (txt = "Sin portada") => {
+    m.querySelector("#iP").innerHTML = x.portada ? `<img src="${esc(x.portada)}" alt="Portada de la idea">` : txt;
+    m.querySelector("#iQuit").hidden = !x.portada;
+    m.querySelector("#iPick").lastChild.textContent = x.portada ? "Cambiar foto" : "Elegir foto";
+  };
+  pintarPortada();
+  m.querySelector("#iPick").onclick = () => m.querySelector("#iFile").click();
+  m.querySelector("#iQuit").onclick = () => { x.portada = ""; pintarPortada(); };
+  m.querySelector("#iFile").onchange = async e => {
+    const f = e.target.files[0]; e.target.value = "";
+    if(!f) return;
+    if(!f.type.startsWith("image/")) return toast("Elige un archivo de imagen", true);
+    const b = m.querySelector("#iPick"); b.disabled = true; pintarPortada("Subiendo foto…");
+    try { x.portada = await fotoIdea(f); pintarPortada(); }
+    catch(err){ console.warn(err); pintarPortada(); toast(navigator.onLine ? "No se pudo subir la foto" : "Sin conexión: no se pudo subir la foto", true); }
+    finally { b.disabled = false; }
+  };
+  if(orig){
+    const H = m.querySelector("#iH");
+    hiloAbierto = () => {
+      if(!H.isConnected){ hiloAbierto = null; return; }
+      const ns = notasDe(x.id);
+      H.innerHTML = ns.map(notaHTML).join("") || `<p class="muted small">Todavía no hay notas.</p>`;
+    };
+    hiloAbierto();
+    m.querySelector("#nSend").onclick = () => {
+      const texto = m.querySelector("#nT").value.trim(), link = normLink(m.querySelector("#nL").value);
+      if(link === null) return toast("Ese link no parece una dirección web", true);
+      if(!texto && !link) return toast("Escribe una nota o pega un link", true);
+      put("ideanotas", { id:uid(), idea:x.id, autor:yo(), creado:new Date().toISOString(), texto, link });
+      m.querySelector("#nT").value = ""; m.querySelector("#nL").value = "";
+      hiloAbierto();
+      H.lastElementChild.scrollIntoView({ block:"nearest" });
+    };
+  }
+  m.querySelector("#iSave").onclick = () => {
+    const t = { ...x, nombre:m.querySelector("#iN").value.trim(), nota:m.querySelector("#iD").value.trim(), estado:chipVal(m, "est") || "Pensando",
+      cuando:m.querySelector("#iF").value, ahorrado:n0(m.querySelector("#iA").value), items:leer() };
+    if(!t.nombre) return toast("Escribe cuál es la idea", true);
+    put("ideas", t); closeModal(); render(); toast("Idea guardada");
+  };
+}
 function formProv(orig){
   const p = orig ? clone(orig) : { id:uid(), nombre:"", rubro:"", contacto:"", telefono:"", ciudad:"", dias:"", pago:"", web:"" };
   const F = (k, l, ph = "") => `<div><label for="pv_${k}">${l}</label><input id="pv_${k}" value="${esc(p[k] || "")}" placeholder="${ph}"></div>`;
@@ -2314,7 +2533,17 @@ async function restore(file){
 // =====================================================================
 const A = {
   close: closeModal,
-  fab: () => view === "gastos" ? formGasto() : formVenta(),
+  fab: () => view === "gastos" ? formGasto() : view === "ideas" ? formIdea() : formVenta(),
+  newIdea: () => formIdea(),
+  editIdea: d => formIdea(S.ideas.find(x => x.id === d.id)),
+  delIdea: async d => {
+    const nn = notasDe(d.id);
+    if(await confirmDel(`¿Eliminar esta idea?${nn.length ? `\nTambién se borran sus ${nn.length} nota${nn.length === 1 ? "" : "s"}.` : ""}`)){
+      nn.forEach(n => del("ideanotas", n.id)); del("ideas", d.id); closeModal(); render(); toast("Idea eliminada");
+    }
+  },
+  delNota: async d => { if(await confirmDel("¿Borrar esta nota?")){ del("ideanotas", d.id); if(hiloAbierto) hiloAbierto(); } },
+  ideaF: d => { UI.ideaF = d.f; render(); },
   mprev: () => { curM = addMonth(curM, -1); render(); },
   mnext: () => { curM = addMonth(curM, 1); render(); },
   newVenta: () => formVenta(),
