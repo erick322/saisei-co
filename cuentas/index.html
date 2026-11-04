@@ -723,6 +723,10 @@ function vTot(v){
   return { bruto, costo, com, neto, margen: neto - costo - com, uds: sum(v.items || [], i => n0(i.cant)) };
 }
 const totalFijos = () => sum(S.fijos, f => n0(f.monto));
+// El renglón "Sueldo de los dueños" de Costos fijos está conectado con Dueños: en cada mes cuenta lo que
+// realmente se les pagó como sueldo (pagos marcados "es sueldo"); su monto queda como lo previsto al mes.
+const fijoSueldo = () => S.fijos.find(f => /sueldo.*due|due.*sueldo/i.test(f.item || ""));
+const pagosSueldo = m => S.duenos.filter(x => x.tipo === "pago" && x.costo && pKey(x.fecha) === m);
 // Primer mes del negocio = el primero con ventas o gastos anotados (si no hay, el mes actual)
 const mesInicio = () => [...S.ventas, ...S.gastos].reduce((a, x) => x.fecha && pKey(x.fecha) < a ? pKey(x.fecha) : a, curMonth());
 function mes(m){
@@ -732,11 +736,10 @@ function mes(m){
   vs.forEach(v => { const t = vTot(v); bruto += t.bruto; costo += t.costo; com += t.com; uds += t.uds; });
   const neto = bruto / ivaF(), mc = neto - costo - com;
   // Los costos fijos se cargan en cada mes ya iniciado (hasta hoy), desde el primer mes con movimientos
-  const cf = m <= curMonth() && m >= mesInicio() ? totalFijos() : 0;
+  const fs = fijoSueldo(), pd = sum(pagosSueldo(m), x => n0(x.monto));
+  const cf = (m <= curMonth() && m >= mesInicio() ? totalFijos() - (fs ? n0(fs.monto) : 0) : 0) + pd;
   const compras = sum(gs.filter(g => g.tipo === "Insumos" || g.tipo === "Empaques"), g => n0(g.monto));
-  // Pagos a dueños marcados "cuenta como costo" (ej. su sueldo) se restan de la utilidad de su mes
-  const pd = sum(S.duenos.filter(x => x.tipo === "pago" && x.costo && pKey(x.fecha) === m), x => n0(x.monto));
-  const util = mc - cf - pd;
+  const util = mc - cf;
   return { m, vs, gs, bruto, iva: bruto - neto, neto, costo, com, mc, mcp: neto ? mc / neto : 0, cf, pd, util, un: neto ? util / neto : 0,
     uds, pedidos: vs.length, ticket: vs.length ? bruto / vs.length : 0, fc: neto ? costo / neto : 0,
     compras, dif: compras - costo, difp: costo ? (compras - costo) / costo : 0,
@@ -928,7 +931,7 @@ R.inicio = () => {
   <div class="kpis">
     ${kpi("Ventas del mes", fmt(s.bruto), `${s.pedidos} pedido${s.pedidos === 1 ? "" : "s"} · ticket ${fmt(s.ticket)}`)}
     ${kpi("Margen de contribución", fmt(s.mc), `${pct(s.mcp)} de las ventas netas`)}
-    ${kpi("Costos fijos", fmt(s.cf + s.pd), `<a href="#fijos">${S.fijos.length} ítems</a>${s.pd ? ` + <a href="#duenos">${fmt(s.pd)} a dueños</a>` : ""}`)}
+    ${kpi("Costos fijos", fmt(s.cf), `<a href="#fijos">${S.fijos.length} ítems</a>${s.pd ? ` · <a href="#duenos">${fmt(s.pd)} sueldo dueños</a>` : ""}`)}
     ${kpi("Utilidad del mes", `<span class="${s.util >= 0 ? "pos" : "neg"}">${fmt(s.util)}</span>`, s.util >= 0 ? "¡Vas ganando!" : "Aún no cubres los costos fijos", "hero")}
   </div>
   <div class="card mt">
@@ -1142,7 +1145,7 @@ R.duenos = () => {
   ms.forEach(x => {
     if(x.fecha !== day){ day = x.fecha; h += `<div class="day"><span>${dName(day)}</span></div>`; }
     h += `<button class="item" data-act="editDueno" data-id="${esc(x.id)}">
-      <div class="main-t"><div class="tt">${esc(x.dueno)}</div><div class="st">${TIPOS_D[x.tipo]}${x.tipo === "pago" && x.costo ? " · cuenta como costo" : ""} · ${esc(x.medio)}${x.nota ? " · " + esc(x.nota) : ""}</div></div>
+      <div class="main-t"><div class="tt">${esc(x.dueno)}</div><div class="st">${TIPOS_D[x.tipo]}${x.tipo === "pago" && x.costo ? " · sueldo" : ""} · ${esc(x.medio)}${x.nota ? " · " + esc(x.nota) : ""}</div></div>
       <div class="am num ${ENTRA_D.includes(x.tipo) ? "pos" : ""}">${ENTRA_D.includes(x.tipo) ? "+" : "−"}${fmt(x.monto)}</div></button>`;
   });
   const debeA = sum(ds, d => d.debe), debenA = sum(ds, d => d.leDebe);
@@ -1310,7 +1313,7 @@ R.resultados = () => {
       ${line("Margen de contribución", "mc", fmt, "sub")}
       ${line("Margen de contribución %", "mcp", x => pct(x))}
       ${line("(−) Costos fijos", "cf")}
-      ${T("pd") ? line(`(−) Pagos a dueños como costo`, "pd") : ""}
+      ${fijoSueldo() || T("pd") ? line(`<span class="muted small">&nbsp;&nbsp;de eso, sueldo de los dueños pagado</span>`, "pd", x => `<span class="muted small">${fmt(x)}</span>`) : ""}
       ${line("UTILIDAD OPERACIONAL", "util", x => `<span class="${x < 0 ? "neg" : x > 0 ? "pos" : ""}">${fmt(x)}</span>`, "tot")}
       ${line("Margen neto %", "un", x => pct(x))}
       <tr><td colspan="${ms.length + 2}" class="sec" style="padding-top:18px">Control de mermas</td></tr>
@@ -1369,7 +1372,7 @@ R.equilibrio = () => {
 // ---------- Costos fijos ----------
 R.fijos = () => {
   const cats = [...new Set(S.fijos.map(f => f.categoria || "Otros"))];
-  const tot = totalFijos();
+  const tot = totalFijos(), fs = fijoSueldo(), pdHoy = sum(pagosSueldo(curMonth()), x => n0(x.monto)), nHoy = pagosSueldo(curMonth()).length;
   return `
   <div class="kpis">
     ${kpi("Total mensual", fmt(tot), "se pagan vendas o no", "hero")}
@@ -1380,7 +1383,7 @@ R.fijos = () => {
     <div class="tw"><table><thead><tr><th>Ítem</th><th class="n">Monto mensual</th><th></th></tr></thead><tbody>
     ${cats.map(c => `<tr><td colspan="3" class="sec">${esc(c)} · ${fmt(sum(S.fijos.filter(f => (f.categoria || "Otros") === c), f => n0(f.monto)))}</td></tr>` +
       S.fijos.filter(f => (f.categoria || "Otros") === c).map(f => `<tr>
-        <td>${esc(f.item)}${f.nota ? `<div class="small muted">${esc(f.nota)}</div>` : ""}</td>
+        <td>${esc(f.item)}${f.nota ? `<div class="small muted">${esc(f.nota)}</div>` : ""}${f === fs ? `<div class="small" style="margin-top:4px">${ico("users")} Conectado con <a href="#duenos">Dueños</a>: en cada mes cuenta lo que se les pagó como sueldo. Pagado en ${mName(curMonth())}: <b>${fmt(pdHoy)}</b>${nHoy ? ` (${nHoy} pago${nHoy === 1 ? "" : "s"})` : ""}. El monto de aquí es lo previsto al mes.</div>` : ""}</td>
         <td class="n"><div class="unit pre" style="display:inline-block"><em>$</em><input class="tin num" style="max-width:130px" type="number" inputmode="numeric" min="0" step="1000" data-fijo="${esc(f.id)}" value="${esc(f.monto)}" aria-label="Monto ${esc(f.item)}"></div></td>
         <td class="n"><button class="ib" data-act="editFijo" data-id="${esc(f.id)}" aria-label="Editar">${ico("edit")}</button></td></tr>`).join("")).join("")}
     <tr class="tot"><td>TOTAL COSTOS FIJOS MENSUALES</td><td class="n">${fmt(tot)}</td><td></td></tr>
@@ -2155,7 +2158,7 @@ function formSaldo(){
 }
 function formDueno(orig){
   const ult = S.duenos.slice().sort((a, b) => (b.upd || 0) - (a.upd || 0))[0];
-  const x = orig ? clone(orig) : { id:uid(), fecha: curM === curMonth() ? today() : pStart(curM), dueno: ult ? ult.dueno : "", tipo:"prestamo", monto:"", medio:"Transferencia", nota:"" };
+  const x = orig ? clone(orig) : { id:uid(), fecha: curM === curMonth() ? today() : pStart(curM), dueno: ult ? ult.dueno : "", tipo:"prestamo", monto:"", medio:"Transferencia", nota:"", costo:true };
   const nombres = [...new Set(S.duenos.map(d => d.dueno))].sort();
   const m = openModal(orig ? "Editar movimiento" : "Movimiento con un dueño", `
     <div class="f2">
@@ -2165,7 +2168,7 @@ function formDueno(orig){
     <label for="dD">Dueño</label><input id="dD" list="duenoList" value="${esc(x.dueno)}" placeholder="Nombre del dueño"><datalist id="duenoList">${nombres.map(n => `<option value="${esc(n)}">`).join("")}</datalist>
     <label>Movimiento</label>${chipsHTML("tipo", Object.values(TIPOS_D), TIPOS_D[x.tipo])}
     <label id="dMedL">El dinero entró por</label>${chipsHTML("medio", MEDIOS_D, x.medio)}
-    <label class="row" id="dCostoL" style="color:var(--ink);font-size:14px;margin-top:14px"><input type="checkbox" id="dCosto" style="width:auto;min-height:0" ${x.costo ? "checked" : ""}> Cuenta como costo del negocio (ej. sueldo del dueño)</label>
+    <label class="row" id="dCostoL" style="color:var(--ink);font-size:14px;margin-top:14px"><input type="checkbox" id="dCosto" style="width:auto;min-height:0" ${x.costo ? "checked" : ""}> Es sueldo: se suma a “${esc(fijoSueldo() ? fijoSueldo().item : "Sueldo de los dueños")}” en Costos fijos</label>
     <label for="dN">Nota</label><input id="dN" value="${esc(x.nota || "")}" placeholder="Ej: para comprar el congelador">
     <p class="hint" id="dHint"></p>`,
     `${orig ? `<button class="b del" data-act="delDueno" data-id="${esc(x.id)}">${ico("trash")}Eliminar</button>` : ""}<span class="sp"></span><button class="b" data-act="close">Cancelar</button><button class="b acc" id="dSave">Guardar</button>`);
@@ -2178,13 +2181,13 @@ function formDueno(orig){
       prestamo: "Suma al dinero del mes y queda como deuda del local con este dueño.",
       devolucion: `Resta del dinero del mes y baja lo que el local le debe${d ? ` (hoy le debe ${fmt(d.debe)})` : ""}.`,
       pago: m.querySelector("#dCosto").checked
-        ? "Resta del dinero del mes y de la utilidad del mes, como un costo más." + (sueldoFijo ? ` Ojo: en Costos fijos ya tienes “${sueldoFijo.item}” (${fmt(sueldoFijo.monto)}); si también lo marcas aquí, se cuenta dos veces.` : "")
-        : "Resta del dinero del mes. No cambia la utilidad ni ninguna deuda.",
+        ? `Resta del dinero del mes y completa el sueldo de los dueños de ese mes en Costos fijos${sueldoFijo ? ` (reemplaza lo previsto, ${fmt(sueldoFijo.monto)})` : ""}.`
+        : "Resta del dinero del mes. No es sueldo: no cambia la utilidad ni ninguna deuda (ej. reparto de ganancias).",
       prestamo_local: "Resta del dinero del mes y queda como deuda de este dueño con el local.",
       abono: `Suma al dinero del mes y baja lo que el dueño le debe al local${d ? ` (hoy debe ${fmt(d.leDebe)})` : ""}.`,
     }[t];
   };
-  const sueldoFijo = S.fijos.find(f => /sueldo.*due|due.*sueldo/i.test(f.item || "") && n0(f.monto) > 0);
+  const sueldoFijo = fijoSueldo();
   wireChips(m, hint); m.querySelector("#dD").oninput = hint; m.querySelector("#dCosto").onchange = hint; hint();
   m.querySelector("#dSave").onclick = () => {
     const t = { ...x, fecha:m.querySelector("#dF").value, monto:n0(m.querySelector("#dM").value), dueno:m.querySelector("#dD").value.trim(), tipo:tipo(), medio:chipVal(m, "medio"), nota:m.querySelector("#dN").value.trim() };
