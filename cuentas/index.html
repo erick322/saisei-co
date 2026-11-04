@@ -776,11 +776,19 @@ function caja(m){
 function apartados(m){
   const rec = S.apartados.find(x => x.id === m) || { id:m, det:{} };
   const row = (key, item, base, sub, edit) => { const d = rec.det[key] || {}; return { key, item, sub, edit, base:n0(base), monto:d.monto ?? n0(base), apartado:n0(d.apartado), pagado:!!d.pagado }; };
-  const fijos = S.fijos.map(f => row("f:" + f.id, f.item, f.monto, f.categoria));
-  const otros = S.reservas.slice().sort((a, b) => String(a.item).localeCompare(String(b.item), "es")).map(r => row("r:" + r.id, r.item, r.monto, r.nota, r.id));
+  // El sueldo de los dueños se paga desde Dueños: lo pagado ahí sale de lo apartado y, al completar el monto, queda pagado.
+  // pagadoMonto = lo ya pagado (0 en los demás) · falta = lo que queda por apartar · guardado = apartado aún sin gastar
+  const fs = fijoSueldo();
+  const fijos = S.fijos.map(f => {
+    const r = row("f:" + f.id, f.item, f.monto, f.categoria);
+    if(f === fs){ r.sueldo = true; r.pagadoMonto = sum(pagosSueldo(m), x => n0(x.monto)); r.pagado = r.monto > 0 && r.pagadoMonto >= r.monto; }
+    r.falta = Math.max(r.monto - Math.max(r.apartado, n0(r.pagadoMonto)), 0);
+    return r;
+  });
+  const otros = S.reservas.slice().sort((a, b) => String(a.item).localeCompare(String(b.item), "es")).map(r => { const x = row("r:" + r.id, r.item, r.monto, r.nota, r.id); x.falta = Math.max(x.monto - x.apartado, 0); return x; });
   const all = [...fijos, ...otros], pend = all.filter(r => !r.pagado);
   return { rec, fijos, otros, all, total:sum(all, r => r.monto), apartado:sum(all, r => r.apartado),
-    falta:sum(pend, r => Math.max(r.monto - r.apartado, 0)), guardado:sum(pend, r => r.apartado), pagados:all.length - pend.length };
+    falta:sum(pend, r => r.falta), guardado:sum(pend, r => Math.max(r.apartado - n0(r.pagadoMonto), 0)), pagados:all.length - pend.length };
 }
 function equilibrio(){
   const cf = totalFijos();
@@ -1399,11 +1407,14 @@ R.apartar = () => {
   const a = apartados(curM);
   const money = (r, k, ph) => `<div class="unit pre" style="display:inline-block"><em>$</em><input class="tin num" style="width:112px;max-width:none" type="number" inputmode="numeric" min="0" step="1000" data-ap="${k}" data-k="${esc(r.key)}" value="${esc(k === "monto" ? (r.monto === r.base ? "" : r.monto) : (r.apartado || ""))}" placeholder="${ph}" aria-label="${k === "monto" ? "Monto" : "Apartado"} ${esc(r.item)}" ${r.pagado ? "disabled" : ""}></div>`;
   const rows = l => l.map(r => `<tr>
-    <td>${r.edit ? `<button class="linkbtn" data-act="editReserva" data-id="${esc(r.edit)}" style="text-align:left">${esc(r.item)}</button>` : esc(r.item)}${r.sub ? `<div class="small muted">${esc(r.sub)}</div>` : ""}</td>
+    <td>${r.edit ? `<button class="linkbtn" data-act="editReserva" data-id="${esc(r.edit)}" style="text-align:left">${esc(r.item)}</button>` : esc(r.item)}${r.sub ? `<div class="small muted">${esc(r.sub)}</div>` : ""}
+      ${r.sueldo ? `<div class="small" style="margin-top:4px">${ico("users")} Se paga desde <a href="#duenos">Dueños</a>: pagado ${fmt(r.pagadoMonto)}${r.pagado ? "" : `, quedan ${fmt(r.monto - r.pagadoMonto)} por pagar`}</div>` : ""}</td>
     <td class="n">${money(r, "monto", Math.round(r.base))}</td>
     <td class="n">${money(r, "apartado", "0")}
-      <label class="row" style="margin:6px 0 0;justify-content:flex-end;gap:6px;color:var(--ink);font-size:13px"><input type="checkbox" data-ap="pagado" data-k="${esc(r.key)}" ${r.pagado ? "checked" : ""}>Pagado</label>
-      ${!r.pagado && r.apartado < r.monto ? `<div class="small muted">falta ${fmt(r.monto - r.apartado)}</div>` : ""}</td></tr>`).join("");
+      ${r.sueldo
+        ? r.pagado ? `<div class="small" style="margin-top:6px"><span class="pill ok">Pagado</span></div>` : `<div style="margin-top:6px"><button class="b sm" data-act="pagarSueldo" data-monto="${r.monto - r.pagadoMonto}">${ico("plus")}Registrar pago</button></div>`
+        : `<label class="row" style="margin:6px 0 0;justify-content:flex-end;gap:6px;color:var(--ink);font-size:13px"><input type="checkbox" data-ap="pagado" data-k="${esc(r.key)}" ${r.pagado ? "checked" : ""}>Pagado</label>`}
+      ${!r.pagado && r.falta ? `<div class="small muted">falta apartar ${fmt(r.falta)}</div>` : ""}</td></tr>`).join("");
   const sec = (t, l) => `<tr><td colspan="3" class="sec">${t} · ${fmt(sum(l, r => r.monto))}</td></tr>`;
   return `
   <div class="kpis">
@@ -2158,9 +2169,9 @@ function formSaldo(){
     closeModal(); render(); toast("Saldo inicial guardado");
   };
 }
-function formDueno(orig){
+function formDueno(orig, base = {}){
   const ult = S.duenos.slice().sort((a, b) => (b.upd || 0) - (a.upd || 0))[0];
-  const x = orig ? clone(orig) : { id:uid(), fecha: curM === curMonth() ? today() : pStart(curM), dueno: ult ? ult.dueno : "", tipo:"prestamo", monto:"", medio:"Transferencia", nota:"", costo:true };
+  const x = orig ? clone(orig) : { id:uid(), fecha: curM === curMonth() ? today() : pStart(curM), dueno: ult ? ult.dueno : "", tipo:"prestamo", monto:"", medio:"Transferencia", nota:"", costo:true, ...base };
   const nombres = [...new Set(S.duenos.map(d => d.dueno))].sort();
   const m = openModal(orig ? "Editar movimiento" : "Movimiento con un dueño", `
     <div class="f2">
@@ -2183,7 +2194,7 @@ function formDueno(orig){
       prestamo: "Suma al dinero del mes y queda como deuda del local con este dueño.",
       devolucion: `Resta del dinero del mes y baja lo que el local le debe${d ? ` (hoy le debe ${fmt(d.debe)})` : ""}.`,
       pago: m.querySelector("#dCosto").checked
-        ? `Resta del dinero del mes y completa el sueldo de los dueños de ese mes en Costos fijos${sueldoFijo ? ` (reemplaza lo previsto, ${fmt(sueldoFijo.monto)})` : ""}.`
+        ? `Resta del dinero del mes y completa el sueldo de los dueños de ese mes en Costos fijos y Dinero apartado${sueldoFijo ? ` (reemplaza lo previsto, ${fmt(sueldoFijo.monto)})` : ""}.`
         : "Resta del dinero del mes. No es sueldo: no cambia la utilidad ni ninguna deuda (ej. reparto de ganancias).",
       prestamo_local: "Resta del dinero del mes y queda como deuda de este dueño con el local.",
       abono: `Suma al dinero del mes y baja lo que el dueño le debe al local${d ? ` (hoy debe ${fmt(d.leDebe)})` : ""}.`,
@@ -2635,9 +2646,11 @@ const A = {
   delReserva: async d => { if(await confirmDel("¿Eliminar este pago?\nDeja de aparecer en todos los meses.")){ del("reservas", d.id); closeModal(); render(); } },
   apartarTodo: () => {
     const a = apartados(curM);
-    a.all.filter(r => !r.pagado && r.apartado < r.monto).forEach(r => a.rec.det[r.key] = { ...a.rec.det[r.key], apartado:r.monto });
+    a.all.filter(r => !r.pagado && r.falta).forEach(r => a.rec.det[r.key] = { ...a.rec.det[r.key], apartado:r.monto });
     put("apartados", a.rec); render(); toast("Todo apartado");
   },
+  // Sueldo de los dueños desde Dinero apartado: se anota en Dueños, que es donde se contabiliza
+  pagarSueldo: d => formDueno(null, { tipo:"pago", costo:true, monto:n0(d.monto) || "" }),
   newProv: () => formProv(),
   editProv: d => formProv(S.proveedores.find(p => p.id === d.id)),
   delProv: async d => { if(await confirmDel("¿Eliminar este proveedor?")){ del("proveedores", d.id); closeModal(); render(); } },
