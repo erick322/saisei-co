@@ -734,7 +734,10 @@ function mes(m){
   // Los costos fijos se cargan en cada mes ya iniciado (hasta hoy), desde el primer mes con movimientos
   const cf = m <= curMonth() && m >= mesInicio() ? totalFijos() : 0;
   const compras = sum(gs.filter(g => g.tipo === "Insumos" || g.tipo === "Empaques"), g => n0(g.monto));
-  return { m, vs, gs, bruto, iva: bruto - neto, neto, costo, com, mc, mcp: neto ? mc / neto : 0, cf, util: mc - cf, un: neto ? (mc - cf) / neto : 0,
+  // Pagos a dueños marcados "cuenta como costo" (ej. su sueldo) se restan de la utilidad de su mes
+  const pd = sum(S.duenos.filter(x => x.tipo === "pago" && x.costo && pKey(x.fecha) === m), x => n0(x.monto));
+  const util = mc - cf - pd;
+  return { m, vs, gs, bruto, iva: bruto - neto, neto, costo, com, mc, mcp: neto ? mc / neto : 0, cf, pd, util, un: neto ? util / neto : 0,
     uds, pedidos: vs.length, ticket: vs.length ? bruto / vs.length : 0, fc: neto ? costo / neto : 0,
     compras, dif: compras - costo, difp: costo ? (compras - costo) / costo : 0,
     fijosPag: sum(gs.filter(g => g.tipo === "Costo fijo"), g => n0(g.monto)), gastosTot: sum(gs, g => n0(g.monto)) };
@@ -925,7 +928,7 @@ R.inicio = () => {
   <div class="kpis">
     ${kpi("Ventas del mes", fmt(s.bruto), `${s.pedidos} pedido${s.pedidos === 1 ? "" : "s"} · ticket ${fmt(s.ticket)}`)}
     ${kpi("Margen de contribución", fmt(s.mc), `${pct(s.mcp)} de las ventas netas`)}
-    ${kpi("Costos fijos", fmt(s.cf), `<a href="#fijos">${S.fijos.length} ítems</a>`)}
+    ${kpi("Costos fijos", fmt(s.cf + s.pd), `<a href="#fijos">${S.fijos.length} ítems</a>${s.pd ? ` + <a href="#duenos">${fmt(s.pd)} a dueños</a>` : ""}`)}
     ${kpi("Utilidad del mes", `<span class="${s.util >= 0 ? "pos" : "neg"}">${fmt(s.util)}</span>`, s.util >= 0 ? "¡Vas ganando!" : "Aún no cubres los costos fijos", "hero")}
   </div>
   <div class="card mt">
@@ -1139,7 +1142,7 @@ R.duenos = () => {
   ms.forEach(x => {
     if(x.fecha !== day){ day = x.fecha; h += `<div class="day"><span>${dName(day)}</span></div>`; }
     h += `<button class="item" data-act="editDueno" data-id="${esc(x.id)}">
-      <div class="main-t"><div class="tt">${esc(x.dueno)}</div><div class="st">${TIPOS_D[x.tipo]} · ${esc(x.medio)}${x.nota ? " · " + esc(x.nota) : ""}</div></div>
+      <div class="main-t"><div class="tt">${esc(x.dueno)}</div><div class="st">${TIPOS_D[x.tipo]}${x.tipo === "pago" && x.costo ? " · cuenta como costo" : ""} · ${esc(x.medio)}${x.nota ? " · " + esc(x.nota) : ""}</div></div>
       <div class="am num ${ENTRA_D.includes(x.tipo) ? "pos" : ""}">${ENTRA_D.includes(x.tipo) ? "+" : "−"}${fmt(x.monto)}</div></button>`;
   });
   const debeA = sum(ds, d => d.debe), debenA = sum(ds, d => d.leDebe);
@@ -1307,6 +1310,7 @@ R.resultados = () => {
       ${line("Margen de contribución", "mc", fmt, "sub")}
       ${line("Margen de contribución %", "mcp", x => pct(x))}
       ${line("(−) Costos fijos", "cf")}
+      ${T("pd") ? line(`(−) Pagos a dueños como costo`, "pd") : ""}
       ${line("UTILIDAD OPERACIONAL", "util", x => `<span class="${x < 0 ? "neg" : x > 0 ? "pos" : ""}">${fmt(x)}</span>`, "tot")}
       ${line("Margen neto %", "un", x => pct(x))}
       <tr><td colspan="${ms.length + 2}" class="sec" style="padding-top:18px">Control de mermas</td></tr>
@@ -2161,24 +2165,30 @@ function formDueno(orig){
     <label for="dD">Dueño</label><input id="dD" list="duenoList" value="${esc(x.dueno)}" placeholder="Nombre del dueño"><datalist id="duenoList">${nombres.map(n => `<option value="${esc(n)}">`).join("")}</datalist>
     <label>Movimiento</label>${chipsHTML("tipo", Object.values(TIPOS_D), TIPOS_D[x.tipo])}
     <label id="dMedL">El dinero entró por</label>${chipsHTML("medio", MEDIOS_D, x.medio)}
+    <label class="row" id="dCostoL" style="color:var(--ink);font-size:14px;margin-top:14px"><input type="checkbox" id="dCosto" style="width:auto;min-height:0" ${x.costo ? "checked" : ""}> Cuenta como costo del negocio (ej. sueldo del dueño)</label>
     <label for="dN">Nota</label><input id="dN" value="${esc(x.nota || "")}" placeholder="Ej: para comprar el congelador">
     <p class="hint" id="dHint"></p>`,
     `${orig ? `<button class="b del" data-act="delDueno" data-id="${esc(x.id)}">${ico("trash")}Eliminar</button>` : ""}<span class="sp"></span><button class="b" data-act="close">Cancelar</button><button class="b acc" id="dSave">Guardar</button>`);
   const tipo = () => Object.keys(TIPOS_D).find(k => TIPOS_D[k] === chipVal(m, "tipo"));
   const hint = () => {
     const t = tipo(), d = porDueno().find(y => y.dueno === m.querySelector("#dD").value.trim());
+    m.querySelector("#dCostoL").hidden = t !== "pago";
     m.querySelector("#dMedL").textContent = `El dinero ${ENTRA_D.includes(t) ? "entró" : "salió"} por`;
     m.querySelector("#dHint").textContent = {
       prestamo: "Suma al dinero del mes y queda como deuda del local con este dueño.",
       devolucion: `Resta del dinero del mes y baja lo que el local le debe${d ? ` (hoy le debe ${fmt(d.debe)})` : ""}.`,
-      pago: "Resta del dinero del mes. No cambia ninguna deuda.",
+      pago: m.querySelector("#dCosto").checked
+        ? "Resta del dinero del mes y de la utilidad del mes, como un costo más." + (sueldoFijo ? ` Ojo: en Costos fijos ya tienes “${sueldoFijo.item}” (${fmt(sueldoFijo.monto)}); si también lo marcas aquí, se cuenta dos veces.` : "")
+        : "Resta del dinero del mes. No cambia la utilidad ni ninguna deuda.",
       prestamo_local: "Resta del dinero del mes y queda como deuda de este dueño con el local.",
       abono: `Suma al dinero del mes y baja lo que el dueño le debe al local${d ? ` (hoy debe ${fmt(d.leDebe)})` : ""}.`,
     }[t];
   };
-  wireChips(m, hint); m.querySelector("#dD").oninput = hint; hint();
+  const sueldoFijo = S.fijos.find(f => /sueldo.*due|due.*sueldo/i.test(f.item || "") && n0(f.monto) > 0);
+  wireChips(m, hint); m.querySelector("#dD").oninput = hint; m.querySelector("#dCosto").onchange = hint; hint();
   m.querySelector("#dSave").onclick = () => {
     const t = { ...x, fecha:m.querySelector("#dF").value, monto:n0(m.querySelector("#dM").value), dueno:m.querySelector("#dD").value.trim(), tipo:tipo(), medio:chipVal(m, "medio"), nota:m.querySelector("#dN").value.trim() };
+    if(t.tipo === "pago" && m.querySelector("#dCosto").checked) t.costo = true; else delete t.costo;
     if(!t.fecha) return toast("Elige la fecha", true);
     if(!(t.monto > 0)) return toast("Escribe el monto", true);
     if(!t.dueno) return toast("Escribe el nombre del dueño", true);
