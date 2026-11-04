@@ -726,7 +726,8 @@ const totalFijos = () => sum(S.fijos, f => n0(f.monto));
 // El renglón "Sueldo de los dueños" de Costos fijos está conectado con Dueños: en cada mes cuenta lo que
 // realmente se les pagó como sueldo (pagos marcados "es sueldo"); su monto queda como lo previsto al mes.
 const fijoSueldo = () => S.fijos.find(f => /sueldo.*due|due.*sueldo/i.test(f.item || ""));
-const pagosSueldo = m => S.duenos.filter(x => x.tipo === "pago" && x.costo && pKey(x.fecha) === m);
+// Los pagos anotados antes de existir la casilla no tienen la marca: cuentan como sueldo. "No es sueldo" se guarda como costo:false.
+const pagosSueldo = m => S.duenos.filter(x => x.tipo === "pago" && x.costo !== false && pKey(x.fecha) === m);
 // Primer mes del negocio = el primero con ventas o gastos anotados (si no hay, el mes actual)
 const mesInicio = () => [...S.ventas, ...S.gastos].reduce((a, x) => x.fecha && pKey(x.fecha) < a ? pKey(x.fecha) : a, curMonth());
 function mes(m){
@@ -736,7 +737,8 @@ function mes(m){
   vs.forEach(v => { const t = vTot(v); bruto += t.bruto; costo += t.costo; com += t.com; uds += t.uds; });
   const neto = bruto / ivaF(), mc = neto - costo - com;
   // Los costos fijos se cargan en cada mes ya iniciado (hasta hoy), desde el primer mes con movimientos
-  const fs = fijoSueldo(), pd = sum(pagosSueldo(m), x => n0(x.monto));
+  // Sin renglón conectado (ej. lo renombraron) los pagos no se suman, para no contar el sueldo dos veces
+  const fs = fijoSueldo(), pd = fs ? sum(pagosSueldo(m), x => n0(x.monto)) : 0;
   const cf = (m <= curMonth() && m >= mesInicio() ? totalFijos() - (fs ? n0(fs.monto) : 0) : 0) + pd;
   const compras = sum(gs.filter(g => g.tipo === "Insumos" || g.tipo === "Empaques"), g => n0(g.monto));
   const util = mc - cf;
@@ -1145,7 +1147,7 @@ R.duenos = () => {
   ms.forEach(x => {
     if(x.fecha !== day){ day = x.fecha; h += `<div class="day"><span>${dName(day)}</span></div>`; }
     h += `<button class="item" data-act="editDueno" data-id="${esc(x.id)}">
-      <div class="main-t"><div class="tt">${esc(x.dueno)}</div><div class="st">${TIPOS_D[x.tipo]}${x.tipo === "pago" && x.costo ? " · sueldo" : ""} · ${esc(x.medio)}${x.nota ? " · " + esc(x.nota) : ""}</div></div>
+      <div class="main-t"><div class="tt">${esc(x.dueno)}</div><div class="st">${TIPOS_D[x.tipo]}${x.tipo === "pago" && x.costo !== false ? " · sueldo" : ""} · ${esc(x.medio)}${x.nota ? " · " + esc(x.nota) : ""}</div></div>
       <div class="am num ${ENTRA_D.includes(x.tipo) ? "pos" : ""}">${ENTRA_D.includes(x.tipo) ? "+" : "−"}${fmt(x.monto)}</div></button>`;
   });
   const debeA = sum(ds, d => d.debe), debenA = sum(ds, d => d.leDebe);
@@ -1372,7 +1374,7 @@ R.equilibrio = () => {
 // ---------- Costos fijos ----------
 R.fijos = () => {
   const cats = [...new Set(S.fijos.map(f => f.categoria || "Otros"))];
-  const tot = totalFijos(), fs = fijoSueldo(), pdHoy = sum(pagosSueldo(curMonth()), x => n0(x.monto)), nHoy = pagosSueldo(curMonth()).length;
+  const tot = totalFijos(), fs = fijoSueldo(), ps = pagosSueldo(curMonth()), pdHoy = sum(ps, x => n0(x.monto)), nHoy = ps.length;
   return `
   <div class="kpis">
     ${kpi("Total mensual", fmt(tot), "se pagan vendas o no", "hero")}
@@ -2168,7 +2170,7 @@ function formDueno(orig){
     <label for="dD">Dueño</label><input id="dD" list="duenoList" value="${esc(x.dueno)}" placeholder="Nombre del dueño"><datalist id="duenoList">${nombres.map(n => `<option value="${esc(n)}">`).join("")}</datalist>
     <label>Movimiento</label>${chipsHTML("tipo", Object.values(TIPOS_D), TIPOS_D[x.tipo])}
     <label id="dMedL">El dinero entró por</label>${chipsHTML("medio", MEDIOS_D, x.medio)}
-    <label class="row" id="dCostoL" style="color:var(--ink);font-size:14px;margin-top:14px"><input type="checkbox" id="dCosto" style="width:auto;min-height:0" ${x.costo ? "checked" : ""}> Es sueldo: se suma a “${esc(fijoSueldo() ? fijoSueldo().item : "Sueldo de los dueños")}” en Costos fijos</label>
+    <label class="row" id="dCostoL" style="color:var(--ink);font-size:14px;margin-top:14px"><input type="checkbox" id="dCosto" style="width:auto;min-height:0" ${x.costo !== false ? "checked" : ""}> Es sueldo: se suma a “${esc(fijoSueldo() ? fijoSueldo().item : "Sueldo de los dueños")}” en Costos fijos</label>
     <label for="dN">Nota</label><input id="dN" value="${esc(x.nota || "")}" placeholder="Ej: para comprar el congelador">
     <p class="hint" id="dHint"></p>`,
     `${orig ? `<button class="b del" data-act="delDueno" data-id="${esc(x.id)}">${ico("trash")}Eliminar</button>` : ""}<span class="sp"></span><button class="b" data-act="close">Cancelar</button><button class="b acc" id="dSave">Guardar</button>`);
@@ -2191,7 +2193,7 @@ function formDueno(orig){
   wireChips(m, hint); m.querySelector("#dD").oninput = hint; m.querySelector("#dCosto").onchange = hint; hint();
   m.querySelector("#dSave").onclick = () => {
     const t = { ...x, fecha:m.querySelector("#dF").value, monto:n0(m.querySelector("#dM").value), dueno:m.querySelector("#dD").value.trim(), tipo:tipo(), medio:chipVal(m, "medio"), nota:m.querySelector("#dN").value.trim() };
-    if(t.tipo === "pago" && m.querySelector("#dCosto").checked) t.costo = true; else delete t.costo;
+    if(t.tipo === "pago") t.costo = m.querySelector("#dCosto").checked; else delete t.costo;
     if(!t.fecha) return toast("Elige la fecha", true);
     if(!(t.monto > 0)) return toast("Escribe el monto", true);
     if(!t.dueno) return toast("Escribe el nombre del dueño", true);
