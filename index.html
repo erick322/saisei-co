@@ -139,10 +139,16 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   .slides::-webkit-scrollbar{display:none}
   .slide{flex:0 0 100%;scroll-snap-align:center;position:relative;cursor:pointer;margin:0}
   .slide .ph-frame{overflow:hidden;background:var(--pine)}
-  /* Lo más pedido de la semana: la foto del producto con su puesto encima */
-  .slide-top .ph-frame{aspect-ratio:4/5}
-  .top-tag{position:absolute;left:14px;top:14px;display:flex;align-items:center;gap:12px;padding:10px 16px 10px 12px;background:var(--pine);color:var(--on-dark);border-radius:var(--btn-radius,999px);font-size:.85rem;font-weight:700;line-height:1.15}
-  .top-n{font-family:var(--font-display);font-weight:400;font-size:1.9rem;line-height:1;color:var(--mango)}
+  /* Lo más pedido de la semana: los tres productos juntos en una diapositiva */
+  .top-panel{aspect-ratio:4/5;display:grid;grid-template-rows:auto 1fr;gap:clamp(14px,3vw,22px);padding:clamp(18px,4vw,28px);color:var(--on-dark)}
+  .top-h{font-family:var(--font-display);font-size:clamp(1.6rem,4.4vw,2.2rem);line-height:1;letter-spacing:-.01em}
+  .top-list{list-style:none;margin:0;padding:0;display:grid;grid-template-rows:repeat(3,minmax(0,1fr));gap:clamp(10px,2vw,14px);min-height:0}
+  .top-list li{display:grid;grid-template-columns:auto auto minmax(0,1fr);align-items:center;gap:14px;min-height:0;padding-top:clamp(10px,2vw,14px);border-top:1px solid color-mix(in srgb,var(--on-dark) 22%,transparent)}
+  .top-ph{height:100%;aspect-ratio:1;border-radius:12px;background-color:var(--pine-soft)}
+  .top-n{font-family:var(--font-display);font-size:clamp(1.4rem,3.6vw,1.9rem);line-height:1;color:var(--mango);white-space:nowrap}
+  .top-t{display:grid;gap:3px;min-width:0}
+  .top-t b{font-size:1rem;line-height:1.2;overflow-wrap:anywhere}
+  .top-t span{font-size:.92rem;opacity:.85}
   .slide img{width:100%;height:auto;aspect-ratio:4/5;object-fit:cover;transition:transform 1.2s var(--ease)}
   .slide:hover img{transform:scale(1.03)}
   .slider-foot{display:flex;align-items:center;gap:16px;margin-top:16px}
@@ -826,8 +832,11 @@ $("featPh").style.cssText = fotoStyle("sake");
 // ---------- Portada: carrusel de anuncios ----------
 function renderSlides(){
   $("slides").innerHTML = ANUNCIOS.map((a,i)=> a.top
-    ? `<figure class="slide slide-top" data-ir="${esc(a.ir)}"><div class="ph-frame" role="img" aria-label="${esc(a.alt)}" style="${fotoStyle(a.foto)}"></div>
-        <figcaption class="top-tag"><span class="top-n">Nº ${a.top}</span><span>Lo más pedido<br>de la semana</span></figcaption></figure>`
+    ? `<figure class="slide slide-top" data-ir="${esc(a.ir)}"><div class="ph-frame top-panel">
+        <p class="top-h">Lo más pedido<br>de la semana</p>
+        <ol class="top-list">${a.top.map((p,j)=>`<li data-ir="${esc(p.cat)}"><span class="top-ph" role="img" aria-label="${esc(p.nombre)}" style="${fotoStyle(p.foto)}"></span>
+          <span class="top-n">Nº ${j+1}</span><span class="top-t"><b>${esc(p.nombre)}</b><span>${fmt(p.precio)}</span></span></li>`).join("")}</ol>
+      </div></figure>`
     : `<figure class="slide" data-ir="${esc(a.ir)}"><div class="ph-frame"><img src="${esc(a.src)}" alt="${esc(a.alt || a.txt || "Saisei & Co")}" width="1080" height="1350" decoding="async" ${i?'loading="lazy"':'fetchpriority="high"'}></div></figure>`).join("");
   $("dots").innerHTML = ANUNCIOS.length > 1 ? ANUNCIOS.map((_,i)=>`<button aria-label="Anuncio ${i+1}"></button>`).join("") : "";
   $("prev").hidden = $("next").hidden = $("pause").hidden = ANUNCIOS.length < 2;
@@ -860,7 +869,7 @@ function goToCatName(name){
   $("carta").scrollIntoView({behavior:"smooth"});
   if(i >= 0) goToCat(i);
 }
-$("slides").onclick = e => { const s = e.target.closest(".slide"); if(s) goToCatName(s.dataset.ir); };
+$("slides").onclick = e => { const s = e.target.closest("[data-ir]"); if(s) goToCatName(s.dataset.ir); };
 document.querySelector("#destacado [data-ir]").onclick = e => { e.preventDefault(); goToCatName(e.currentTarget.dataset.ir); };
 // Avance automático: se detiene con el botón de pausa, mientras el mouse o el foco están en el carrusel,
 // y nunca arranca si el teléfono pide "reducir movimiento".
@@ -1234,17 +1243,16 @@ async function cargarMasVendidos(){
     const r = await fetch(`${sb.url}/rest/v1/rpc/mas_vendidos_semana`, { method:"POST", body:"{}",
       headers:{ apikey: sb.anonKey, Authorization:`Bearer ${sb.anonKey}`, "Content-Type":"application/json" } });
     if(!r.ok) return;                       // sin la función en Supabase, el carrusel queda como está
-    const vistos = new Set();
-    TOP_ANUNCIOS = [];
+    const vistos = new Set(), top = [];
     for(const { nombre } of await r.json()){
       const p = productoDeVenta(nombre);
       if(!p || !p.foto || vistos.has(p.nombre)) continue;
       vistos.add(p.nombre);
-      const n = TOP_ANUNCIOS.length + 1;
-      TOP_ANUNCIOS.push({ top:n, foto:p.foto, ir:p.cat, alt:`${p.nombre}, Nº ${n} de lo más pedido esta semana`,
-        txt:`${p.nombre} · ${fmt(p.precio)}` });
-      if(n === 3) break;
+      top.push(p);
+      if(top.length === 3) break;
     }
+    // Los tres van juntos en una sola diapositiva
+    TOP_ANUNCIOS = top.length ? [{ top, ir:top[0].cat, txt:"Lo más pedido esta semana" }] : [];
     if(TOP_ANUNCIOS.length) armarCarrusel();
   } catch(e){ console.warn("No se pudo cargar lo más pedido de la semana.", e); }
 }
