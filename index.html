@@ -139,6 +139,10 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   .slides::-webkit-scrollbar{display:none}
   .slide{flex:0 0 100%;scroll-snap-align:center;position:relative;cursor:pointer;margin:0}
   .slide .ph-frame{overflow:hidden;background:var(--pine)}
+  /* Lo más pedido de la semana: la foto del producto con su puesto encima */
+  .slide-top .ph-frame{aspect-ratio:4/5}
+  .top-tag{position:absolute;left:14px;top:14px;display:flex;align-items:center;gap:12px;padding:10px 16px 10px 12px;background:var(--pine);color:var(--on-dark);border-radius:var(--btn-radius,999px);font-size:.85rem;font-weight:700;line-height:1.15}
+  .top-n{font-family:var(--font-display);font-weight:400;font-size:1.9rem;line-height:1;color:var(--mango)}
   .slide img{width:100%;height:auto;aspect-ratio:4/5;object-fit:cover;transition:transform 1.2s var(--ease)}
   .slide:hover img{transform:scale(1.03)}
   .slider-foot{display:flex;align-items:center;gap:16px;margin-top:16px}
@@ -735,11 +739,14 @@ const CONFIG = {
 
 // Anuncios de la portada (imágenes en la carpeta img/). "ir" = nombre de la categoría a la que lleva al tocarla.
 // Con Supabase activo, el carrusel, los colores, el logo y el aviso de stock se cambian desde el panel de gestión.
+let TOP_ANUNCIOS = [];        // lo más pedido de la semana (se llena desde Supabase)
+let BASE_ANUNCIOS;            // los anuncios elegidos en Gestión (o los de abajo)
 let ANUNCIOS = [
   { src:"img/carta-shari.png",  alt:"Tablas Shari de 20, 30 y 40 piezas", txt:"Tablas desde $12.000", ir:"Shari" },
   { src:"img/carta-promos.png", alt:"Promos Sai y & Co de hand rolls",    txt:"Promos desde $10.000", ir:"Promos" },
   { src:"img/carta-furea.webp", alt:"Rolls especiales Furea",             txt:"Furea desde $6.500", ir:"Furea" },
 ];
+BASE_ANUNCIOS = ANUNCIOS;
 
 // Fotos de productos: recorte cuadrado de una imagen de 1080x1350 (x, y = esquina, s = tamaño).
 // Para usar una foto propia: { src:"img/mi-foto.jpg" } (sin x/y/s) y se mostrará completa.
@@ -818,7 +825,10 @@ $("featPh").style.cssText = fotoStyle("sake");
 
 // ---------- Portada: carrusel de anuncios ----------
 function renderSlides(){
-  $("slides").innerHTML = ANUNCIOS.map((a,i)=>`<figure class="slide" data-ir="${esc(a.ir)}"><div class="ph-frame"><img src="${esc(a.src)}" alt="${esc(a.alt || a.txt || "Saisei & Co")}" width="1080" height="1350" decoding="async" ${i?'loading="lazy"':'fetchpriority="high"'}></div></figure>`).join("");
+  $("slides").innerHTML = ANUNCIOS.map((a,i)=> a.top
+    ? `<figure class="slide slide-top" data-ir="${esc(a.ir)}"><div class="ph-frame" role="img" aria-label="${esc(a.alt)}" style="${fotoStyle(a.foto)}"></div>
+        <figcaption class="top-tag"><span class="top-n">Nº ${a.top}</span><span>Lo más pedido<br>de la semana</span></figcaption></figure>`
+    : `<figure class="slide" data-ir="${esc(a.ir)}"><div class="ph-frame"><img src="${esc(a.src)}" alt="${esc(a.alt || a.txt || "Saisei & Co")}" width="1080" height="1350" decoding="async" ${i?'loading="lazy"':'fetchpriority="high"'}></div></figure>`).join("");
   $("dots").innerHTML = ANUNCIOS.length > 1 ? ANUNCIOS.map((_,i)=>`<button aria-label="Anuncio ${i+1}"></button>`).join("") : "";
   $("prev").hidden = $("next").hidden = $("pause").hidden = ANUNCIOS.length < 2;
   $("slides").scrollLeft = 0;
@@ -1198,8 +1208,50 @@ $("sendIg").onclick = async () => {
 try { const saved = JSON.parse(localStorage.getItem("saisei-cart-v2")||"[]"); if(Array.isArray(saved)) cart = saved; } catch(e){}
 renderMenu();
 render();
-loadMenu();
-loadAjustes();
+Promise.allSettled([loadMenu(), loadAjustes()]).then(cargarMasVendidos);
+
+// ---------- Lo más pedido de la semana: van primero en el carrusel ----------
+// Supabase entrega solo los nombres en orden (función mas_vendidos_semana, ver supabase/mas-vendidos.sql).
+// Los nombres vienen de Cuentas ("Tabla Chicken 20"), así que se buscan en la carta de la página.
+const normNom = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim();
+function productoDeVenta(nombre){
+  const n = normNom(nombre), tabla = n.match(/^tabla (\S+) (\d+)$/);
+  for(const c of MENU) for(const it of c.items){
+    const pn = normNom(it.n);
+    if(tabla){
+      if(pn !== `tabla ${tabla[2]} piezas`) continue;
+      const v = (it.variantes || []).find(v => normNom(v.n) === tabla[1]);
+      return v ? { cat:c.cat, nombre:`${it.n} · ${v.n}`, precio:v.p, foto:it.foto } : null;
+    }
+    if(pn === n) return { cat:c.cat, nombre:it.n, precio:it.p, foto:it.foto };
+  }
+  return null;
+}
+async function cargarMasVendidos(){
+  const sb = window.SUPABASE || {};
+  if(!sb.url || !sb.anonKey) return;
+  try {
+    const r = await fetch(`${sb.url}/rest/v1/rpc/mas_vendidos_semana`, { method:"POST", body:"{}",
+      headers:{ apikey: sb.anonKey, Authorization:`Bearer ${sb.anonKey}`, "Content-Type":"application/json" } });
+    if(!r.ok) return;                       // sin la función en Supabase, el carrusel queda como está
+    const vistos = new Set();
+    TOP_ANUNCIOS = [];
+    for(const { nombre } of await r.json()){
+      const p = productoDeVenta(nombre);
+      if(!p || !p.foto || vistos.has(p.nombre)) continue;
+      vistos.add(p.nombre);
+      const n = TOP_ANUNCIOS.length + 1;
+      TOP_ANUNCIOS.push({ top:n, foto:p.foto, ir:p.cat, alt:`${p.nombre}, Nº ${n} de lo más pedido esta semana`,
+        txt:`${p.nombre} · ${fmt(p.precio)}` });
+      if(n === 3) break;
+    }
+    if(TOP_ANUNCIOS.length) armarCarrusel();
+  } catch(e){ console.warn("No se pudo cargar lo más pedido de la semana.", e); }
+}
+function armarCarrusel(){
+  ANUNCIOS = [...TOP_ANUNCIOS, ...BASE_ANUNCIOS];
+  renderSlides(); goSlide(0); restart();
+}
 
 // ---------- WhatsApp e Instagram (se cambian en /gestion → Avisos y portada) ----------
 function aplicarContacto(wa, ig){
@@ -1245,8 +1297,8 @@ async function loadAjustes(){
     if(a.foto_destacada) $("featPh").style.cssText = fotoStyle(a.foto_destacada);
 
     if(Array.isArray(a.portada) && a.portada.some(s => s && s.src)){
-      ANUNCIOS = a.portada.filter(s => s && s.src).map(s => ({ src:s.src, txt:s.txt || "", alt:s.txt || "", ir:s.ir || "" }));
-      renderSlides(); goSlide(0); restart();
+      BASE_ANUNCIOS = a.portada.filter(s => s && s.src).map(s => ({ src:s.src, txt:s.txt || "", alt:s.txt || "", ir:s.ir || "" }));
+      armarCarrusel();
     }
 
     if(Array.isArray(a.instagram_posts) && a.instagram_posts.length) renderIG(a.instagram_posts);
