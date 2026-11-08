@@ -152,6 +152,7 @@
   .list{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
   .item{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;gap:12px;align-items:center;cursor:pointer;text-align:left;width:100%}
   .item:hover{border-color:#c4d2bd}
+  .item.ro{cursor:default;align-items:flex-start}.item.ro:hover{border-color:var(--line)}.item.ro .st{white-space:normal}
   .item .main-t{flex:1;min-width:0}
   .item .tt{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .item .st{font-size:var(--t-sm);color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -541,9 +542,9 @@ function put(col, obj){
   if(i >= 0) a[i] = obj; else a.push(obj);
   queue({op:"put", col, id:obj.id, datos:obj});
 }
-function del(col, id){
+function del(col, id, motivo){
   S[col] = S[col].filter(x => x.id !== id);
-  queue({op:"del", col, id});
+  queue(motivo ? {op:"del", col, id, motivo} : {op:"del", col, id});
 }
 function setPar(p){ S.par = p; queue({op:"put", col:"config", id:"parametros", datos:p}); }
 function queue(op){
@@ -563,6 +564,7 @@ async function flush(){
       const o = outbox[0];
       const r = o.op === "put"
         ? await sb.from("cuentas").upsert({coleccion:o.col, id:o.id, datos:o.datos, actualizado:new Date().toISOString()})
+        : o.motivo ? await sb.rpc("borrar_con_motivo", {p_col:o.col, p_id:o.id, p_motivo:o.motivo})   // queda en Eliminados (supabase/borrados.sql)
         : await sb.from("cuentas").delete().match({coleccion:o.col, id:o.id});
       // Sin permiso (ej. un registro fuera de lo que su rol puede cambiar): se descarta para no trabar los demás
       if(r.error && r.error.code === "42501") toast("Un cambio no se guardó: tu cuenta no tiene permiso para ese registro", true);
@@ -886,6 +888,7 @@ const VIEWS = {
   insumos:     { t:"Insumos",              i:"leaf",    grp:"Productos" },
   resultados:  { t:"Estado de resultados", i:"chart",   month:true, grp:"Análisis" },
   equilibrio:  { t:"Punto de equilibrio",  i:"target",  grp:"Análisis" },
+  borrados:    { t:"Eliminados",           i:"trash",   month:true, grp:"Análisis" },
   ideas:       { t:"Ideas",                i:"bulb",    grp:"Planes" },
   fijos:       { t:"Costos fijos",        i:"wallet",  grp:"Configuración" },
   proveedores: { t:"Proveedores",          i:"truck",   grp:"Configuración" },
@@ -1636,9 +1639,45 @@ R.ajustes = () => {
   ${sb && user ? `<div class="card mt"><h2>Sesión</h2><p class="small muted">Conectado como ${esc(user.email)}.</p><div class="row"><a class="b" href="../gestion/">Ir al panel de la página</a><button class="b del" data-act="logout">Cerrar sesión</button></div></div>` : ""}`;
 };
 
+// ---------- Eliminados (supabase/borrados.sql) ----------
+// Copia de cada venta o gasto eliminado, con el motivo. Solo se lee: nadie lo cambia desde la app.
+const BOR = { mes:null, list:[], err:"" };
+async function loadBorrados(m){
+  BOR.mes = m; BOR.list = []; BOR.err = "";
+  // Lo eliminado dentro del período (del día de corte al día antes del siguiente), en hora de este dispositivo
+  const iso = f => new Date(f + "T00:00").toISOString();
+  const { data, error } = await sb.from("borrados").select("cuando,coleccion,datos,motivo,correo")
+    .gte("cuando", iso(pStart(m))).lt("cuando", iso(pStart(addMonth(m, 1)))).order("cuando", { ascending:false }).limit(500);
+  if(BOR.mes !== m) return;
+  if(error) BOR.err = tableMissing(error) ? "Falta crear el registro en Supabase (supabase/borrados.sql)." : error.message;
+  else BOR.list = data;
+  if(view === "borrados") render();
+}
+R.borrados = () => {
+  if(!sb || !user) return empty("trash", "Solo con la nube", "El registro de eliminados se guarda en Supabase. Entra con tu cuenta para verlo.");
+  if(BOR.mes !== curM){ loadBorrados(curM); return `<p class="muted">Cargando…</p>`; }
+  if(BOR.err) return `<div class="alert bad">${ico("alert")}<span>No se pudo cargar: ${esc(BOR.err)}</span></div>`;
+  const h = BOR.list.map(b => {
+    const d = esObj(b.datos) ? b.datos : {}, venta = b.coleccion === "ventas";
+    const items = venta && Array.isArray(d.items) ? d.items.filter(esObj) : [];
+    const tt = venta ? `Venta N° ${esc(d.num || "")}` : esc(d.desc || d.tipo || "Gasto");
+    const det = venta ? items.map(i => `${n0(i.cant) || 1} × ${i.nombre || ""}`).join(", ") : [d.tipo, d.proveedor, d.doc ? "N° " + d.doc : ""].filter(Boolean).join(" · ");
+    const monto = venta ? (items.length ? vTot(d).bruto : 0) : n0(d.monto);
+    const cuando = new Date(b.cuando).toLocaleString("es-CL", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" });
+    return `<div class="item ro"><div class="main-t">
+      <div class="tt">${tt}</div>
+      <div class="st">${d.fecha ? "Del " + esc(dName(d.fecha)) + (det ? " · " : "") : ""}${esc(det)}</div>
+      <div class="st"><b>Motivo:</b> ${esc(b.motivo)}</div>
+      <div class="st">Eliminado el ${esc(cuando)}${b.correo ? " por " + esc(b.correo) : ""}</div></div>
+      <div class="am num">${fmt(monto)}</div></div>`;
+  }).join("");
+  return `<p class="hint" style="margin:0 0 10px">Cada venta o gasto que se elimina queda aquí con su motivo. Este registro no se puede borrar desde la app.</p>
+  <div class="list">${h || empty("trash", "Nada eliminado en " + mName(curM), "Cuando se borre una venta o un gasto, aparecerá aquí con su motivo.")}</div>`;
+};
+
 R.mas = () => `<div class="card" style="margin-bottom:12px"><div class="row"><div class="sync" style="color:var(--ink2);font-size:var(--t-md)" id="sync3"><i></i><span>${mode === "local" ? "Datos guardados solo en este dispositivo" : outbox.length ? `${outbox.length} cambio(s) por subir a la nube` : "Todo guardado en la nube"}</span></div><span class="sp"></span>${user ? `<span class="small muted">${esc(user.email)} · ${esAdmin() ? "Administrador" : "Colaborador"}</span><button class="b sm del" data-act="logout">Cerrar sesión</button>` : ""}</div></div><div class="tiles">${Object.entries(VIEWS).filter(([k, v]) => v.grp && !TABS.includes(k) && puede(k)).map(([k, v]) => `<a class="tile" href="#${k}">${ico(v.i)}<b>${v.t}</b><span>${{
   carta:"Precios, costos y márgenes", inventario:"Stock y lista de compras", recetas:"Gramos por producto", insumos:"Precios y costo real", resultados:"Mes a mes y mermas",
-  equilibrio:"Cuánto vender para no perder", fijos:"Gas, luz, sueldos…", proveedores:"Contactos y entregas", ajustes:"Parámetros y respaldos", duenos:"Préstamos y pagos", trabajadores:"Días, horas y pagos", misdias:"Tus días y pagos", ideas:"Planes con presupuesto y fecha" }[k] || ""}</span></a>`).join("")}</div>`;
+  equilibrio:"Cuánto vender para no perder", fijos:"Gas, luz, sueldos…", proveedores:"Contactos y entregas", ajustes:"Parámetros y respaldos", duenos:"Préstamos y pagos", trabajadores:"Días, horas y pagos", misdias:"Tus días y pagos", ideas:"Planes con presupuesto y fecha", borrados:"Ventas y gastos borrados, con su motivo" }[k] || ""}</span></a>`).join("")}</div>`;
 
 // =====================================================================
 //  Modal
@@ -1690,6 +1729,28 @@ function ask(msg, ok = "Aceptar", danger = false){
   });
 }
 const confirmDel = (t, ok = "Eliminar") => ask(t + "\n\nEsta acción no se puede deshacer.", ok, true);
+// Ventas y gastos: antes de eliminar hay que escribir por qué. Queda en Más → Eliminados.
+// Devuelve el motivo, o null si se canceló.
+function pedirMotivo(msg){
+  return new Promise(res => {
+    const d = document.createElement("div");
+    d.className = "overlay ask";
+    d.innerHTML = `<div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="motQ"><div class="mb">
+        <p id="motQ" style="margin:4px 0 0;white-space:pre-line;font-size:var(--t-base)">${esc(msg)}</p>
+        <label for="motT">Motivo (obligatorio)</label>
+        <textarea id="motT" maxlength="500" placeholder="Ej: se anotó dos veces"></textarea>
+        <p class="hint" style="margin:6px 0 0">Queda guardado en Más → Eliminados con lo que se borró. Nadie puede quitarlo de ahí.</p></div>
+      <div class="mf"><span class="sp"></span><button class="b" data-r="0">Cancelar</button><button class="b del" data-r="1" disabled>Eliminar</button></div></div>`;
+    const t = d.querySelector("#motT"), ok = d.querySelector('[data-r="1"]');
+    const end = v => { d.remove(); document.removeEventListener("keydown", key, true); res(v); };
+    const key = e => { if(e.key === "Escape"){ e.stopPropagation(); end(null); } };
+    t.addEventListener("input", () => ok.disabled = t.value.trim().length < 3);
+    d.addEventListener("click", e => { e.stopPropagation(); const b = e.target.closest("[data-r]"); if(b && !b.disabled) end(b.dataset.r === "1" ? t.value.trim() : null); else if(e.target === d) end(null); });
+    document.addEventListener("keydown", key, true);
+    document.body.appendChild(d);
+    t.focus();
+  });
+}
 
 // ---------- Formulario de venta ----------
 // numNube: el último N° de toda la nube, porque el colaborador no tiene las ventas antiguas
@@ -2660,8 +2721,9 @@ const A = {
   editVenta: d => formVenta(S.ventas.find(v => v.id === d.id)),
   delVenta: async d => {
     const v = S.ventas.find(x => x.id === d.id);
-    if(!(await confirmDel(v && v.pedidoWeb ? "¿Eliminar esta venta?\nEl pedido de la página volverá a quedar por confirmar." : "¿Eliminar esta venta?"))) return;
-    del("ventas", d.id); closeModal(); render(); toast("Venta eliminada");
+    const motivo = await pedirMotivo(v && v.pedidoWeb ? "¿Eliminar esta venta?\nEl pedido de la página volverá a quedar por confirmar." : "¿Eliminar esta venta?");
+    if(!motivo) return;
+    del("ventas", d.id, motivo); BOR.mes = null; closeModal(); render(); toast("Venta eliminada");
     if(v && v.pedidoWeb && sb && user) marcarPedido(PED.list.find(p => p.id === v.pedidoWeb) || { id:v.pedidoWeb }, "pendiente", null);
   },
   pedF: d => { PED.filtro = d.f; render(); },
@@ -2684,7 +2746,7 @@ const A = {
   newGasto: () => formGasto(),
   editSaldo: () => formSaldo(),
   editGasto: d => formGasto(S.gastos.find(g => g.id === d.id)),
-  delGasto: async d => { if(await confirmDel("¿Eliminar este gasto?")){ del("gastos", d.id); closeModal(); render(); toast("Gasto eliminado"); } },
+  delGasto: async d => { const motivo = await pedirMotivo("¿Eliminar este gasto?"); if(motivo){ del("gastos", d.id, motivo); BOR.mes = null; closeModal(); render(); toast("Gasto eliminado"); } },
   gTipo: d => { UI.gastoTipo = d.t; render(); },
   cartaF: d => { UI.cartaF = d.f; render(); },
   detProd: d => detProd(d.id),
