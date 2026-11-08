@@ -852,7 +852,7 @@ function apartados(m){
     r.falta = Math.max(r.monto - Math.max(r.apartado, n0(r.pagadoMonto)), 0);
     return r;
   });
-  // La tarjeta de crédito se paga desde Hoy → Tarjeta de crédito (no en Gastos: sus compras ya están ahí); lo pagado ahí la marca como pagada.
+  // La tarjeta de crédito se paga con un movimiento de la tarjeta (en Gastos, pero no suma como gasto: sus compras ya están ahí); lo pagado la marca como pagada.
   const pagTar = sum(pagosTar(m).filter(x => !esCupo(x)), x => n0(x.monto));
   const otros = S.reservas.slice().sort((a, b) => String(a.item).localeCompare(String(b.item), "es")).map(r => {
     const x = row("r:" + r.id, r.item, r.monto, r.nota, r.id);
@@ -1054,17 +1054,14 @@ R.inicio = () => {
       <tr class="tot"><td>Libre para usar</td><td></td><td></td><td class="n"><span class="${libre < 0 ? "neg" : "pos"}">${fmt(libre)}</span></td></tr>` : ""}
     </tbody></table></div>
     ${ap.falta > 0 ? `<a class="alert" href="#apartar">${ico("safe")}<span>Te falta apartar <b>${fmt(ap.falta)}</b> para los pagos del mes.</span></a>` : ""}
-    <h2 class="mt" style="font-size:1rem">Tarjeta de crédito <span class="r row" style="gap:6px;margin:0"><button class="b sm" data-act="newPagoTar">${ico("plus")}Pago</button><button class="b sm" data-act="newCupoTar">${ico("plus")}Aumento de cupo</button></span></h2>
-    ${cj.tarjeta.ini || cj.tarjeta.sal || cj.tarjeta.tar || cj.tarjeta.aum ? `<div class="tw"><table><tbody>
+    ${cj.tarjeta.ini || cj.tarjeta.sal || cj.tarjeta.tar || cj.tarjeta.aum ? `<h2 class="mt" style="font-size:1rem">Tarjeta de crédito <a class="r" href="#gastos">Ver movimientos</a></h2>
+    <div class="tw"><table><tbody>
       <tr><td>Cupo disponible al inicio</td><td class="n">${fmt(cj.tarjeta.ini)}</td></tr>
       <tr><td>− Compras con la tarjeta</td><td class="n">${fmt(cj.tarjeta.sal)}</td></tr>
       ${cj.tarjeta.tar ? `<tr><td>+ Pagos de la tarjeta</td><td class="n">${fmt(cj.tarjeta.tar)}</td></tr>` : ""}
       ${cj.tarjeta.aum ? `<tr><td>+ Aumento de cupo</td><td class="n">${fmt(cj.tarjeta.aum)}</td></tr>` : ""}
       <tr class="tot"><td>Cupo disponible ahora</td><td class="n"><span class="${cj.tarjeta.fin < 0 ? "neg" : ""}">${fmt(cj.tarjeta.fin)}</span></td></tr>
-    </tbody></table></div>` : `<p class="hint">Las compras pagadas con tarjeta de crédito se anotan en Gastos. Cuando pagues la tarjeta, anótalo aquí: sale de tu dinero y vuelve el cupo. Si el banco te sube el cupo, anota el aumento.</p>`}
-    ${pagosTar(curM).map(p => `<button class="item" data-act="editPagoTar" data-id="${esc(p.id)}" style="margin-top:6px">
-      <div class="main-t"><div class="tt">${TIPOS_TAR[esCupo(p) ? "cupo" : "pago"]}</div><div class="st">${esc(dName(p.fecha))}${esCupo(p) ? "" : " · " + esc(p.medio)}${p.nota ? " · " + esc(p.nota) : ""}</div></div>
-      <div class="am num">${fmt(p.monto)}</div></button>`).join("")}
+    </tbody></table></div>` : ""}
     <p class="hint">Ventas con tarjeta o transferencia van a débito descontando la comisión.${cj.credito ? ` Compras a crédito de proveedor por pagar: <b>${fmt(cj.credito)}</b> (no se descuentan aún).` : ""}</p>
   </div>
   <div class="card mt">
@@ -1145,14 +1142,25 @@ R.gastos = () => {
   const adm = esAdmin(), s = mes(curM);
   const tipos = {}; s.gs.forEach(g => tipos[g.tipo] = (tipos[g.tipo] || 0) + n0(g.monto));
   let gs = (adm ? s.gs : S.gastos.filter(g => g.fecha === today())).slice().sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.upd || 0) - (a.upd || 0));
+  const TAR = "Tarjeta de crédito";
   if(UI.gastoTipo !== "Todos") gs = gs.filter(g => g.tipo === UI.gastoTipo);
+  // Pagos y aumentos de cupo de la tarjeta: se listan aquí con los gastos, pero no suman al total (las compras ya están anotadas)
+  const tar = adm && (UI.gastoTipo === "Todos" || UI.gastoTipo === TAR) ? pagosTar(curM) : [];
+  if(UI.gastoTipo === TAR) gs = [];
+  const lista = [...gs.map(g => ({ g })), ...tar.map(t => ({ t }))]
+    .sort((a, b) => { const x = a.g || a.t, y = b.g || b.t; return y.fecha.localeCompare(x.fecha) || (y.upd || 0) - (x.upd || 0); });
   let h = "", day = "";
-  gs.forEach(g => {
-    if(g.fecha !== day){ day = g.fecha; h += `<div class="day"><span>${dName(day)}</span></div>`; }
-    h += `<button class="item" data-act="editGasto" data-id="${esc(g.id)}">
+  lista.forEach(({ g, t }) => {
+    const f = (g || t).fecha;
+    if(f !== day){ day = f; h += `<div class="day"><span>${dName(day)}</span></div>`; }
+    h += g ? `<button class="item" data-act="editGasto" data-id="${esc(g.id)}">
       <div class="main-t"><div class="tt">${esc(g.desc || g.tipo)}</div>
       <div class="st">${esc(g.tipo)}${g.proveedor ? " · " + esc(g.proveedor) : ""}${g.pago ? " · " + esc(g.pago) : ""}${g.doc ? " · N° " + esc(g.doc) : ""}</div></div>
-      <div class="am num">${fmt(g.monto)}</div></button>`;
+      <div class="am num">${fmt(g.monto)}</div></button>`
+    : `<button class="item" data-act="editPagoTar" data-id="${esc(t.id)}">
+      <div class="main-t"><div class="tt">${TIPOS_TAR[esCupo(t) ? "cupo" : "pago"]}</div>
+      <div class="st">No suma al total · ${esCupo(t) ? TAR : esc(t.medio)}${t.nota ? " · " + esc(t.nota) : ""}</div></div>
+      <div class="am num muted">${fmt(t.monto)}</div></button>`;
   });
   return `${adm ? `
   <div class="kpis">
@@ -1162,12 +1170,13 @@ R.gastos = () => {
     ${kpi("Equipos y otros", fmt(n0(tipos["Equipamiento"]) + n0(tipos["Otro"])), "")}
   </div>` : ""}
   <div class="row ${adm ? "mt" : ""}">
-    <div class="chips">${["Todos", ...TIPOS_G].map(t => `<button class="chip ${UI.gastoTipo === t ? "on" : ""}" data-act="gTipo" data-t="${t}">${t}${adm && t !== "Todos" && tipos[t] ? " · " + fmtK(tipos[t]) : ""}</button>`).join("")}</div>
+    <div class="chips">${["Todos", ...TIPOS_G, ...(adm ? [TAR] : [])].map(t => `<button class="chip ${UI.gastoTipo === t ? "on" : ""}" data-act="gTipo" data-t="${t}">${t}${adm && t !== "Todos" && tipos[t] ? " · " + fmtK(tipos[t]) : ""}</button>`).join("")}</div>
     <span class="sp"></span>
     <button class="b acc" data-act="newGasto">${ico("plus")}Registrar gasto</button>
+    ${adm ? `<button class="b" data-act="newPagoTar">${ico("wallet")}Tarjeta de crédito</button>` : ""}
     ${adm ? `<button class="b" data-act="csvGastos" title="Descargar para Excel">${ico("download")}<span>Excel</span></button>` : ""}
   </div>
-  <div class="list" style="margin-top:6px">${h || empty("receipt", adm ? "Sin gastos en " + mName(curM) : "Sin gastos hoy", "Anota cada boleta o factura. Así sabrás si compras más de lo que usan tus recetas.", `<button class="b acc" data-act="newGasto">${ico("plus")}Registrar gasto</button>`)}</div>`;
+  <div class="list" style="margin-top:6px">${h || (UI.gastoTipo === TAR ? empty("wallet", "Sin movimientos de la tarjeta en " + mName(curM), "Anota aquí cada pago de la tarjeta o aumento de cupo.", `<button class="b acc" data-act="newPagoTar">${ico("plus")}Anotar movimiento</button>`) : "") || empty("receipt", adm ? "Sin gastos en " + mName(curM) : "Sin gastos hoy", "Anota cada boleta o factura. Así sabrás si compras más de lo que usan tus recetas.", `<button class="b acc" data-act="newGasto">${ico("plus")}Registrar gasto</button>`)}</div>`;
 };
 
 // ---------- Carta ----------
@@ -1504,7 +1513,7 @@ R.apartar = () => {
   const rows = l => l.map(r => `<tr>
     <td>${r.edit ? `<button class="linkbtn" data-act="editReserva" data-id="${esc(r.edit)}" style="text-align:left">${esc(r.item)}</button>` : esc(r.item)}${r.sub ? `<div class="small muted">${esc(r.sub)}</div>` : ""}
       ${r.sueldo ? `<div class="small" style="margin-top:4px">${ico("users")} Se paga desde <a href="#duenos">Dueños</a>: pagado ${fmt(r.pagadoMonto)}${r.pagado ? "" : `, quedan ${fmt(r.monto - r.pagadoMonto)} por pagar`}</div>` : ""}
-      ${r.tarjeta ? `<div class="small" style="margin-top:4px">${ico("wallet")} Se paga desde <a href="#inicio">Hoy → Tarjeta de crédito</a>, no en Gastos: pagado ${fmt(r.pagadoMonto)}${r.pagado ? "" : `, quedan ${fmt(Math.max(r.monto - r.pagadoMonto, 0))} por pagar`}</div>` : ""}</td>
+      ${r.tarjeta ? `<div class="small" style="margin-top:4px">${ico("wallet")} Se paga con “Registrar pago” y queda en <a href="#gastos">Gastos</a> sin sumar como gasto: pagado ${fmt(r.pagadoMonto)}${r.pagado ? "" : `, quedan ${fmt(Math.max(r.monto - r.pagadoMonto, 0))} por pagar`}</div>` : ""}</td>
     <td class="n">${money(r, "monto", Math.round(r.base))}</td>
     <td class="n">${money(r, "apartado", "0")}
       ${r.sueldo || r.tarjeta
@@ -1519,7 +1528,7 @@ R.apartar = () => {
     ${kpi("Guardado sin pagar", fmt(a.guardado), "no lo uses para otra cosa")}
     ${kpi("Falta apartar", `<span class="${a.falta > 0 ? "neg" : "pos"}">${fmt(a.falta)}</span>`, a.falta > 0 ? "para cubrir todos los pagos" : "¡Todo cubierto!", "hero")}
   </div>
-  <div class="banner info mt">${ico("info")}<div>Anota cuánto vas separando para cada pago. Cuando lo pagues, márcalo como <b>pagado</b> y regístralo en <a href="#gastos">Gastos</a>. La tarjeta de crédito es distinta: su pago se anota con “Registrar pago” (va a Hoy → Tarjeta de crédito), porque lo que compraste con ella ya está en Gastos. Si un monto cambia este mes (ej. la tarjeta), escríbelo en “Monto del mes”.</div></div>
+  <div class="banner info mt">${ico("info")}<div>Anota cuánto vas separando para cada pago. Cuando lo pagues, márcalo como <b>pagado</b> y regístralo en <a href="#gastos">Gastos</a>. La tarjeta de crédito es distinta: su pago se anota con “Registrar pago” y no suma como gasto, porque lo que compraste con ella ya está en Gastos. Si un monto cambia este mes (ej. la tarjeta), escríbelo en “Monto del mes”.</div></div>
   <div class="card">
     <div class="tw"><table><thead><tr><th>Pago</th><th class="n">Monto del mes</th><th class="n">Apartado</th></tr></thead><tbody>
       ${a.fijos.length ? sec("Costos fijos del negocio", a.fijos) + rows(a.fijos) : ""}
@@ -2107,7 +2116,7 @@ function formGasto(orig){
     <button class="b" data-act="close">Cancelar</button><button class="b acc" id="gSave">Guardar gasto</button>`;
   const m = openModal(orig ? "Editar gasto" : "Nuevo gasto", body, foot);
   const showStock = t => { const s = m.querySelector("#gStock"); if(s) s.hidden = !(t === "Insumos" || t === "Empaques"); };
-  // De dónde sale el dinero. Con tarjeta de crédito se descuenta del cupo (Hoy → Tarjeta de crédito), no de la cuenta ni del efectivo.
+  // De dónde sale el dinero. Con tarjeta de crédito se descuenta del cupo, no de la cuenta ni del efectivo.
   const pagoHint = () => {
     const el = m.querySelector("#gPH"); if(!el) return;
     const p = chipVal(m, "pago"), f = m.querySelector("#gF").value, monto = n0(m.querySelector("#gM").value);
