@@ -45,7 +45,7 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   :root{
     --pine:#0E3B2E; --pine-deep:#062419; --pine-soft:#174C3C;
     --rice:#F4F6EE; --rice-2:#E8EDE1; --ink:#13261F; --ink-soft:#4A5E55;
-    --salmon:#E0683F; --salmon-deep:#C4542E; --mango:#E7B64A; --bamboo:#A9BDA4;
+    --salmon:#B4502C; --salmon-deep:#994425; --mango:#E7B64A; --bamboo:#A9BDA4;
     --wa:#25D366; --bad:#C8452F;
     --card:#fff; --on-dark:var(--rice); --accent-text:var(--pine); --sel:var(--pine);
     --font-display:"Marcellus","Cormorant Garamond",Georgia,serif;
@@ -60,6 +60,8 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   img{display:block;max-width:100%}
   a{color:inherit;text-underline-offset:.18em}
   button{font:inherit;cursor:pointer}
+  select,label[for],input[type=checkbox],input[type=radio],summary{cursor:pointer}
+  :disabled{cursor:not-allowed}
   :focus-visible{outline:3px solid var(--mango);outline-offset:3px}
   h1,h2,h3,h4{font-family:var(--font-display);font-weight:400;line-height:1;letter-spacing:-.02em;text-wrap:balance;margin:0}
   p{margin:0}
@@ -84,10 +86,10 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   /* ---------- Barra superior ---------- */
   .nav{position:sticky;top:0;z-index:40;background:var(--card);color:var(--ink);padding-top:env(safe-area-inset-top,0px)}
   .nav .wrap{display:flex;align-items:center;gap:32px;min-height:var(--nav)}
-  .brand{display:flex;align-items:center;gap:12px;text-decoration:none;line-height:1}
+  .brand{display:flex;min-height:44px;align-items:center;gap:12px;text-decoration:none;line-height:1}
   .brand-mark{width:44px;height:44px;flex:none;border-radius:50%;background:var(--pine);color:var(--on-dark);display:grid;place-items:center;font-family:var(--font-display);font-size:1.4rem;overflow:hidden;transition:transform .5s var(--ease)}
   .brand:hover .brand-mark{transform:rotate(-12deg)}
-  .brand-mark img{width:100%;height:100%;object-fit:cover}
+  .brand-mark img{width:100%;height:auto;aspect-ratio:1;object-fit:cover}
   .brand-txt{display:flex;flex-direction:column;gap:4px}
   .brand .name{font-family:var(--font-display);font-size:1.55rem;letter-spacing:.04em}
   .brand .tag{white-space:nowrap;font-size:.82rem;color:var(--ink-soft)}
@@ -112,7 +114,7 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   .nav-cats{display:none;overflow-x:auto;scrollbar-width:none;background:var(--card)}
   .nav-cats::-webkit-scrollbar{display:none}
   .nav-cats-inner{display:flex;gap:4px;padding:0 var(--gutter) 10px}
-  .nav-cat{flex:none;background:var(--rice);border:0;color:var(--ink);padding:8px 16px;border-radius:var(--btn-radius,999px);font-size:.92rem;font-weight:600;white-space:nowrap;transition:background-color .15s ease,color .15s ease}
+  .nav-cat{flex:none;min-height:44px;background:var(--rice);border:0;color:var(--ink);padding:8px 16px;border-radius:var(--btn-radius,999px);font-size:.92rem;font-weight:600;white-space:nowrap;transition:background-color .15s ease,color .15s ease}
   .nav-cat.on{background:var(--sel);color:var(--on-sel,var(--on-dark))}
   @media (max-width:860px){
     .nav-cats.ready{display:block}
@@ -137,15 +139,19 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   .slides::-webkit-scrollbar{display:none}
   .slide{flex:0 0 100%;scroll-snap-align:center;position:relative;cursor:pointer;margin:0}
   .slide .ph-frame{overflow:hidden;background:var(--pine)}
-  .slide img{width:100%;aspect-ratio:4/5;object-fit:cover;transition:transform 1.2s var(--ease)}
+  .slide img{width:100%;height:auto;aspect-ratio:4/5;object-fit:cover;transition:transform 1.2s var(--ease)}
   .slide:hover img{transform:scale(1.03)}
   .slider-foot{display:flex;align-items:center;gap:16px;margin-top:16px}
   .slide-cap{flex:1;min-width:0;font-weight:700;font-size:1.02rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .slide-cap a{text-decoration:none}
   .slide-cap a:hover{text-decoration:underline}
-  .dots{display:flex;gap:6px}
-  .dots button{width:8px;height:8px;border-radius:50%;border:0;background:color-mix(in srgb,var(--ink) 22%,transparent);padding:0;transition:width .3s var(--ease),background-color .3s ease}
-  .dots button.on{background:var(--ink);width:22px;border-radius:8px}
+  .dots{display:flex;gap:0}
+  .dots button{width:24px;height:44px;border:0;background:none;padding:0;display:grid;place-items:center}
+  @media (pointer:coarse){.dots button{width:44px}}
+  .dots button::before{content:"";width:8px;height:8px;border-radius:50%;background:color-mix(in srgb,var(--ink) 55%,transparent);transition:width .3s var(--ease),background-color .3s ease}
+  .dots button.on::before{background:var(--ink);width:22px;border-radius:8px}
+  .arrow.pause{font-size:15px;font-weight:800}
+  .slider-foot{flex-wrap:wrap;row-gap:8px;column-gap:8px}.slide-cap{flex-basis:100%;white-space:normal}.dots{margin-right:auto}
   .arrow{width:44px;height:44px;border-radius:50%;border:0;background:var(--rice-2);color:var(--ink);font-size:22px;line-height:1;flex:none;transition:background-color .15s ease,transform .15s ease}
   .arrow:hover{background:color-mix(in srgb,var(--rice-2) 70%,var(--ink) 12%)}
   .arrow:active{transform:scale(.92)}
@@ -157,7 +163,7 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
     .facts{margin-top:0;padding-top:32px}
     .hero-visual{order:3;margin-top:40px}
     .slide-cap{white-space:normal}
-    .arrow{display:none}
+    .arrow:not(.pause){display:none}
     .hero-text{display:contents}
     .hero-text .facts{order:4}
   }
@@ -212,7 +218,7 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   .item .desc{margin-top:8px;max-width:34em}
   .opt-label{font-size:.92rem;font-weight:600;color:var(--ink-soft);margin-bottom:8px}
   .chips{display:flex;flex-wrap:wrap;gap:6px}
-  .chip{border:0;background:var(--rice-2);color:var(--ink);border-radius:var(--btn-radius,999px);padding:9px 15px;font-size:.92rem;font-weight:600;transition:background-color .15s ease,color .15s ease}
+  .chip{min-height:44px;border:0;background:var(--rice-2);color:var(--ink);border-radius:var(--btn-radius,999px);padding:9px 15px;font-size:.92rem;font-weight:600;transition:background-color .15s ease,color .15s ease}
   .chip small{font-weight:500;color:var(--ink-soft);margin-left:5px}
   .chip:hover{background:color-mix(in srgb,var(--rice-2) 70%,var(--ink) 12%)}
   .chip[aria-pressed="true"]{background:var(--sel);color:var(--on-sel,var(--on-dark))}
@@ -248,7 +254,7 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   .total .price{font-size:1.9rem;color:var(--accent-text)}
   #cart label{display:block;font-size:.95rem;font-weight:600;margin:14px 0 6px}
   #cart input,#cart select,#cart textarea{font:inherit;padding:12px 14px;border-radius:8px;border:1.5px solid transparent;background:var(--rice);color:var(--ink);width:100%}
-  #cart input:focus,#cart select:focus,#cart textarea:focus{outline:none;border-color:var(--pine);background:var(--card)}
+  #cart input:focus,#cart select:focus,#cart textarea:focus{outline:2px solid var(--pine);outline-offset:1px;border-color:var(--pine);background:var(--card)}
   #cart input.bad{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 10%,var(--card))}
   #cart textarea{resize:vertical;min-height:72px}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -263,7 +269,7 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   .msg-prev .falta{color:var(--ink-soft);font-style:italic}
   .err{color:var(--bad);font-size:.95rem;font-weight:600;min-height:20px;margin-top:12px}
   #sendWa{margin-top:6px}
-  .link-btn{display:block;margin:12px auto 0;background:none;border:0;color:var(--ink-soft);font-size:.95rem;text-decoration:underline;padding:4px}
+  .link-btn{display:block;margin:12px auto 0;background:none;border:0;color:var(--ink-soft);font-size:.95rem;text-decoration:underline;padding:4px 8px;min-height:44px}
   .link-btn:hover{color:var(--ink)}
 
   /* ---------- Destacado ---------- */
@@ -318,8 +324,8 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   .foot-name{font-family:var(--font-display);font-size:calc((min(100vw, var(--max)) - 2 * var(--gutter)) / 5.3);line-height:.85;letter-spacing:-.02em;white-space:nowrap;margin:0 0 clamp(40px,5vw,72px)}
   .foot-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px clamp(24px,4vw,56px);font-size:1rem}
   .foot-grid h3{font-family:var(--font-body);font-weight:700;font-size:1rem;letter-spacing:0;margin-bottom:10px;color:var(--mango)}
-  .foot-grid nav{display:flex;flex-direction:column;gap:6px}
-  .foot-grid a{text-decoration:none}
+  .foot-grid nav{display:flex;flex-direction:column;gap:0}
+  .foot-grid a{text-decoration:none;display:inline-flex;align-items:center;min-height:44px}
   .foot-grid a:hover{text-decoration:underline}
   .foot-contact{display:flex;flex-direction:column;gap:6px}
   .admin-link{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:.88rem;opacity:.75}
@@ -382,16 +388,17 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
   .op-date{font-size:.88rem;color:var(--ink-soft)}
   .op-card p{margin:0;overflow-wrap:anywhere}
   .op-stars-ro{letter-spacing:2px;font-size:1rem;color:var(--mango);line-height:1}
-  .op-stars-ro .off{color:var(--rice-2)}
+  .op-stars-ro span{-webkit-text-stroke:1px var(--ink-soft)}
+  .op-stars-ro .off{color:transparent}
   .op-form{background:var(--card);padding:clamp(22px,3vw,32px);max-width:640px}
   .op-form h3{margin:0 0 14px;font-size:2rem}
-  .op-stars{display:inline-flex;gap:4px;margin-bottom:12px}
-  .op-stars button{background:none;border:0;padding:2px;font-size:1.9rem;line-height:1;color:#cdd3c6;cursor:pointer;transition:transform .15s ease}
+  .op-stars{display:inline-flex;gap:0;margin-bottom:12px}
+  .op-stars button{background:none;border:0;padding:0;min-width:44px;min-height:44px;font-size:1.9rem;line-height:1;color:transparent;-webkit-text-stroke:1.5px var(--ink-soft);cursor:pointer;transition:transform .15s ease}
   .op-stars button:hover{transform:scale(1.15)}
   .op-stars button.on{color:var(--mango)}
   .op-fields{display:flex;flex-direction:column;gap:10px}
   .op-form input,.op-form textarea{font:inherit;padding:12px 14px;border-radius:8px;border:1.5px solid transparent;background:var(--rice);color:var(--ink);width:100%;resize:vertical}
-  .op-form input:focus,.op-form textarea:focus{outline:none;border-color:var(--pine)}
+  .op-form input:focus,.op-form textarea:focus{outline:2px solid var(--pine);outline-offset:1px;border-color:var(--pine)}
   .op-send{display:flex;align-items:center;gap:14px;margin-top:16px;flex-wrap:wrap}
   .op-msg{font-size:.95rem;font-weight:600}
   .op-hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
@@ -470,8 +477,9 @@ try { aplicarColores(JSON.parse(localStorage.getItem("saisei-colores"))); } catc
     <div class="hero-visual rv" aria-roledescription="carrusel" aria-label="Nuestros productos">
       <div class="slides" id="slides"></div>
       <div class="slider-foot">
-        <p class="slide-cap" id="slideCap" aria-live="polite"></p>
+        <p class="slide-cap" id="slideCap" aria-live="off"></p>
         <div class="dots" id="dots"></div>
+        <button class="arrow pause" id="pause" type="button" aria-label="Pausar anuncios" aria-pressed="false">❚❚</button>
         <button class="arrow" id="prev" aria-label="Anterior">‹</button>
         <button class="arrow" id="next" aria-label="Siguiente">›</button>
       </div>
@@ -810,9 +818,9 @@ $("featPh").style.cssText = fotoStyle("sake");
 
 // ---------- Portada: carrusel de anuncios ----------
 function renderSlides(){
-  $("slides").innerHTML = ANUNCIOS.map((a,i)=>`<figure class="slide" data-ir="${esc(a.ir)}"><div class="ph-frame"><img src="${esc(a.src)}" alt="${esc(a.alt || a.txt || "Saisei & Co")}" decoding="async" ${i?'loading="lazy"':''}></div></figure>`).join("");
+  $("slides").innerHTML = ANUNCIOS.map((a,i)=>`<figure class="slide" data-ir="${esc(a.ir)}"><div class="ph-frame"><img src="${esc(a.src)}" alt="${esc(a.alt || a.txt || "Saisei & Co")}" width="1080" height="1350" decoding="async" ${i?'loading="lazy"':'fetchpriority="high"'}></div></figure>`).join("");
   $("dots").innerHTML = ANUNCIOS.length > 1 ? ANUNCIOS.map((_,i)=>`<button aria-label="Anuncio ${i+1}"></button>`).join("") : "";
-  $("prev").hidden = $("next").hidden = ANUNCIOS.length < 2;
+  $("prev").hidden = $("next").hidden = $("pause").hidden = ANUNCIOS.length < 2;
   $("slides").scrollLeft = 0;
   syncCap(0);
 }
@@ -826,7 +834,7 @@ renderSlides();
 let slideIdx = 0, autoplay;
 function goSlide(i){
   slideIdx = (i + ANUNCIOS.length) % ANUNCIOS.length;
-  $("slides").scrollTo({left: slideIdx * $("slides").clientWidth, behavior:"smooth"});
+  $("slides").scrollTo({left: slideIdx * $("slides").clientWidth, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"});
 }
 function syncDots(){
   slideIdx = Math.round($("slides").scrollLeft / $("slides").clientWidth);
@@ -844,8 +852,29 @@ function goToCatName(name){
 }
 $("slides").onclick = e => { const s = e.target.closest(".slide"); if(s) goToCatName(s.dataset.ir); };
 document.querySelector("#destacado [data-ir]").onclick = e => { e.preventDefault(); goToCatName(e.currentTarget.dataset.ir); };
-function restart(){ clearInterval(autoplay); autoplay = setInterval(()=>goSlide(slideIdx+1), 4500); }
-syncDots(); restart();
+// Avance automático: se detiene con el botón de pausa, mientras el mouse o el foco están en el carrusel,
+// y nunca arranca si el teléfono pide "reducir movimiento".
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
+let userPaused = reduceMotion.matches, hoverPaused = false;
+function restart(){
+  clearInterval(autoplay);
+  const run = !userPaused && !hoverPaused && ANUNCIOS.length > 1;
+  $("slideCap").setAttribute("aria-live", run ? "off" : "polite");
+  if(run) autoplay = setInterval(()=>goSlide(slideIdx+1), 4500);
+}
+function paintPause(){
+  $("pause").textContent = userPaused ? "▶" : "❚❚";
+  $("pause").setAttribute("aria-label", userPaused ? "Reanudar anuncios" : "Pausar anuncios");
+  $("pause").setAttribute("aria-pressed", String(userPaused));
+}
+$("pause").onclick = () => { userPaused = !userPaused; paintPause(); restart(); };
+const car = document.querySelector(".hero-visual");
+car.addEventListener("mouseenter", () => { hoverPaused = true; restart(); });
+car.addEventListener("mouseleave", () => { hoverPaused = car.contains(document.activeElement); restart(); });
+car.addEventListener("focusin", () => { hoverPaused = true; restart(); });
+car.addEventListener("focusout", e => { if(!car.contains(e.relatedTarget)){ hoverPaused = car.matches(":hover"); restart(); } });
+reduceMotion.addEventListener?.("change", e => { if(e.matches){ userPaused = true; paintPause(); restart(); } });
+paintPause(); syncDots(); restart();
 
 // ---------- Carta ----------
 const chips = (k, label, opts) => `<div><div class="opt-label">${label}</div><div class="chips" data-k="${k}" role="group" aria-label="${label}">${
@@ -1020,7 +1049,7 @@ function updatePicker(){
   pick.counts.forEach((c,i) => $("pk"+i).textContent = c);
   $("pkCount").textContent = `Elige ${pick.need} rolls (puedes repetir) · llevas ${n} de ${pick.need}`;
   $("pkOk").disabled = n !== pick.need;
-  $("pkOk").textContent = n === pick.need ? `Agregar al pedido — ${fmt(pick.base.unit)}` : `Faltan ${pick.need - n} roll${pick.need-n>1?"s":""}`;
+  $("pkOk").textContent = n === pick.need ? `Agregar al pedido · ${fmt(pick.base.unit)}` : `Faltan ${pick.need - n} roll${pick.need-n>1?"s":""}`;
 }
 $("pkList").addEventListener("click", e => {
   const b = e.target.closest("button[data-r]"); if(!b) return;
@@ -1088,10 +1117,10 @@ function render(){
 const val = id => $(id).value.trim();
 function mensaje(codigo, falta = s => s){
   const lines = ordered().map(l => l.topping
-    ? `   ↳ + ${l.q} × ${l.name} ${l.detail} — ${fmt(l.unit*l.q)}`
-    : `• ${l.q} × ${l.name}${l.detail?` (${l.detail})`:""} — ${fmt(l.unit*l.q)}`);
+    ? `   ↳ + ${l.q} × ${l.name} ${l.detail}: ${fmt(l.unit*l.q)}`
+    : `• ${l.q} × ${l.name}${l.detail?` (${l.detail})`:""}: ${fmt(l.unit*l.q)}`);
   const dato = (id, txt) => val(id) || falta(txt);
-  let msg = `🍣 *Nuevo pedido N° ${codigo} — Saisei & Co*\n\n${lines.join("\n")}\n\n*Total: ${fmt(total())}*`;
+  let msg = `🍣 *Nuevo pedido N° ${codigo} · Saisei & Co*\n\n${lines.join("\n")}\n\n*Total: ${fmt(total())}*`;
   if(tipo()==="Delivery") msg += " + despacho";
   msg += `\n\n👤 ${dato("nombre", "tu nombre")}\n📞 ${dato("telefono", "tu teléfono")}\n`;
   if(tipo()==="Delivery"){
@@ -1206,7 +1235,7 @@ async function loadAjustes(){
     try { localStorage.setItem("saisei-contacto", JSON.stringify({ wa:a.whatsapp || "", ig:a.instagram || "" })); } catch(e){}
 
     if(a.logo){
-      document.querySelectorAll(".brand-mark").forEach(m => m.innerHTML = `<img src="${esc(a.logo)}" alt="" decoding="async">`);
+      document.querySelectorAll(".brand-mark").forEach(m => m.innerHTML = `<img src="${esc(a.logo)}" alt="" width="44" height="44" decoding="async">`);
       let ic = document.querySelector("link[rel=icon]");
       if(!ic){ ic = document.createElement("link"); ic.rel = "icon"; document.head.appendChild(ic); }
       ic.href = a.logo;

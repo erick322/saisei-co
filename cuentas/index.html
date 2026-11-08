@@ -15,8 +15,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{ --pine:#0E3B2E; --pine-d:#062419; --pine-2:#174d3c; --rice:#F4F6EE; --rice2:#E8EDE1; --card:#fff; --line:#dde5d6;
-         --ink:#13261F; --ink2:#55695f; --salmon:#EE7A4F; --mango:#F3C552; --ok:#2c8a57; --ok-bg:#e3f3e8; --bad:#c2453a; --bad-bg:#fbe7e4;
-         --warn:#a8700a; --warn-bg:#fdf1d6; --info-bg:#e6eef7; --info:#2d5d8a; --r:16px; --sh:0 1px 2px rgba(19,38,31,.06),0 4px 14px rgba(19,38,31,.05);
+         --ink:#13261F; --ink2:#55695f; --salmon:#EE7A4F; --mango:#F3C552; --ok:#1f6e45; --ok-bg:#e3f3e8; --bad:#a8352b; --bad-bg:#fbe7e4;
+         --warn:#855600; --warn-bg:#fdf1d6; --info-bg:#e6eef7; --info:#2d5d8a; --r:16px; --sh:0 1px 2px rgba(19,38,31,.06),0 4px 14px rgba(19,38,31,.05);
          /* Escala tipográfica (compartida con gestion/) */
          --t-2xs:11px; --t-xs:12px; --t-sm:13px; --t-md:14px; --t-base:15px; --t-lg:17px; --t-xl:20px; --t-2xl:24px; --t-3xl:28px;
          --f-body:Figtree,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; --f-disp:Marcellus,Georgia,serif;
@@ -35,6 +35,8 @@
   /* Cifras alineadas en todo lo que muestra montos */
   .num,.kpi .v,.item .am,.calc b,.tot b,.tin,.nb,.pbtn .q,.prog .t,.month .lbl{font-variant-numeric:tabular-nums}
   label.row{color:var(--ink);font-size:var(--t-md);font-weight:500}
+  select,label[for],input[type=checkbox],input[type=radio],summary{cursor:pointer}
+  :disabled{cursor:not-allowed}
 
   /* ---------- Estructura ---------- */
   .app{min-height:100vh}
@@ -64,9 +66,9 @@
   .tabs a.on{color:var(--pine)}
   .tabs a.on .ico{background:var(--rice2);border-radius:10px;padding:2px 10px;width:44px;height:26px}
   .tabs a{position:relative}
-  .nb{background:var(--salmon);color:#fff;border-radius:999px;font-size:var(--t-2xs);font-weight:800;min-width:19px;height:19px;padding:0 5px;display:inline-grid;place-items:center;margin-left:auto;line-height:1}
+  .nb{background:var(--salmon);color:var(--ink);border-radius:999px;font-size:var(--t-2xs);font-weight:800;min-width:19px;height:19px;padding:0 5px;display:inline-grid;place-items:center;margin-left:auto;line-height:1}
   .tabs .nb{position:absolute;top:1px;left:calc(50% + 6px);margin:0}
-  .fab{position:fixed;right:16px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:31;width:58px;height:58px;border-radius:18px;border:0;background:var(--salmon);color:#fff;box-shadow:0 6px 18px rgba(238,122,79,.45);display:grid;place-items:center;cursor:pointer}
+  .fab{position:fixed;right:16px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:31;width:58px;height:58px;border-radius:18px;border:0;background:var(--salmon);color:var(--ink);box-shadow:0 6px 18px rgba(238,122,79,.45);display:grid;place-items:center;cursor:pointer}
   .fab .ico{width:28px;height:28px}
 
   @media (min-width:900px){
@@ -114,7 +116,7 @@
   .b{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 15px;border-radius:11px;border:1px solid var(--line);background:#fff;color:var(--ink);font-weight:600;cursor:pointer;text-decoration:none;white-space:nowrap;min-height:42px}
   .b:hover{border-color:#bccab5}
   .b.pri{background:var(--pine);border-color:var(--pine);color:#fff}
-  .b.acc{background:var(--salmon);border-color:var(--salmon);color:#fff}
+  .b.acc{background:var(--salmon);border-color:var(--salmon);color:var(--ink)}
   .b.del{color:var(--bad);border-color:#efc9c3}
   .b.sm{padding:6px 11px;min-height:34px;font-size:var(--t-md);border-radius:9px}
   .b.ghost{background:transparent;border-color:transparent}
@@ -170,9 +172,12 @@
   .chips{display:flex;gap:6px;flex-wrap:wrap}
   .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 13px;font-weight:600;font-size:var(--t-md);cursor:pointer}
   .chip.on{background:var(--pine);border-color:var(--pine);color:#fff}
-  .search{position:relative;flex:1;min-width:180px}
+  .search{flex:1;min-width:180px}
+  .search>label{margin:0 0 5px}
+  .search-f{position:relative}
+  .row:has(>.search){align-items:flex-end}
   .search input{padding-left:36px}
-  .search .ico{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--ink2);width:18px}
+  .search-f .ico{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--ink2);width:18px}
 
   /* Gráfico de barras */
   .chart{display:flex;align-items:flex-end;gap:3px;height:150px;padding-top:6px}
@@ -239,7 +244,7 @@
   /* ---------- Formularios y modales ---------- */
   label{display:block;font-size:var(--t-sm);font-weight:600;color:var(--ink2);margin:12px 0 5px}
   input,select,textarea{width:100%;padding:10px 12px;border-radius:11px;border:1px solid #cfd9c9;background:#fff;min-height:42px}
-  input:focus,select:focus,textarea:focus{outline:2px solid rgba(14,59,46,.25);border-color:var(--pine)}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--pine);outline-offset:1px;border-color:var(--pine)}
   textarea{min-height:64px;resize:vertical}
   input[type=checkbox]{width:20px;height:20px;min-height:0;accent-color:var(--pine)}
   .f2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
@@ -299,7 +304,7 @@
   .pbtn:hover{border-color:var(--pine)}
   .pbtn b{display:block;font-size:var(--t-md);line-height:1.2}
   .pbtn span{font-size:var(--t-sm);color:var(--ink2)}
-  .pbtn .q{position:absolute;top:-7px;right:-7px;background:var(--salmon);color:#fff;border-radius:999px;min-width:24px;height:24px;display:grid;place-items:center;font-size:var(--t-sm);font-weight:800;padding:0 6px}
+  .pbtn .q{position:absolute;top:-7px;right:-7px;background:var(--salmon);color:var(--ink);border-radius:999px;min-width:24px;height:24px;display:grid;place-items:center;font-size:var(--t-sm);font-weight:800;padding:0 6px}
   .pbtn.on{border-color:var(--salmon);background:#fff7f3}
   .lines{display:grid;gap:8px;margin-top:8px}
   .line{background:#fff;border:1px solid var(--line);border-radius:13px;padding:10px 12px}
@@ -334,9 +339,10 @@
   .linkbtn{background:none;border:0;padding:0;color:var(--pine);text-decoration:underline;cursor:pointer;font-size:var(--t-md)}
   /* Conmutador Gestión | Cuentas (compartido con gestion/). Adaptable por currentColor */
   .appsw{display:inline-flex;gap:3px;padding:3px;border-radius:999px;border:1px solid color-mix(in srgb,currentColor 22%,transparent);font:600 13px/1 Figtree,sans-serif}
-  .appsw>*{padding:6px 14px;border-radius:999px;text-decoration:none;color:inherit;opacity:.62;white-space:nowrap}
+  .appsw>*{padding:6px 14px;border-radius:999px;text-decoration:none;color:inherit;opacity:.8;white-space:nowrap}
   .appsw>a:hover{opacity:.9}
   .appsw>[aria-current=page]{background:color-mix(in srgb,currentColor 16%,transparent);opacity:1}
+  @media (pointer:coarse){.b.sm,.chip,.month button,.ib,.appsw>*,label.row{min-height:44px}.month button,.ib{min-width:44px}.appsw>*{display:inline-flex;align-items:center}}
 </style>
 </head>
 <body>
@@ -1079,7 +1085,7 @@ const ventaOrden = (a, b) => (b.fecha + String(n0(b.num)).padStart(6, "0")).loca
 function ventaItem(v, adm){
   const t = vTot(v);
   return `<button class="item" data-act="editVenta" data-id="${esc(v.id)}">
-      <div class="main-t"><div class="tt">${esc(v.items.map(i => (n0(i.cant) !== 1 ? qty(i.cant) + "× " : "") + i.nombre).join(", ") || "—")}</div>
+      <div class="main-t"><div class="tt">${esc(v.items.map(i => (n0(i.cant) !== 1 ? qty(i.cant) + "× " : "") + i.nombre).join(", ") || "Sin productos")}</div>
       <div class="st">#${esc(v.num)} · ${esc(v.canal)} · ${esc(v.pago)}${v.nota ? " · " + esc(v.nota) : ""}</div></div>
       <div class="am num">${fmt(t.bruto)}${adm ? `<small class="${t.margen >= 0 ? "pos" : "neg"}">margen ${fmt(t.margen)}</small>` : ""}</div></button>`;
 }
@@ -1106,7 +1112,7 @@ R.ventas = () => {
     ${kpi("Margen", fmt(s.mc), pct(s.mcp), "hero")}` : kpi("Vendido hoy", fmt(sum(base, v => vTot(v).bruto)), `${base.length} pedido${base.length === 1 ? "" : "s"}`, "hero")}
   </div>
   <div class="row mt">
-    <div class="search">${ico("search")}<input id="vQ" placeholder="Buscar producto, N° o nota" value="${esc(UI.ventasQ)}"></div>
+    <div class="search"><label for="vQ">Buscar ventas</label><div class="search-f">${ico("search")}<input id="vQ" placeholder="Buscar producto, N° o nota" value="${esc(UI.ventasQ)}"></div></div>
     <button class="b acc" data-act="newVenta">${ico("plus")}Registrar venta</button>
     ${adm ? `<button class="b" data-act="csvVentas" title="Descargar para Excel">${ico("download")}<span>Excel</span></button>` : ""}
   </div>
@@ -1193,7 +1199,7 @@ R.insumos = () => {
   return `
   <div class="banner info">${ico("info")}<div><b>Costo por unidad útil</b> = precio × (1 + flete ${pct(P().flete)}) ÷ (cantidad × (1 − merma)). Cuando compres a otro precio, actualízalo aquí y toda la carta se recalcula.</div></div>
   <div class="row">
-    <div class="search">${ico("search")}<input id="iQ" placeholder="Buscar insumo o proveedor" value="${esc(UI.insQ)}"></div>
+    <div class="search"><label for="iQ">Buscar insumos</label><div class="search-f">${ico("search")}<input id="iQ" placeholder="Buscar insumo o proveedor" value="${esc(UI.insQ)}"></div></div>
     <button class="b pri" data-act="newIns">${ico("plus")}Nuevo insumo</button>
   </div>
   ${cats.map(c => `<div class="card mt"><h2>${esc(c)}</h2><div class="tw"><table>
@@ -1443,7 +1449,7 @@ R.equilibrio = () => {
     <h2>Si vendieras un solo producto…</h2>
     <p class="hint" style="margin-top:-4px">Cuántas unidades necesitas al mes (y al día) para pagar los costos fijos.</p>
     <div class="tw"><table><thead><tr><th>Producto</th><th class="n">Margen por unidad</th><th class="n">Unidades / mes</th><th class="n">Unidades / día</th></tr></thead><tbody>
-      ${prods.map(({p, x}) => { const u = x.margen > 0 ? Math.ceil(e.cf / x.margen - 1e-9) : null; return `<tr><td>${esc(p.nombre)}</td><td class="n">${fmt(x.margen)}</td><td class="n">${u ?? "—"}</td><td class="n">${u ? (u / e.dias).toLocaleString("es-CL", {maximumFractionDigits:1}) : "—"}</td></tr>`; }).join("")}
+      ${prods.map(({p, x}) => { const u = x.margen > 0 ? Math.ceil(e.cf / x.margen - 1e-9) : null; return `<tr><td>${esc(p.nombre)}</td><td class="n">${fmt(x.margen)}</td><td class="n">${u ?? "Sin margen"}</td><td class="n">${u ? (u / e.dias).toLocaleString("es-CL", {maximumFractionDigits:1}) : "Sin margen"}</td></tr>`; }).join("")}
     </tbody></table></div>
   </div>`;
 };
@@ -1939,14 +1945,14 @@ function detPedido(id){
       <div>Cliente<b style="font-size:var(--t-base)">${esc(p.cliente)}</b>${esc(p.telefono)}</div>
       <div>${esc(p.entrega)}<b style="font-size:var(--t-base)">${p.entrega === "Delivery" ? esc(p.direccion || "") : "Retira en el local"}</b>${esc(p.referencia || "")}</div>
       <div>Para cuándo<b style="font-size:var(--t-base)">${esc(p.hora || "Lo antes posible")}</b></div>
-      <div>Pago<b style="font-size:var(--t-base)">${esc(p.pago || "—")}</b></div>
+      <div>Pago<b style="font-size:var(--t-base)">${esc(p.pago || "Sin indicar")}</b></div>
     </div>
     ${p.notas ? `<p class="formula">📝 ${esc(p.notas)}</p>` : ""}
     <div class="sec">Productos</div>
     <div class="tw"><table><thead><tr><th>Pedido en la página</th><th class="n">Total</th>${pend ? "<th>Se registra como</th>" : ""}</tr></thead><tbody>
       ${(p.items || []).map((it, k) => `<tr><td>${it.top ? "+ " : ""}<b>${esc(it.q)}× ${esc(it.n)}</b>${it.d ? `<div class="small muted">${esc(it.d)}</div>` : ""}</td>
         <td class="n">${fmt(n0(it.q) * n0(it.p))}</td>
-        ${pend ? `<td style="min-width:190px"><select data-map="${k}"><option value="">— Elige producto —</option>${opts}<option value="__sin">Sin producto (costo $0)</option></select></td>` : ""}</tr>`).join("")}
+        ${pend ? `<td style="min-width:190px"><select data-map="${k}"><option value="">Elige producto</option>${opts}<option value="__sin">Sin producto (costo $0)</option></select></td>` : ""}</tr>`).join("")}
       <tr class="tot"><td>Total del pedido${p.entrega === "Delivery" ? " (sin despacho)" : ""}</td><td class="n">${fmt(p.total)}</td>${pend ? "<td></td>" : ""}</tr>
     </tbody></table></div>
     ${pend ? `<p class="hint mt">Al confirmar se abre la venta ya armada para que la revises${p.entrega === "Delivery" ? ", con el cobro de delivery incluido" : ""}. Solo cuando la guardes queda registrada en las cuentas.</p>` : ""}
@@ -2156,7 +2162,7 @@ function formRec(orig){
   function calc(){
     m.querySelectorAll("#rRows .ed-row").forEach((el, k) => el.querySelector(".c").textContent = fmt(lineC(rows[k])));
     const used = S.carta.filter(p => (p.partes || []).some(x => x.receta === r.id)).map(p => p.nombre);
-    m.querySelector("#rCalc").innerHTML = `<div>Costo de la receta<b class="num">${fmt(sum(rows, lineC))}</b></div><div>Se usa en<b style="font-size:var(--t-md)">${esc(used.join(", ") || "—")}</b></div>`;
+    m.querySelector("#rCalc").innerHTML = `<div>Costo de la receta<b class="num">${fmt(sum(rows, lineC))}</b></div><div>Se usa en<b style="font-size:var(--t-md)">${esc(used.join(", ") || "Ningún producto")}</b></div>`;
   }
   wireRows(m.querySelector("#rRows"), rows, () => ({ ref:insOpts[0]?.id, q:"" }), drawRows, calc);
   m.querySelector("#rSave").onclick = () => {
