@@ -510,7 +510,7 @@ const UNIDADES = ["g", "ml", "un"];
 // =====================================================================
 //  Datos: en la nube (Supabase, tabla "cuentas") o en este dispositivo
 // =====================================================================
-const COLS = ["ventas", "gastos", "insumos", "recetas", "carta", "proveedores", "fijos", "saldos", "reservas", "apartados", "duenos", "trabajadores", "jornadas", "sueldos", "ideas", "ideanotas"];
+const COLS = ["ventas", "gastos", "insumos", "recetas", "carta", "proveedores", "fijos", "saldos", "reservas", "apartados", "duenos", "trabajadores", "jornadas", "sueldos", "ideas", "ideanotas", "pagostarjeta"];
 const PAR_DEF = { flete:.1, foodCost:.33, comision:.035, iva:.19, afectaIva:false, dias:20, ticket:15000, meta:500000, deliveryCobro:2000, deliveryCosto:1500, diaCorte:16, prepBase:15, prepUnidad:5, despachoMin:20 };
 const LS_DATA = "saisei.cuentas.datos", LS_OUT = "saisei.cuentas.pendientes", LS_ROL = "saisei.cuentas.rol", LS_USR = "saisei.cuentas.usuario";
 let S = blank();
@@ -818,7 +818,8 @@ function caja(m){
     const p = caja(addMonth(m, -1));
     ini = { debito:p.debito.fin, efectivo:p.efectivo.fin, tarjeta:p.tarjeta.fin }; traido = true;
   }
-  const r = { ini, traido, debito:{ ini:n0(ini && ini.debito), ent:0, sal:0, pres:0, pag:0, sue:0 }, efectivo:{ ini:n0(ini && ini.efectivo), ent:0, sal:0, pres:0, pag:0, sue:0 }, tarjeta:{ ini:n0(ini && ini.tarjeta), ent:0, sal:0, pres:0, pag:0, sue:0 }, credito:0 };
+  const c0 = k => ({ ini:n0(ini && ini[k]), ent:0, sal:0, pres:0, pag:0, sue:0, tar:0, aum:0 });
+  const r = { ini, traido, debito:c0("debito"), efectivo:c0("efectivo"), tarjeta:c0("tarjeta"), credito:0 };
   s.vs.forEach(v => { const t = vTot(v); if(v.pago === "Efectivo") r.efectivo.ent += t.bruto; else r.debito.ent += t.bruto - t.com; });
   s.gs.forEach(g => { const x = n0(g.monto);
     if(g.pago === "Efectivo") r.efectivo.sal += x;
@@ -829,7 +830,12 @@ function caja(m){
   S.duenos.filter(x => pKey(x.fecha) === m).forEach(x => { const c = x.medio === "Efectivo" ? r.efectivo : r.debito;
     if(ENTRA_D.includes(x.tipo)) c.pres += n0(x.monto); else c.pag += n0(x.monto); });
   S.sueldos.filter(x => pKey(x.fecha) === m).forEach(x => (x.medio === "Efectivo" ? r.efectivo : r.debito).sue += n0(x.monto));
-  [r.debito, r.efectivo, r.tarjeta].forEach(c => c.fin = c.ini + c.ent - c.sal + c.pres - c.pag - c.sue);
+  // Pagar la tarjeta sale de la cuenta o del efectivo y libera cupo; no es un gasto nuevo (las compras ya se anotaron)
+  S.pagostarjeta.filter(x => pKey(x.fecha) === m).forEach(x => { const v = n0(x.monto);
+    if(esCupo(x)){ r.tarjeta.aum += v; return; }   // el banco subió el cupo: no es dinero
+    (x.medio === "Efectivo" ? r.efectivo : r.debito).tar += v; r.tarjeta.tar += v; });
+  [r.debito, r.efectivo].forEach(c => c.fin = c.ini + c.ent - c.sal + c.pres - c.pag - c.sue - c.tar);
+  r.tarjeta.fin = r.tarjeta.ini - r.tarjeta.sal + r.tarjeta.tar + r.tarjeta.aum;
   return r;
 }
 // Dinero apartado para pagos del mes: los costos fijos del negocio + otros pagos (tarjeta de crédito, etc.).
@@ -846,7 +852,12 @@ function apartados(m){
     r.falta = Math.max(r.monto - Math.max(r.apartado, n0(r.pagadoMonto)), 0);
     return r;
   });
-  const otros = S.reservas.slice().sort((a, b) => String(a.item).localeCompare(String(b.item), "es")).map(r => { const x = row("r:" + r.id, r.item, r.monto, r.nota, r.id); x.falta = Math.max(x.monto - x.apartado, 0); return x; });
+  // La tarjeta de crédito se paga desde Hoy → Tarjeta de crédito (no en Gastos: sus compras ya están ahí); lo pagado ahí la marca como pagada.
+  const pagTar = sum(pagosTar(m).filter(x => !esCupo(x)), x => n0(x.monto));
+  const otros = S.reservas.slice().sort((a, b) => String(a.item).localeCompare(String(b.item), "es")).map(r => {
+    const x = row("r:" + r.id, r.item, r.monto, r.nota, r.id);
+    if(/tarjeta/i.test(r.item || "")){ x.tarjeta = true; x.pagadoMonto = pagTar; x.pagado = x.monto > 0 && pagTar >= x.monto; }
+    x.falta = Math.max(x.monto - Math.max(x.apartado, n0(x.pagadoMonto)), 0); return x; });
   const all = [...fijos, ...otros], pend = all.filter(r => !r.pagado);
   return { rec, fijos, otros, all, total:sum(all, r => r.monto), apartado:sum(all, r => r.apartado),
     falta:sum(pend, r => r.falta), guardado:sum(pend, r => Math.max(r.apartado - n0(r.pagadoMonto), 0)), pagados:all.length - pend.length };
@@ -1037,17 +1048,23 @@ R.inicio = () => {
       ${cj.debito.pres + cj.efectivo.pres ? fila(`<a href="#duenos">Dinero de dueños</a>`, "pres", "+ ") : ""}
       ${cj.debito.pag + cj.efectivo.pag ? fila(`<a href="#duenos">Dinero a dueños</a>`, "pag", "− ") : ""}
       ${cj.debito.sue + cj.efectivo.sue ? fila(`<a href="#trabajadores">Pagos a trabajadores</a>`, "sue", "− ") : ""}
+      ${cj.debito.tar + cj.efectivo.tar ? fila("Pago de la tarjeta de crédito", "tar", "− ") : ""}
       <tr><td><b>Saldo actual</b></td>${[cj.debito.fin, cj.efectivo.fin, cj.debito.fin + cj.efectivo.fin].map(x => `<td class="n"><b class="${x < 0 ? "neg" : ""}">${fmt(x)}</b></td>`).join("")}</tr>
       ${ap.all.length ? `<tr><td>− <a href="#apartar">Apartado para pagos</a></td><td></td><td></td><td class="n">${fmt(ap.guardado)}</td></tr>
       <tr class="tot"><td>Libre para usar</td><td></td><td></td><td class="n"><span class="${libre < 0 ? "neg" : "pos"}">${fmt(libre)}</span></td></tr>` : ""}
     </tbody></table></div>
     ${ap.falta > 0 ? `<a class="alert" href="#apartar">${ico("safe")}<span>Te falta apartar <b>${fmt(ap.falta)}</b> para los pagos del mes.</span></a>` : ""}
-    ${cj.tarjeta.ini || cj.tarjeta.sal ? `<h2 class="mt" style="font-size:1rem">Tarjeta de crédito</h2>
-    <div class="tw"><table><tbody>
+    <h2 class="mt" style="font-size:1rem">Tarjeta de crédito <span class="r row" style="gap:6px;margin:0"><button class="b sm" data-act="newPagoTar">${ico("plus")}Pago</button><button class="b sm" data-act="newCupoTar">${ico("plus")}Aumento de cupo</button></span></h2>
+    ${cj.tarjeta.ini || cj.tarjeta.sal || cj.tarjeta.tar || cj.tarjeta.aum ? `<div class="tw"><table><tbody>
       <tr><td>Cupo disponible al inicio</td><td class="n">${fmt(cj.tarjeta.ini)}</td></tr>
       <tr><td>− Compras con la tarjeta</td><td class="n">${fmt(cj.tarjeta.sal)}</td></tr>
+      ${cj.tarjeta.tar ? `<tr><td>+ Pagos de la tarjeta</td><td class="n">${fmt(cj.tarjeta.tar)}</td></tr>` : ""}
+      ${cj.tarjeta.aum ? `<tr><td>+ Aumento de cupo</td><td class="n">${fmt(cj.tarjeta.aum)}</td></tr>` : ""}
       <tr class="tot"><td>Cupo disponible ahora</td><td class="n"><span class="${cj.tarjeta.fin < 0 ? "neg" : ""}">${fmt(cj.tarjeta.fin)}</span></td></tr>
-    </tbody></table></div>` : ""}
+    </tbody></table></div>` : `<p class="hint">Las compras pagadas con tarjeta de crédito se anotan en Gastos. Cuando pagues la tarjeta, anótalo aquí: sale de tu dinero y vuelve el cupo. Si el banco te sube el cupo, anota el aumento.</p>`}
+    ${pagosTar(curM).map(p => `<button class="item" data-act="editPagoTar" data-id="${esc(p.id)}" style="margin-top:6px">
+      <div class="main-t"><div class="tt">${TIPOS_TAR[esCupo(p) ? "cupo" : "pago"]}</div><div class="st">${esc(dName(p.fecha))}${esCupo(p) ? "" : " · " + esc(p.medio)}${p.nota ? " · " + esc(p.nota) : ""}</div></div>
+      <div class="am num">${fmt(p.monto)}</div></button>`).join("")}
     <p class="hint">Ventas con tarjeta o transferencia van a débito descontando la comisión.${cj.credito ? ` Compras a crédito de proveedor por pagar: <b>${fmt(cj.credito)}</b> (no se descuentan aún).` : ""}</p>
   </div>
   <div class="card mt">
@@ -1486,11 +1503,12 @@ R.apartar = () => {
   const money = (r, k, ph) => `<div class="unit pre" style="display:inline-block"><em>$</em><input class="tin num" style="width:112px;max-width:none" type="number" inputmode="numeric" min="0" step="1000" data-ap="${k}" data-k="${esc(r.key)}" value="${esc(k === "monto" ? (r.monto === r.base ? "" : r.monto) : (r.apartado || ""))}" placeholder="${ph}" aria-label="${k === "monto" ? "Monto" : "Apartado"} ${esc(r.item)}" ${r.pagado ? "disabled" : ""}></div>`;
   const rows = l => l.map(r => `<tr>
     <td>${r.edit ? `<button class="linkbtn" data-act="editReserva" data-id="${esc(r.edit)}" style="text-align:left">${esc(r.item)}</button>` : esc(r.item)}${r.sub ? `<div class="small muted">${esc(r.sub)}</div>` : ""}
-      ${r.sueldo ? `<div class="small" style="margin-top:4px">${ico("users")} Se paga desde <a href="#duenos">Dueños</a>: pagado ${fmt(r.pagadoMonto)}${r.pagado ? "" : `, quedan ${fmt(r.monto - r.pagadoMonto)} por pagar`}</div>` : ""}</td>
+      ${r.sueldo ? `<div class="small" style="margin-top:4px">${ico("users")} Se paga desde <a href="#duenos">Dueños</a>: pagado ${fmt(r.pagadoMonto)}${r.pagado ? "" : `, quedan ${fmt(r.monto - r.pagadoMonto)} por pagar`}</div>` : ""}
+      ${r.tarjeta ? `<div class="small" style="margin-top:4px">${ico("wallet")} Se paga desde <a href="#inicio">Hoy → Tarjeta de crédito</a>, no en Gastos: pagado ${fmt(r.pagadoMonto)}${r.pagado ? "" : `, quedan ${fmt(Math.max(r.monto - r.pagadoMonto, 0))} por pagar`}</div>` : ""}</td>
     <td class="n">${money(r, "monto", Math.round(r.base))}</td>
     <td class="n">${money(r, "apartado", "0")}
-      ${r.sueldo
-        ? r.pagado ? `<div class="small" style="margin-top:6px"><span class="pill ok">Pagado</span></div>` : `<div style="margin-top:6px"><button class="b sm" data-act="pagarSueldo" data-monto="${r.monto - r.pagadoMonto}">${ico("plus")}Registrar pago</button></div>`
+      ${r.sueldo || r.tarjeta
+        ? r.pagado ? `<div class="small" style="margin-top:6px"><span class="pill ok">Pagado</span></div>` : `<div style="margin-top:6px"><button class="b sm" data-act="${r.tarjeta ? "pagarTarjeta" : "pagarSueldo"}" data-monto="${Math.max(r.monto - r.pagadoMonto, 0)}">${ico("plus")}Registrar pago</button></div>`
         : `<label class="row" style="margin:6px 0 0;justify-content:flex-end;gap:6px;color:var(--ink);font-size:var(--t-sm)"><input type="checkbox" data-ap="pagado" data-k="${esc(r.key)}" ${r.pagado ? "checked" : ""}>Pagado</label>`}
       ${!r.pagado && r.falta ? `<div class="small muted">falta apartar ${fmt(r.falta)}</div>` : ""}</td></tr>`).join("");
   const sec = (t, l) => `<tr><td colspan="3" class="sec">${t} · ${fmt(sum(l, r => r.monto))}</td></tr>`;
@@ -1501,7 +1519,7 @@ R.apartar = () => {
     ${kpi("Guardado sin pagar", fmt(a.guardado), "no lo uses para otra cosa")}
     ${kpi("Falta apartar", `<span class="${a.falta > 0 ? "neg" : "pos"}">${fmt(a.falta)}</span>`, a.falta > 0 ? "para cubrir todos los pagos" : "¡Todo cubierto!", "hero")}
   </div>
-  <div class="banner info mt">${ico("info")}<div>Anota cuánto vas separando para cada pago. Cuando lo pagues, márcalo como <b>pagado</b> y regístralo en <a href="#gastos">Gastos</a>. Si un monto cambia este mes (ej. la tarjeta), escríbelo en “Monto del mes”.</div></div>
+  <div class="banner info mt">${ico("info")}<div>Anota cuánto vas separando para cada pago. Cuando lo pagues, márcalo como <b>pagado</b> y regístralo en <a href="#gastos">Gastos</a>. La tarjeta de crédito es distinta: su pago se anota con “Registrar pago” (va a Hoy → Tarjeta de crédito), porque lo que compraste con ella ya está en Gastos. Si un monto cambia este mes (ej. la tarjeta), escríbelo en “Monto del mes”.</div></div>
   <div class="card">
     <div class="tw"><table><thead><tr><th>Pago</th><th class="n">Monto del mes</th><th class="n">Apartado</th></tr></thead><tbody>
       ${a.fijos.length ? sec("Costos fijos del negocio", a.fijos) + rows(a.fijos) : ""}
@@ -1697,6 +1715,7 @@ function elegirRegistro(){
   const m = openModal("¿Qué anotas?", `<div class="pick">
     <button class="pk pri" data-act="newVenta">${ico("cart")}<span><b>Venta</b><small>Un pedido entregado o cobrado</small></span></button>
     <button class="pk" data-act="newGasto">${ico("receipt")}<span><b>Gasto o compra</b><small>Insumos, empaques, cuentas, sueldos</small></span></button>
+    ${esAdmin() ? `<button class="pk" data-act="newPagoTar">${ico("wallet")}<span><b>Tarjeta de crédito</b><small>Un pago o un aumento de cupo</small></span></button>` : ""}
   </div>`, "", "pick-m");
   m.querySelector(".pk.pri").focus();
 }
@@ -2075,6 +2094,7 @@ function formGasto(orig){
       <div><label for="gDoc">N° boleta / factura</label><input id="gDoc" value="${esc(g.doc || "")}"></div>
     </div>
     <label>Medio de pago</label>${chipsHTML("pago", PAGOS_G, g.pago)}
+    ${esAdmin() ? `<p class="hint" id="gPH" aria-live="polite"></p>` : ""}
     ${orig ? (g.stockAdd ? `<p class="hint mt">Al registrarlo se sumaron ${qty(g.stockAdd.cant)} ${esc(insById(g.stockAdd.insumo)?.unidad || "")} de ${esc(insById(g.stockAdd.insumo)?.nombre || "un insumo")} al inventario.</p>` : "") : `
     <div id="gStock" class="card" style="margin-top:14px;padding:12px 14px">
       <label class="row" style="margin:0"><input type="checkbox" id="gSA"> Sumar esta compra al inventario</label>
@@ -2087,8 +2107,23 @@ function formGasto(orig){
     <button class="b" data-act="close">Cancelar</button><button class="b acc" id="gSave">Guardar gasto</button>`;
   const m = openModal(orig ? "Editar gasto" : "Nuevo gasto", body, foot);
   const showStock = t => { const s = m.querySelector("#gStock"); if(s) s.hidden = !(t === "Insumos" || t === "Empaques"); };
-  wireChips(m, (n, val) => n === "tipo" && showStock(val));
-  showStock(g.tipo);
+  // De dónde sale el dinero. Con tarjeta de crédito se descuenta del cupo (Hoy → Tarjeta de crédito), no de la cuenta ni del efectivo.
+  const pagoHint = () => {
+    const el = m.querySelector("#gPH"); if(!el) return;
+    const p = chipVal(m, "pago"), f = m.querySelector("#gF").value, monto = n0(m.querySelector("#gM").value);
+    if(p !== "Tarjeta de crédito"){
+      el.textContent = { "Efectivo":"Sale del efectivo.", "Crédito proveedor":"Queda por pagar al proveedor: no sale de tu dinero hasta que lo pagues." }[p] || "Sale de la cuenta (débito).";
+      return;
+    }
+    // Cupo antes de este gasto (si se está editando uno ya pagado con tarjeta en el mismo mes, se devuelve primero)
+    const mk = pKey(f || today());
+    const cupo = caja(mk).tarjeta.fin + (orig && orig.pago === "Tarjeta de crédito" && pKey(orig.fecha) === mk ? n0(orig.monto) : 0);
+    const queda = cupo - monto;
+    el.innerHTML = `Se descuenta del cupo de la tarjeta de crédito, no de tu dinero. Cupo disponible: <b>${fmt(cupo)}</b>${monto ? `, quedaría <b class="${queda < 0 ? "neg" : ""}">${fmt(queda)}</b>${queda < 0 ? " (más que el cupo anotado: revisa el cupo en el saldo inicial o anota el pago de la tarjeta)" : ""}` : ""}.`;
+  };
+  wireChips(m, (n, val) => { if(n === "tipo") showStock(val); if(n === "pago") pagoHint(); });
+  m.querySelector("#gM").addEventListener("input", pagoHint); m.querySelector("#gF").addEventListener("change", pagoHint);
+  showStock(g.tipo); pagoHint();
   const sa = m.querySelector("#gSA");
   if(sa){
     const unit = () => m.querySelector("#gSU").textContent = insById(m.querySelector("#gSI").value)?.unidad || "";
@@ -2311,6 +2346,44 @@ function formSaldo(){
   m.querySelector("#sSave").onclick = () => {
     put("saldos", { id:curM, debito:n0(m.querySelector("#sD").value), efectivo:n0(m.querySelector("#sE").value), tarjeta:n0(m.querySelector("#sT").value) });
     closeModal(); render(); toast("Saldo inicial guardado");
+  };
+}
+// Tarjeta de crédito. Un pago sale de la cuenta o del efectivo y devuelve cupo: no es gasto (las compras ya están en Gastos).
+// Un aumento de cupo lo da el banco: suma cupo, pero no es dinero ni gasto.
+const TIPOS_TAR = { pago:"Pago de la tarjeta", cupo:"Aumento de cupo" };
+const esCupo = x => x.tipo === "cupo";
+const pagosTar = m => S.pagostarjeta.filter(x => pKey(x.fecha) === m).sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.upd || 0) - (a.upd || 0));
+function formPagoTarjeta(orig, tipo = "pago", base = {}){
+  const x = orig ? clone(orig) : { id:uid(), fecha: curM === curMonth() ? today() : pStart(curM), tipo, monto:"", medio:"Transferencia", nota:"", ...base };
+  const m = openModal(orig ? "Editar movimiento de la tarjeta" : "Tarjeta de crédito", `
+    <label>Qué anotas</label>${chipsHTML("tipo", Object.values(TIPOS_TAR), TIPOS_TAR[esCupo(x) ? "cupo" : "pago"])}
+    <div class="f2">
+      <div><label for="tF">Fecha</label><input id="tF" type="date" value="${esc(x.fecha)}" required></div>
+      <div><label for="tM" id="tML">Monto</label><div class="unit pre"><em>$</em><input id="tM" type="number" inputmode="numeric" min="0" step="1" value="${esc(x.monto)}" required></div></div>
+    </div>
+    <div id="tMed"><label>Pagaste con</label>${chipsHTML("medio", MEDIOS_D, x.medio)}</div>
+    <label for="tN">Nota</label><input id="tN" value="${esc(x.nota || "")}">
+    <p class="hint" id="tHint"></p>`,
+    `${orig ? `<button class="b del" data-act="delPagoTar" data-id="${esc(x.id)}">${ico("trash")}Eliminar</button>` : ""}<span class="sp"></span><button class="b" data-act="close">Cancelar</button><button class="b acc" id="tSave">Guardar</button>`);
+  const cupo = () => chipVal(m, "tipo") === TIPOS_TAR.cupo;
+  const sync = () => {
+    const c = cupo();
+    m.querySelector("#tMed").hidden = c;
+    m.querySelector("#tML").textContent = c ? "Cupo que se agregó" : "Monto pagado";
+    m.querySelector("#tN").placeholder = c ? "Ej: el banco subió el cupo" : "Ej: estado de cuenta de octubre";
+    m.querySelector("#tHint").textContent = c
+      ? "Suma al cupo disponible de la tarjeta. No cambia tu dinero ni cuenta como gasto."
+      : "Resta de tu dinero del mes y suma al cupo disponible de la tarjeta. No cuenta como gasto: lo que compraste con la tarjeta ya está anotado en Gastos.";
+  };
+  wireChips(m, sync); sync();
+  m.querySelector("#tSave").onclick = () => {
+    const c = cupo();
+    const t = { ...x, tipo: c ? "cupo" : "pago", fecha:m.querySelector("#tF").value, monto:n0(m.querySelector("#tM").value), nota:m.querySelector("#tN").value.trim() };
+    if(c) delete t.medio; else t.medio = chipVal(m, "medio");
+    if(!t.fecha) return toast("Elige la fecha", true);
+    if(!(t.monto > 0)) return toast("Escribe el monto", true);
+    put("pagostarjeta", t); closeModal(); curM = pKey(t.fecha); render();
+    toast(orig ? "Movimiento actualizado" : c ? "Aumento de cupo guardado" : "Pago de la tarjeta guardado");
   };
 }
 function formDueno(orig, base = {}){
@@ -2690,7 +2763,9 @@ async function restore(file){
     S = d; saveCache();
     if(mode === "nube"){
       // Se borra en la nube lo que no está en el respaldo y se sube lo nuevo
-      COLS.forEach(c => old[c].forEach(o => { if(!S[c].some(x => x.id === o.id)) queue({ op:"del", col:c, id:o.id }); }));
+      // Las ventas y gastos que se borran quedan en Eliminados con este motivo (sin motivo, Supabase no deja borrarlos)
+      const motivo = `Restauración del respaldo del ${String(j.fecha || "").slice(0, 10) || "archivo"}`;
+      COLS.forEach(c => old[c].forEach(o => { if(!S[c].some(x => x.id === o.id)) queue({ op:"del", col:c, id:o.id, ...(c === "ventas" || c === "gastos" ? { motivo } : {}) }); }));
       COLS.forEach(c => S[c].forEach(o => queue({ op:"put", col:c, id:o.id, datos:o })));
       queue({ op:"put", col:"config", id:"parametros", datos:S.par });
     }
@@ -2745,6 +2820,10 @@ const A = {
   },
   newGasto: () => formGasto(),
   editSaldo: () => formSaldo(),
+  newPagoTar: () => formPagoTarjeta(),
+  newCupoTar: () => formPagoTarjeta(null, "cupo"),
+  editPagoTar: d => formPagoTarjeta(S.pagostarjeta.find(x => x.id === d.id)),
+  delPagoTar: async d => { if(await confirmDel("¿Eliminar este movimiento de la tarjeta?")){ del("pagostarjeta", d.id); closeModal(); render(); toast("Movimiento eliminado"); } },
   editGasto: d => formGasto(S.gastos.find(g => g.id === d.id)),
   delGasto: async d => { const motivo = await pedirMotivo("¿Eliminar este gasto?"); if(motivo){ del("gastos", d.id, motivo); BOR.mes = null; closeModal(); render(); toast("Gasto eliminado"); } },
   gTipo: d => { UI.gastoTipo = d.t; render(); },
@@ -2797,6 +2876,7 @@ const A = {
   },
   // Sueldo de los dueños desde Dinero apartado: se anota en Dueños, que es donde se contabiliza
   pagarSueldo: d => formDueno(null, { tipo:"pago", costo:true, monto:n0(d.monto) || "" }),
+  pagarTarjeta: d => formPagoTarjeta(null, "pago", { monto:n0(d.monto) || "" }),
   newProv: () => formProv(),
   editProv: d => formProv(S.proveedores.find(p => p.id === d.id)),
   delProv: async d => { if(await confirmDel("¿Eliminar este proveedor?")){ del("proveedores", d.id); closeModal(); render(); } },
