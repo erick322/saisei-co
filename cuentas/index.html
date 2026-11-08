@@ -39,7 +39,8 @@
   /* ---------- Estructura ---------- */
   .app{min-height:100vh}
   .side{display:none}
-  .main{min-width:0;padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+  /* Deja que lo último de la página suba por encima del + flotante */
+  .main{min-width:0;padding-bottom:calc(156px + env(safe-area-inset-bottom))}
   .top{position:sticky;top:0;z-index:20;background:var(--pine);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .top h1{font-size:var(--t-xl);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .month{display:flex;align-items:center;background:rgba(255,255,255,.1);border-radius:999px}
@@ -193,6 +194,47 @@
   .alert + .alert{margin-top:8px}
   .alert .ico{color:var(--warn)} .alert.ok .ico{color:var(--ok)} .alert.bad .ico{color:var(--bad)}
   .alert b{font-weight:800}
+  .alert > span{flex:1;min-width:0}
+
+  /* ---------- Hoy ---------- */
+  .alert.urge{background:var(--bad-bg);color:#7a231b;font-weight:600;min-height:52px;margin-bottom:18px}
+  .alert.urge .ico{color:var(--bad)}
+  .hoy-h{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:0 2px 12px}
+  .hoy-h h2{font-size:var(--t-3xl);line-height:1}
+  .hoy-d{margin:4px 0 0;font-size:var(--t-sm);color:var(--ink2)}
+  .hoy-d::first-letter{text-transform:uppercase}
+  .hoy-t{text-align:right;display:grid;gap:2px;min-width:0}
+  .hoy-t b{font-size:var(--t-2xl);font-weight:800;letter-spacing:-.01em;line-height:1.1;font-variant-numeric:tabular-nums}
+  .hoy-t span{font-size:var(--t-sm);color:var(--ink2)}
+  .more{display:flex;align-items:center;justify-content:flex-end;gap:2px;min-height:44px;padding:0 2px;font-size:var(--t-md);font-weight:600;color:var(--pine);text-decoration:none}
+  .more .ico{width:18px;height:18px}
+  .hoy-vacio{background:#fff;border:1px dashed #cfd9c9;border-radius:14px;padding:18px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .hoy-vacio p{margin:0;color:var(--ink2)}
+  .sec-blk{margin-top:28px}
+  .sh{font-family:var(--f-body);font-size:var(--t-xs);font-weight:800;letter-spacing:var(--caps);text-transform:uppercase;color:var(--ink2);margin:0 2px 8px}
+  .alerts{display:grid;gap:8px}
+  .alerts .alert{background:#fff;border:1px solid var(--line);margin:0}
+  .mesbar{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;min-height:60px;cursor:pointer;text-align:left;box-shadow:var(--sh)}
+  .mesbar:hover{border-color:#c4d2bd}
+  .mesbar-l{display:grid;gap:2px;min-width:0}
+  .mesbar-l b{font-weight:700}
+  .mesbar-n{display:flex;flex-wrap:wrap;gap:0 12px;font-size:var(--t-sm);color:var(--ink2);font-variant-numeric:tabular-nums}
+  .mesbar-n > span{white-space:nowrap}
+  .mesbar-n b{font-weight:700}
+  .mesbar-r{display:inline-flex;align-items:center;gap:4px;font-size:var(--t-md);font-weight:600;color:var(--pine);white-space:nowrap}
+  .mesbar-r .ico{transition:transform .2s ease-out}
+  .mesbar[aria-expanded=true] .mesbar-r .ico{transform:rotate(180deg)}
+  .mes-det{margin-top:14px}
+  .pick{display:grid;gap:10px;padding:12px 0 4px}
+  .pk{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:16px;border-radius:14px;border:1px solid var(--line);background:#fff;cursor:pointer;min-height:64px}
+  .pk .ico{width:26px;height:26px;color:var(--pine)}
+  .pk b{display:block;font-size:var(--t-lg)}
+  .pk small{display:block;font-size:var(--t-sm);color:var(--ink2)}
+  .pk.pri{background:var(--pine);border-color:var(--pine);color:#fff;min-height:84px}
+  .pk.pri .ico{color:var(--mango)}
+  .pk.pri small{color:#bcd3c7}
+  @media (min-width:760px){ .modal.pick-m{max-width:420px} }
+  @media (prefers-reduced-motion:reduce){ .mesbar-r .ico{transition:none} }
 
   /* ---------- Formularios y modales ---------- */
   label{display:block;font-size:var(--t-sm);font-weight:600;color:var(--ink2);margin:12px 0 5px}
@@ -335,7 +377,7 @@
         <a href="../gestion/">Gestión</a>
         <span aria-current="page">Cuentas</span>
       </nav>
-      <h1 id="ttl">Resumen</h1>
+      <h1 id="ttl">Hoy</h1>
       <div class="month" id="monthBox">
         <button data-act="mprev" aria-label="Mes anterior"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
         <span class="lbl" id="mLbl"></span>
@@ -405,6 +447,8 @@ const byName = (a, b) => String(a.nombre || "").localeCompare(String(b.nombre ||
 function toast(t, bad){ const el = $("toast"); el.textContent = t; el.classList.toggle("bad", !!bad); el.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show"), 2600); }
 
 const I = {
+  down:'<path d="m6 9 6 6 6-6"/>',
+  next:'<path d="m9 6 6 6-6 6"/>',
   home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/>',
   cart:'<circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2.5 3h3l2.6 12.4a1.5 1.5 0 0 0 1.5 1.1h8.2a1.5 1.5 0 0 0 1.5-1.1L21 7H6.2"/>',
   receipt:'<path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
@@ -822,7 +866,7 @@ const invCls = e => ({ "COMPRAR":"bad", "OK":"ok", "Contar":"", "Sin mínimo":"i
 //  Navegación
 // =====================================================================
 const VIEWS = {
-  inicio:      { t:"Resumen",              i:"home",    month:true, grp:"Día a día" },
+  inicio:      { t:"Hoy",                  i:"home",    month:true, grp:"Día a día" },
   pedidos:     { t:"Pedidos de la página", i:"bag",     grp:"Día a día" },
   ventas:      { t:"Ventas",               i:"cart",    month:true, grp:"Día a día" },
   gastos:      { t:"Gastos y compras",     i:"receipt", month:true, grp:"Día a día" },
@@ -844,7 +888,7 @@ const VIEWS = {
 };
 let TABS = ["inicio", "pedidos", "ventas", "gastos", "mas"];
 let view = "inicio", curM = curMonth();
-const UI = { ventasQ:"", insQ:"", invSolo:false, cartaF:"Todos", gastoTipo:"Todos", ideaF:"En curso" };
+const UI = { ventasQ:"", insQ:"", invSolo:false, cartaF:"Todos", gastoTipo:"Todos", ideaF:"En curso", verMes:readJSON("saisei.cuentas.verMes") === true };
 
 function buildNav(){
   let h = "", g = "";
@@ -874,9 +918,9 @@ function render(){
     const k = a.dataset.v;
     a.classList.toggle("on", k === view || (k === "mas" && !TABS.includes(view)));
   });
-  const fab = { inicio:["Registrar venta", "cart"], ventas:["Registrar venta", "cart"], gastos:["Registrar gasto", "receipt"], ideas:["Nueva idea", "bulb"] }[view];
+  const fab = { inicio:"Registrar venta o gasto", ventas:"Registrar venta", gastos:"Registrar gasto", ideas:"Nueva idea" }[view];
   $("fab").hidden = !fab;
-  if(fab){ $("fab").innerHTML = ico("plus"); $("fab").title = fab[0]; }
+  if(fab){ $("fab").innerHTML = ico("plus"); $("fab").title = fab; $("fab").setAttribute("aria-label", fab); }
   $("view").innerHTML = R[view]();
 }
 // Vuelve a dibujar sin perder el campo en que estaba el cursor (inventario, costos fijos)
@@ -909,7 +953,7 @@ function progress(label, val, goal, right){
   return `<div class="prog"><div class="t"><span>${label}</span><b class="num">${right}</b></div><div class="bar ${p < .5 ? "bad" : p < 1 ? "warn" : ""}"><i style="width:${(p*100).toFixed(1)}%"></i></div></div>`;
 }
 
-// ---------- Resumen ----------
+// ---------- Hoy (inicio) ----------
 R.inicio = () => {
   const s = mes(curM), eq = equilibrio(), fco = n0(P().foodCost);
   const comprar = S.insumos.filter(i => invEstado(i) === "COMPRAR");
@@ -934,19 +978,40 @@ R.inicio = () => {
 
   const alerts = [];
   const pendWeb = PED.list.filter(p => p.estado === "pendiente").length;
-  if(pendWeb) alerts.push(`<a class="alert bad" href="#pedidos">${ico("bag")}<span><b>${pendWeb}</b> pedido${pendWeb > 1 ? "s" : ""} de la página por confirmar</span></a>`);
   if(comprar.length) alerts.push(`<a class="alert bad" href="#inventario">${ico("alert")}<span><b>${comprar.length}</b> insumo${comprar.length > 1 ? "s" : ""} bajo el mínimo: ${esc(comprar.slice(0, 3).map(i => i.nombre).join(", "))}${comprar.length > 3 ? "…" : ""}</span></a>`);
   if(revisar.length) alerts.push(`<a class="alert" href="#carta">${ico("alert")}<span><b>${revisar.length}</b> producto${revisar.length > 1 ? "s" : ""} con precio a revisar (food cost sobre ${pct(fco + .05)})</span></a>`);
   if(s.neto && s.fc > fco + .05) alerts.push(`<a class="alert" href="#carta">${ico("alert")}<span>El food cost del mes va en <b>${pct(s.fc)}</b>; el objetivo es ${pct(fco)}.</span></a>`);
   if(s.costo && s.difp > .1) alerts.push(`<a class="alert" href="#resultados">${ico("alert")}<span>Compraste <b>${fmt(s.dif)}</b> más de lo que usan las recetas (${pct(s.difp)}). Puede ser stock, merma o porciones grandes.</span></a>`);
   if(contar.length && contar.length === S.insumos.length) alerts.push(`<a class="alert" href="#inventario">${ico("info")}<span>Aún no cuentas el inventario. Anota el stock para saber qué comprar.</span></a>`);
-  if(!alerts.length) alerts.push(`<div class="alert ok">${ico("check")}<span>Todo en orden por ahora.</span></div>`);
+
+  // Hoy: lo que se anota decenas de veces al día va primero; el análisis del mes queda plegado
+  const hoyV = S.ventas.filter(v => v.fecha === today()).sort(ventaOrden);
+  const gastHoy = sum(S.gastos.filter(g => g.fecha === today()), g => n0(g.monto));
+  const hoy = `
+  ${pendWeb ? `<a class="alert bad urge" href="#pedidos">${ico("bag")}<span><b>${pendWeb}</b> pedido${pendWeb > 1 ? "s" : ""} de la página por confirmar</span>${ico("next")}</a>` : ""}
+  <section class="hoy" aria-labelledby="hoyT">
+    <div class="hoy-h">
+      <div><h2 id="hoyT">Hoy</h2><p class="hoy-d">${dName(today())}</p></div>
+      <div class="hoy-t"><b class="num">${fmt(sum(hoyV, v => vTot(v).bruto))}</b><span>${hoyV.length} venta${hoyV.length === 1 ? "" : "s"}${gastHoy ? ` · ${fmt(gastHoy)} en gastos` : ""}</span></div>
+    </div>
+    ${hoyV.length ? `<div class="list">${hoyV.slice(0, 3).map(v => ventaItem(v, true)).join("")}</div>
+    <a class="more" href="#ventas">${hoyV.length > 3 ? `Ver las ${hoyV.length} ventas de hoy` : "Ver todas las ventas"}${ico("next")}</a>`
+    : `<div class="hoy-vacio"><p>Aún no anotas ventas hoy.</p><button class="b acc" data-act="newVenta">${ico("plus")}Registrar venta</button></div>`}
+  </section>
+  ${alerts.length ? `<section class="sec-blk" aria-labelledby="revT"><h2 id="revT" class="sh">Para revisar</h2><div class="alerts">${alerts.join("")}</div></section>` : ""}
+  <section class="sec-blk">
+    <button class="mesbar" data-act="verMes" aria-expanded="${UI.verMes}" aria-controls="mesDet">
+      <span class="mesbar-l"><b>${mName(curM)}</b><span class="mesbar-n"><span>Ventas ${fmt(s.bruto)}</span><span>Utilidad <b class="${s.util >= 0 ? "pos" : "neg"}">${fmt(s.util)}</b></span></span></span>
+      <span class="mesbar-r">${UI.verMes ? "Ocultar" : "Ver el mes"}${ico("down")}</span>
+    </button>`;
+  if(!UI.verMes) return hoy + `</section>`;
 
   const falta = Math.max(eq.netoEq - s.neto, 0);
   const ap = apartados(curM);
   const cj = caja(curM), libre = cj.debito.fin + cj.efectivo.fin - ap.guardado, col =(l, c) => `<td class="n">${fmt(c[l])}</td>`;
   const fila = (t, l, sg = "") => `<tr><td>${sg}${t}</td>${col(l, cj.debito)}${col(l, cj.efectivo)}<td class="n">${fmt(cj.debito[l] + cj.efectivo[l])}</td></tr>`;
-  return `
+  return hoy + `
+  <div id="mesDet" class="mes-det">
   <div class="kpis">
     ${kpi("Ventas del mes", fmt(s.bruto), `${s.pedidos} pedido${s.pedidos === 1 ? "" : "s"} · ticket ${fmt(s.ticket)}`)}
     ${kpi("Margen de contribución", fmt(s.mc), `${pct(s.mcp)} de las ventas netas`)}
@@ -976,8 +1041,7 @@ R.inicio = () => {
     </tbody></table></div>` : ""}
     <p class="hint">Ventas con tarjeta o transferencia van a débito descontando la comisión.${cj.credito ? ` Compras a crédito de proveedor por pagar: <b>${fmt(cj.credito)}</b> (no se descuentan aún).` : ""}</p>
   </div>
-  <div class="grid g2 mt">
-    <div class="card">
+  <div class="card mt">
       <h2>¿Cómo vamos? <a class="r" href="#equilibrio">Ver detalle</a></h2>
       ${progress("Punto de equilibrio (cubrir costos fijos)", s.neto, eq.netoEq, `${fmt(s.neto)} / ${fmt(eq.netoEq)}`)}
       ${progress("Meta de utilidad (" + fmt(P().meta) + ")", s.bruto, eq.metaBruto, `${fmt(s.bruto)} / ${fmt(eq.metaBruto)}`)}
@@ -989,15 +1053,6 @@ R.inicio = () => {
         <div class="bar ${s.fc > fco + .05 ? "bad" : s.fc > fco ? "warn" : ""}"><i style="width:${Math.min(s.fc / .6 * 100, 100)}%"></i><span class="mark" style="left:${fco / .6 * 100}%"></span></div>
         <p class="hint">Lo que se va en insumos y empaques de cada $100 vendidos. Sano para sushi: 30% a 35%.</p>
       </div>
-    </div>
-    <div class="card">
-      <h2>Alertas</h2>
-      ${alerts.join("")}
-      <div class="row mt">
-        <button class="b acc" data-act="newVenta">${ico("plus")}Registrar venta</button>
-        <button class="b" data-act="newGasto">${ico("plus")}Registrar gasto</button>
-      </div>
-    </div>
   </div>
   <div class="card mt">
     <h2>Ventas por día <span class="r muted">${mName(curM)}</span></h2>
@@ -1015,15 +1070,24 @@ R.inicio = () => {
       <h2 class="mt">Por dónde llegan</h2>${split(porCanal)}
       ${s.com ? `<p class="hint mt">Comisiones de tarjeta / link este mes: <b>${fmt(s.com)}</b>.</p>` : ""}
     </div>
-  </div>`;
+  </div>
+  </div></section>`;
 };
 
 // ---------- Ventas ----------
+const ventaOrden = (a, b) => (b.fecha + String(n0(b.num)).padStart(6, "0")).localeCompare(a.fecha + String(n0(a.num)).padStart(6, "0"));
+function ventaItem(v, adm){
+  const t = vTot(v);
+  return `<button class="item" data-act="editVenta" data-id="${esc(v.id)}">
+      <div class="main-t"><div class="tt">${esc(v.items.map(i => (n0(i.cant) !== 1 ? qty(i.cant) + "× " : "") + i.nombre).join(", ") || "—")}</div>
+      <div class="st">#${esc(v.num)} · ${esc(v.canal)} · ${esc(v.pago)}${v.nota ? " · " + esc(v.nota) : ""}</div></div>
+      <div class="am num">${fmt(t.bruto)}${adm ? `<small class="${t.margen >= 0 ? "pos" : "neg"}">margen ${fmt(t.margen)}</small>` : ""}</div></button>`;
+}
 R.ventas = () => {
   // El colaborador solo ve las ventas de hoy y su total (sin el mes, costos ni márgenes)
   const adm = esAdmin(), s = mes(curM), q = UI.ventasQ.trim().toLowerCase();
   const base = adm ? s.vs : S.ventas.filter(v => v.fecha === today());
-  let vs = base.slice().sort((a, b) => (b.fecha + String(n0(b.num)).padStart(6, "0")).localeCompare(a.fecha + String(n0(a.num)).padStart(6, "0")));
+  let vs = base.slice().sort(ventaOrden);
   if(q) vs = vs.filter(v => [v.num, v.canal, v.pago, v.nota, ...v.items.map(i => i.nombre)].join(" ").toLowerCase().includes(q));
   let h = "", day = "";
   vs.forEach(v => {
@@ -1032,11 +1096,7 @@ R.ventas = () => {
       const tDay = sum(vs.filter(x => x.fecha === day), x => vTot(x).bruto);
       h += `<div class="day"><span>${dName(day)}</span><span class="num">${fmt(tDay)}</span></div>`;
     }
-    const t = vTot(v);
-    h += `<button class="item" data-act="editVenta" data-id="${esc(v.id)}">
-      <div class="main-t"><div class="tt">${esc(v.items.map(i => (n0(i.cant) !== 1 ? qty(i.cant) + "× " : "") + i.nombre).join(", ") || "—")}</div>
-      <div class="st">#${esc(v.num)} · ${esc(v.canal)} · ${esc(v.pago)}${v.nota ? " · " + esc(v.nota) : ""}</div></div>
-      <div class="am num">${fmt(t.bruto)}${adm ? `<small class="${t.margen >= 0 ? "pos" : "neg"}">margen ${fmt(t.margen)}</small>` : ""}</div></button>`;
+    h += ventaItem(v, adm);
   });
   return `
   <div class="kpis">${adm ? `
@@ -1182,7 +1242,7 @@ R.duenos = () => {
       <td class="n"><b>${fmt(d.leDebe)}</b><div class="small muted">recibió ${fmt(d.prestamo_local)} · devolvió ${fmt(d.abono)}</div></td>
       <td class="n">${fmt(d.pago)}</td></tr>`).join("")}
     </tbody></table></div>
-    <p class="hint">Totales desde el primer registro. No son ventas ni gastos, así que no cambian la utilidad, pero sí el dinero del mes en el <a href="#inicio">Resumen</a>.</p></div>` : ""}
+    <p class="hint">Totales desde el primer registro. No son ventas ni gastos, así que no cambian la utilidad, pero sí el dinero del mes que ves en <a href="#inicio">Hoy</a>.</p></div>` : ""}
   <div class="row mt"><h2 style="margin:0;font-size:1rem">Movimientos de ${mName(curM)}</h2><span class="sp"></span>${btn}</div>
   <div class="list" style="margin-top:6px">${h || empty("users", "Sin movimientos en " + mName(curM), "Anota los préstamos entre los dueños y el local (en los dos sentidos), sus devoluciones y lo que se les paga.", btn)}</div>`;
 };
@@ -1562,7 +1622,7 @@ R.ajustes = () => {
     <h2>Rutina para mantener el orden</h2>
     <table><tbody>
       <tr><td><b>Cada día de venta</b></td><td>Registra cada pedido en Ventas. Guarda las boletas de compra.</td></tr>
-      <tr><td><b>Cada semana</b></td><td>Cuenta el stock en Inventario y compra lo que diga COMPRAR. Anota las compras en Gastos. Mira el Resumen.</td></tr>
+      <tr><td><b>Cada semana</b></td><td>Cuenta el stock en Inventario y compra lo que diga COMPRAR. Anota las compras en Gastos. Mira el mes en Hoy.</td></tr>
       <tr><td><b>Cada mes</b></td><td>Actualiza precios en Insumos, revisa la Carta (productos a revisar) y compara compras reales vs costo de recetas en Resultados.</td></tr>
       <tr><td><b>Cada trimestre</b></td><td>Revisa precios de venta, promos que no dejan margen y proveedores alternativos.</td></tr>
     </tbody></table>
@@ -1586,6 +1646,14 @@ function openModal(title, body, foot, cls = ""){
   const first = ov.querySelector(".mb input:not([type=checkbox]):not([type=date]), .mb select");
   if(first && matchMedia("(min-width:760px)").matches) first.focus();
   return ov.querySelector(".modal");
+}
+// El + de Hoy: una sola pregunta, con Venta como respuesta grande y por defecto
+function elegirRegistro(){
+  const m = openModal("¿Qué anotas?", `<div class="pick">
+    <button class="pk pri" data-act="newVenta">${ico("cart")}<span><b>Venta</b><small>Un pedido entregado o cobrado</small></span></button>
+    <button class="pk" data-act="newGasto">${ico("receipt")}<span><b>Gasto o compra</b><small>Insumos, empaques, cuentas, sueldos</small></span></button>
+  </div>`, "", "pick-m");
+  m.querySelector(".pk.pri").focus();
 }
 function closeModal(){ $("ov").hidden = true; $("ov").innerHTML = ""; document.body.style.overflow = ""; }
 $("ov").addEventListener("mousedown", e => { if(e.target === $("ov")) closeModal(); });
@@ -2568,7 +2636,8 @@ async function restore(file){
 // =====================================================================
 const A = {
   close: closeModal,
-  fab: () => view === "gastos" ? formGasto() : view === "ideas" ? formIdea() : formVenta(),
+  fab: () => view === "gastos" ? formGasto() : view === "ideas" ? formIdea() : view === "inicio" ? elegirRegistro() : formVenta(),
+  verMes: () => { UI.verMes = !UI.verMes; writeJSON("saisei.cuentas.verMes", UI.verMes); render(); },
   newIdea: () => formIdea(),
   editIdea: d => formIdea(S.ideas.find(x => x.id === d.id)),
   delIdea: async d => {
