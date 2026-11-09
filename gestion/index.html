@@ -352,7 +352,7 @@
     </div>
     <section class="card solo-admin" style="margin-top:16px">
       <h2>Rolls para las tablas Shari</h2>
-      <p class="hint">Los rolls que el cliente elige al armar su tabla. Los de pollo salen en tablas Chicken y Mixta; los de salmón, solo en Mixta. Agrega o quita rolls y guarda: el cambio se publica al instante.</p>
+      <p class="hint">Los rolls que el cliente elige al armar su tabla. Los de pollo salen en tablas Chicken y Mixta; los de salmón, solo en Mixta. Cambia el nombre o los ingredientes de un roll escribiendo en su casilla, agrega o quita rolls, y guarda: el cambio se publica al instante.</p>
       <div class="two">
         <div><label for="roN">Nombre del roll</label><input id="roN" maxlength="40" placeholder="Chicken Teriyaki"></div>
         <div><label for="roD">Ingredientes</label><input id="roD" maxlength="90" placeholder="Pollo, queso crema, palta, envuelto en panko"></div>
@@ -975,7 +975,11 @@ const ROLLS_ORIGINAL = [
 ];
 let rollsEd = [];
 function renderRolls(){
-  $("roList").innerHTML = rollsEd.map((r, i) => `<div class="igitem"><span style="flex:1;min-width:0"><b>${esc(r.n)}</b> · ${r.tipo === "salmon" ? "Salmón" : "Pollo"}<br><span class="hint" style="margin:0">${esc(r.d)}</span></span><button class="b sm del" data-ro-del="${i}" aria-label="Quitar ${esc(r.n)}">Quitar</button></div>`).join("")
+  $("roList").innerHTML = rollsEd.map((r, i) => `<div class="igitem" style="flex-wrap:wrap"><span style="flex:1;min-width:200px;display:grid;gap:6px">
+      <input data-ro-i="${i}" data-f="n" value="${esc(r.n)}" maxlength="40" aria-label="Nombre del roll">
+      <input data-ro-i="${i}" data-f="d" value="${esc(r.d)}" maxlength="90" aria-label="Ingredientes de ${esc(r.n)}">
+      <span class="hint" style="margin:0">${r.tipo === "salmon" ? "Salmón: solo en tablas Mixta" : "Pollo: en tablas Chicken y Mixta"}</span></span>
+      <button class="b sm del" data-ro-del="${i}" aria-label="Quitar ${esc(r.n)}">Quitar</button></div>`).join("")
     || `<p class="hint">Sin rolls: agrega al menos uno de pollo antes de guardar.</p>`;
 }
 $("roAdd").onclick = () => {
@@ -985,9 +989,12 @@ $("roAdd").onclick = () => {
   rollsEd.push({ n, d, tipo }); $("roN").value = $("roD").value = ""; renderRolls();
   toast("Roll agregado: recuerda guardar");
 };
+$("roList").oninput = e => { const t = e.target.closest("[data-ro-i]"); if(t) rollsEd[+t.dataset.roI][t.dataset.f] = t.value; };
 $("roList").onclick = e => { const b = e.target.closest("[data-ro-del]"); if(!b) return; rollsEd.splice(+b.dataset.roDel, 1); renderRolls(); };
 $("roSave").onclick = async () => {
   // una tabla Chicken sin rolls de pollo no se podría armar
+  rollsEd.forEach(r => { r.n = r.n.trim(); r.d = (r.d || "").trim(); });
+  if(rollsEd.some(r => !r.n)) return toast("Hay un roll sin nombre: escríbelo o quítalo", true);
   if(!rollsEd.some(r => r.tipo === "chicken")) return toast("Deja al menos un roll de pollo: las tablas Chicken solo usan esos", true);
   $("roSave").disabled = true;
   await guardarAj({ rolls_shari: rollsEd }, "Rolls guardados: ya aparecen en la página");
