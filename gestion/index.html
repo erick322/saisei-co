@@ -352,7 +352,7 @@
     </div>
     <section class="card solo-admin" style="margin-top:16px">
       <h2>Rolls para las tablas Shari</h2>
-      <p class="hint">Los rolls que el cliente elige al armar su tabla. Los de pollo salen en tablas Chicken y Mixta; los de salmón, solo en Mixta. Cambia el nombre o los ingredientes de un roll escribiendo en su casilla, agrega o quita rolls, y guarda: el cambio se publica al instante.</p>
+      <p class="hint">Los rolls que el cliente elige al armar su tabla. Los de pollo salen en tablas Chicken y Mixta; los de salmón, solo en Mixta. Cambia el nombre o los ingredientes de un roll escribiendo en su casilla y toca Guardar rolls. Para crear una variante sin perder el original, cámbiale el nombre y los ingredientes y toca “Guardar como roll nuevo”: el cambio se publica al instante.</p>
       <div class="two">
         <div><label for="roN">Nombre del roll</label><input id="roN" maxlength="40" placeholder="Chicken Teriyaki"></div>
         <div><label for="roD">Ingredientes</label><input id="roD" maxlength="90" placeholder="Pollo, queso crema, palta, envuelto en panko"></div>
@@ -959,6 +959,7 @@ async function loadAj(){
   slEd = Array.isArray(aj.portada) ? aj.portada.map(s => ({ ...s })) : [];
   igPosts = Array.isArray(aj.instagram_posts) ? aj.instagram_posts.filter(c => typeof c === "string") : [];
   rollsEd = Array.isArray(aj.rolls_shari) && aj.rolls_shari.length ? aj.rolls_shari.map(r => ({ ...r })) : ROLLS_ORIGINAL.map(r => ({ ...r }));
+  marcarOrig();
   renderColors(); renderImgs(); renderAviso(); renderPago(); renderSlEd(); renderContacto(); renderIgList(); renderRolls();
 }
 
@@ -974,30 +975,43 @@ const ROLLS_ORIGINAL = [
   { n:"Salmón Nori",    d:"Salmón, queso crema, pepino, envuelto en nori", tipo:"salmon" },
 ];
 let rollsEd = [];
+let rollsOrig = new WeakMap(); // valores guardados de cada roll, para devolverlos al copiarlo como nuevo
+const marcarOrig = () => rollsEd.forEach(r => rollsOrig.set(r, { n:r.n, d:r.d }));
 function renderRolls(){
   $("roList").innerHTML = rollsEd.map((r, i) => `<div class="igitem" style="flex-wrap:wrap"><span style="flex:1;min-width:200px;display:grid;gap:6px">
       <input data-ro-i="${i}" data-f="n" value="${esc(r.n)}" maxlength="40" aria-label="Nombre del roll">
       <input data-ro-i="${i}" data-f="d" value="${esc(r.d)}" maxlength="90" aria-label="Ingredientes de ${esc(r.n)}">
       <span class="hint" style="margin:0">${r.tipo === "salmon" ? "Salmón: solo en tablas Mixta" : "Pollo: en tablas Chicken y Mixta"}</span></span>
-      <button class="b sm del" data-ro-del="${i}" aria-label="Quitar ${esc(r.n)}">Quitar</button></div>`).join("")
+      <span style="display:flex;flex-direction:column;gap:6px"><button class="b sm" data-ro-new="${i}">Guardar como roll nuevo</button><button class="b sm del" data-ro-del="${i}" aria-label="Quitar ${esc(r.n)}">Quitar</button></span></div>`).join("")
     || `<p class="hint">Sin rolls: agrega al menos uno de pollo antes de guardar.</p>`;
 }
 $("roAdd").onclick = () => {
   const n = $("roN").value.trim(), d = $("roD").value.trim(), tipo = $("roT").value;
   if(!n) return toast("Escribe el nombre del roll", true);
   if(rollsEd.some(r => r.n.toLowerCase() === n.toLowerCase())) return toast("Ese roll ya está en la lista", true);
-  rollsEd.push({ n, d, tipo }); $("roN").value = $("roD").value = ""; renderRolls();
+  const nuevo = { n, d, tipo }; rollsEd.push(nuevo); rollsOrig.set(nuevo, { n, d }); $("roN").value = $("roD").value = ""; renderRolls();
   toast("Roll agregado: recuerda guardar");
 };
 $("roList").oninput = e => { const t = e.target.closest("[data-ro-i]"); if(t) rollsEd[+t.dataset.roI][t.dataset.f] = t.value; };
-$("roList").onclick = e => { const b = e.target.closest("[data-ro-del]"); if(!b) return; rollsEd.splice(+b.dataset.roDel, 1); renderRolls(); };
+$("roList").onclick = async e => {
+  const b = e.target.closest("[data-ro-del]"); if(b){ rollsEd.splice(+b.dataset.roDel, 1); renderRolls(); return; }
+  const nb = e.target.closest("[data-ro-new]"); if(!nb) return;
+  const i = +nb.dataset.roNew, r = rollsEd[i], o = rollsOrig.get(r) || { n:r.n, d:r.d };
+  const copia = { n:r.n.trim(), d:(r.d || "").trim(), tipo:r.tipo };
+  if(!copia.n) return toast("Escribe el nombre del roll nuevo", true);
+  if(rollsEd.some(x => x !== r && x.n.trim().toLowerCase() === copia.n.toLowerCase()) || copia.n.toLowerCase() === o.n.toLowerCase())
+    return toast("Cámbiale el nombre al roll nuevo: ya hay uno que se llama así", true);
+  r.n = o.n; r.d = o.d; // el roll original queda como estaba
+  rollsEd.splice(i + 1, 0, copia); renderRolls();
+  await $("roSave").onclick();
+};
 $("roSave").onclick = async () => {
   // una tabla Chicken sin rolls de pollo no se podría armar
   rollsEd.forEach(r => { r.n = r.n.trim(); r.d = (r.d || "").trim(); });
   if(rollsEd.some(r => !r.n)) return toast("Hay un roll sin nombre: escríbelo o quítalo", true);
   if(!rollsEd.some(r => r.tipo === "chicken")) return toast("Deja al menos un roll de pollo: las tablas Chicken solo usan esos", true);
   $("roSave").disabled = true;
-  await guardarAj({ rolls_shari: rollsEd }, "Rolls guardados: ya aparecen en la página");
+  if(await guardarAj({ rolls_shari: rollsEd }, "Rolls guardados: ya aparecen en la página")) marcarOrig();
   $("roSave").disabled = false;
 };
 
