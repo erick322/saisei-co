@@ -768,7 +768,7 @@ const FOTO = {
 };
 
 // Rolls para armar las tablas Shari. tipo "chicken" aparece en tablas Chicken y Mixta; "salmon" solo en Mixta.
-const ROLLS = [
+let ROLLS = [
   { n:"Chicken Crunch", d:"Pollo, queso crema, palta, envuelto en panko", tipo:"chicken" },
   { n:"Chicken Palta",  d:"Pollo, queso crema, palta, envuelto en palta", tipo:"chicken" },
   { n:"Chicken Sésamo", d:"Pollo, queso crema, pepino, envuelto en sésamo", tipo:"chicken" },
@@ -1057,8 +1057,8 @@ function openPicker(it, base, btn){
   pick = { base, btn, need: it.rolls, opts, counts: opts.map(() => 0) };
   $("pkTitle").textContent = base.name;
   $("pkList").innerHTML = opts.map((r,i)=>`
-    <div class="pk-row"><div><b>${r.n}</b><small>${r.d}</small></div>
-      <div class="qty"><button data-r="${i}" data-d="-1" aria-label="Quitar ${r.n}">−</button><span id="pk${i}">0</span><button data-r="${i}" data-d="1" aria-label="Agregar ${r.n}">+</button></div></div>`).join("");
+    <div class="pk-row"><div><b>${esc(r.n)}</b><small>${esc(r.d || "")}</small></div>
+      <div class="qty"><button data-r="${i}" data-d="-1" aria-label="Quitar ${esc(r.n)}">−</button><span id="pk${i}">0</span><button data-r="${i}" data-d="1" aria-label="Agregar ${esc(r.n)}">+</button></div></div>`).join("");
   updatePicker();
   openModal("picker");
 }
@@ -1310,6 +1310,7 @@ async function loadAjustes(){
     }
 
     if(Array.isArray(a.instagram_posts) && a.instagram_posts.length) renderIG(a.instagram_posts);
+    if(Array.isArray(a.rolls_shari) && a.rolls_shari.some(r => r && r.n)) ROLLS = a.rolls_shari.filter(r => r && r.n);
 
     if(a.pago_tarjeta === false) [...$("pago").options].find(o => o.value === "Tarjeta")?.remove();
 

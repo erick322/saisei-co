@@ -350,6 +350,17 @@
         <div class="grid" id="prods"></div>
       </div>
     </div>
+    <section class="card solo-admin" style="margin-top:16px">
+      <h2>Rolls para las tablas Shari</h2>
+      <p class="hint">Los rolls que el cliente elige al armar su tabla. Los de pollo salen en tablas Chicken y Mixta; los de salmón, solo en Mixta. Agrega o quita rolls y guarda: el cambio se publica al instante.</p>
+      <div class="two">
+        <div><label for="roN">Nombre del roll</label><input id="roN" maxlength="40" placeholder="Chicken Teriyaki"></div>
+        <div><label for="roD">Ingredientes</label><input id="roD" maxlength="90" placeholder="Pollo, queso crema, palta, envuelto en panko"></div>
+      </div>
+      <div class="igadd" style="margin-top:8px"><select id="roT" aria-label="Tipo de roll"><option value="chicken">Pollo (Chicken y Mixta)</option><option value="salmon">Salmón (solo Mixta)</option></select><button class="b" id="roAdd">Agregar roll</button></div>
+      <div class="iglist" id="roList" style="margin-top:10px"></div>
+      <div class="acts-end"><button class="b pri" id="roSave">Guardar rolls</button></div>
+    </section>
   </div>
 
   <!-- ===== Apariencia ===== -->
@@ -947,8 +958,41 @@ async function loadAj(){
   delete colorsEd.mov; // el movimiento viaja en el mismo JSON, pero se maneja aparte
   slEd = Array.isArray(aj.portada) ? aj.portada.map(s => ({ ...s })) : [];
   igPosts = Array.isArray(aj.instagram_posts) ? aj.instagram_posts.filter(c => typeof c === "string") : [];
-  renderColors(); renderImgs(); renderAviso(); renderPago(); renderSlEd(); renderContacto(); renderIgList();
+  rollsEd = Array.isArray(aj.rolls_shari) && aj.rolls_shari.length ? aj.rolls_shari.map(r => ({ ...r })) : ROLLS_ORIGINAL.map(r => ({ ...r }));
+  renderColors(); renderImgs(); renderAviso(); renderPago(); renderSlEd(); renderContacto(); renderIgList(); renderRolls();
 }
+
+// Rolls para armar las tablas Shari (vacío en la base = la página usa estos mismos)
+const ROLLS_ORIGINAL = [
+  { n:"Chicken Crunch", d:"Pollo, queso crema, palta, envuelto en panko", tipo:"chicken" },
+  { n:"Chicken Palta",  d:"Pollo, queso crema, palta, envuelto en palta", tipo:"chicken" },
+  { n:"Chicken Sésamo", d:"Pollo, queso crema, pepino, envuelto en sésamo", tipo:"chicken" },
+  { n:"Chicken Nori",   d:"Pollo, queso crema, pepino, envuelto en nori", tipo:"chicken" },
+  { n:"Salmón Crema",   d:"Salmón, queso crema, palta, envuelto en palta", tipo:"salmon" },
+  { n:"Salmón Panko",   d:"Salmón, queso crema, palta, envuelto en panko", tipo:"salmon" },
+  { n:"Salmón Sésamo",  d:"Salmón, queso crema, pepino, envuelto en sésamo", tipo:"salmon" },
+  { n:"Salmón Nori",    d:"Salmón, queso crema, pepino, envuelto en nori", tipo:"salmon" },
+];
+let rollsEd = [];
+function renderRolls(){
+  $("roList").innerHTML = rollsEd.map((r, i) => `<div class="igitem"><span style="flex:1;min-width:0"><b>${esc(r.n)}</b> · ${r.tipo === "salmon" ? "Salmón" : "Pollo"}<br><span class="hint" style="margin:0">${esc(r.d)}</span></span><button class="b sm del" data-ro-del="${i}" aria-label="Quitar ${esc(r.n)}">Quitar</button></div>`).join("")
+    || `<p class="hint">Sin rolls: agrega al menos uno de pollo antes de guardar.</p>`;
+}
+$("roAdd").onclick = () => {
+  const n = $("roN").value.trim(), d = $("roD").value.trim(), tipo = $("roT").value;
+  if(!n) return toast("Escribe el nombre del roll", true);
+  if(rollsEd.some(r => r.n.toLowerCase() === n.toLowerCase())) return toast("Ese roll ya está en la lista", true);
+  rollsEd.push({ n, d, tipo }); $("roN").value = $("roD").value = ""; renderRolls();
+  toast("Roll agregado: recuerda guardar");
+};
+$("roList").onclick = e => { const b = e.target.closest("[data-ro-del]"); if(!b) return; rollsEd.splice(+b.dataset.roDel, 1); renderRolls(); };
+$("roSave").onclick = async () => {
+  // una tabla Chicken sin rolls de pollo no se podría armar
+  if(!rollsEd.some(r => r.tipo === "chicken")) return toast("Deja al menos un roll de pollo: las tablas Chicken solo usan esos", true);
+  $("roSave").disabled = true;
+  await guardarAj({ rolls_shari: rollsEd }, "Rolls guardados: ya aparecen en la página");
+  $("roSave").disabled = false;
+};
 
 // WhatsApp e Instagram de la página
 const WA_DEF = "56950357674", IG_DEF = "cosaisei";

@@ -102,6 +102,8 @@ alter table public.ajustes add column if not exists instagram text default '';
 alter table public.ajustes add column if not exists instagram_posts jsonb default '[]'::jsonb;
 -- Pago con tarjeta en el pedido (se activa/desactiva en /gestion → Avisos y portada)
 alter table public.ajustes add column if not exists pago_tarjeta boolean default true;
+-- Rolls para armar las tablas Shari (se editan en /gestion → Carta): [{"n":"Chicken Crunch","d":"...","tipo":"chicken"}]. Vacío = los de index.html.
+alter table public.ajustes add column if not exists rolls_shari jsonb default '[]'::jsonb;
 insert into public.ajustes (id) values (1) on conflict do nothing;
 alter table public.ajustes enable row level security;
 drop policy if exists "ver ajustes" on public.ajustes;
