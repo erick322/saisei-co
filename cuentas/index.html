@@ -510,7 +510,7 @@ const UNIDADES = ["g", "ml", "un"];
 // =====================================================================
 //  Datos: en la nube (Supabase, tabla "cuentas") o en este dispositivo
 // =====================================================================
-const COLS = ["ventas", "gastos", "insumos", "recetas", "carta", "proveedores", "fijos", "saldos", "reservas", "apartados", "duenos", "trabajadores", "jornadas", "sueldos", "ideas", "ideanotas", "pagostarjeta"];
+const COLS = ["ventas", "gastos", "insumos", "recetas", "carta", "proveedores", "fijos", "saldos", "reservas", "apartados", "duenos", "trabajadores", "jornadas", "sueldos", "ideas", "ideanotas", "pagostarjeta", "retiros"];
 const PAR_DEF = { flete:.1, foodCost:.33, comision:.035, iva:.19, afectaIva:false, dias:20, ticket:15000, meta:500000, deliveryCobro:2000, deliveryCosto:1500, diaCorte:16, prepBase:15, prepUnidad:5, despachoMin:20 };
 const LS_DATA = "saisei.cuentas.datos", LS_OUT = "saisei.cuentas.pendientes", LS_ROL = "saisei.cuentas.rol", LS_USR = "saisei.cuentas.usuario";
 let S = blank();
@@ -818,7 +818,7 @@ function caja(m){
     const p = caja(addMonth(m, -1));
     ini = { debito:p.debito.fin, efectivo:p.efectivo.fin, tarjeta:p.tarjeta.fin }; traido = true;
   }
-  const c0 = k => ({ ini:n0(ini && ini[k]), ent:0, sal:0, pres:0, pag:0, sue:0, tar:0, aum:0 });
+  const c0 = k => ({ ini:n0(ini && ini[k]), ent:0, sal:0, pres:0, pag:0, sue:0, tar:0, aum:0, mov:0 });
   const r = { ini, traido, debito:c0("debito"), efectivo:c0("efectivo"), tarjeta:c0("tarjeta"), credito:0 };
   s.vs.forEach(v => { const t = vTot(v); if(v.pago === "Efectivo") r.efectivo.ent += t.bruto; else r.debito.ent += t.bruto - t.com; });
   s.gs.forEach(g => { const x = n0(g.monto);
@@ -834,7 +834,10 @@ function caja(m){
   S.pagostarjeta.filter(x => pKey(x.fecha) === m).forEach(x => { const v = n0(x.monto);
     if(esCupo(x)){ r.tarjeta.aum += v; return; }   // el banco subió el cupo: no es dinero
     (x.medio === "Efectivo" ? r.efectivo : r.debito).tar += v; r.tarjeta.tar += v; });
-  [r.debito, r.efectivo].forEach(c => c.fin = c.ini + c.ent - c.sal + c.pres - c.pag - c.sue - c.tar);
+  // Sacar efectivo de la cuenta (o depositarlo) solo cambia dónde está el dinero: no es gasto ni ingreso
+  S.retiros.filter(x => pKey(x.fecha) === m).forEach(x => { const v = esDeposito(x) ? -n0(x.monto) : n0(x.monto);
+    r.debito.mov -= v; r.efectivo.mov += v; });
+  [r.debito, r.efectivo].forEach(c => c.fin = c.ini + c.ent - c.sal + c.pres - c.pag - c.sue - c.tar + c.mov);
   r.tarjeta.fin = r.tarjeta.ini - r.tarjeta.sal + r.tarjeta.tar + r.tarjeta.aum;
   return r;
 }
@@ -1049,6 +1052,7 @@ R.inicio = () => {
       ${cj.debito.pag + cj.efectivo.pag ? fila(`<a href="#duenos">Dinero a dueños</a>`, "pag", "− ") : ""}
       ${cj.debito.sue + cj.efectivo.sue ? fila(`<a href="#trabajadores">Pagos a trabajadores</a>`, "sue", "− ") : ""}
       ${cj.debito.tar + cj.efectivo.tar ? fila("Pago de la tarjeta de crédito", "tar", "− ") : ""}
+      ${retirosMes(curM).length ? fila(`<a href="#gastos">Retiros y depósitos de efectivo</a>`, "mov") : ""}
       <tr><td><b>Saldo actual</b></td>${[cj.debito.fin, cj.efectivo.fin, cj.debito.fin + cj.efectivo.fin].map(x => `<td class="n"><b class="${x < 0 ? "neg" : ""}">${fmt(x)}</b></td>`).join("")}</tr>
       ${ap.all.length ? `<tr><td>− <a href="#apartar">Apartado para pagos</a></td><td></td><td></td><td class="n">${fmt(ap.guardado)}</td></tr>
       <tr class="tot"><td>Libre para usar</td><td></td><td></td><td class="n"><span class="${libre < 0 ? "neg" : "pos"}">${fmt(libre)}</span></td></tr>` : ""}
@@ -1147,11 +1151,20 @@ R.gastos = () => {
   // Pagos y aumentos de cupo de la tarjeta: se listan aquí con los gastos, pero no suman al total (las compras ya están anotadas)
   const tar = adm && (UI.gastoTipo === "Todos" || UI.gastoTipo === TAR) ? pagosTar(curM) : [];
   if(UI.gastoTipo === TAR) gs = [];
-  const lista = [...gs.map(g => ({ g })), ...tar.map(t => ({ t }))]
-    .sort((a, b) => { const x = a.g || a.t, y = b.g || b.t; return y.fecha.localeCompare(x.fecha) || (y.upd || 0) - (x.upd || 0); });
+  const ret = adm && UI.gastoTipo === "Todos" ? retirosMes(curM) : [];
+  const lista = [...gs.map(g => ({ g })), ...tar.map(t => ({ t })), ...ret.map(e => ({ e }))]
+    .sort((a, b) => { const x = a.g || a.t || a.e, y = b.g || b.t || b.e; return y.fecha.localeCompare(x.fecha) || (y.upd || 0) - (x.upd || 0); });
   let h = "", day = "";
-  lista.forEach(({ g, t }) => {
-    const f = (g || t).fecha;
+  lista.forEach(({ g, t, e }) => {
+    const f = (g || t || e).fecha;
+    if(e){
+      if(f !== day){ day = f; h += `<div class="day"><span>${dName(day)}</span></div>`; }
+      h += `<button class="item" data-act="editRetiro" data-id="${esc(e.id)}">
+      <div class="main-t"><div class="tt">${TIPOS_RET[esDeposito(e) ? "deposito" : "retiro"]}</div>
+      <div class="st">No suma al total · ${esDeposito(e) ? "Efectivo → cuenta" : "Cuenta → efectivo"}${e.nota ? " · " + esc(e.nota) : ""}</div></div>
+      <div class="am num muted">${fmt(e.monto)}</div></button>`;
+      return;
+    }
     if(f !== day){ day = f; h += `<div class="day"><span>${dName(day)}</span></div>`; }
     h += g ? `<button class="item" data-act="editGasto" data-id="${esc(g.id)}">
       <div class="main-t"><div class="tt">${esc(g.desc || g.tipo)}</div>
@@ -1174,6 +1187,7 @@ R.gastos = () => {
     <span class="sp"></span>
     <button class="b acc" data-act="newGasto">${ico("plus")}Registrar gasto</button>
     ${adm ? `<button class="b" data-act="newPagoTar">${ico("wallet")}Tarjeta de crédito</button>` : ""}
+    ${adm ? `<button class="b" data-act="newRetiro">${ico("wallet")}Retiro de efectivo</button>` : ""}
     ${adm ? `<button class="b" data-act="csvGastos" title="Descargar para Excel">${ico("download")}<span>Excel</span></button>` : ""}
   </div>
   <div class="list" style="margin-top:6px">${h || (UI.gastoTipo === TAR ? empty("wallet", "Sin movimientos de la tarjeta en " + mName(curM), "Anota aquí cada pago de la tarjeta o aumento de cupo.", `<button class="b acc" data-act="newPagoTar">${ico("plus")}Anotar movimiento</button>`) : "") || empty("receipt", adm ? "Sin gastos en " + mName(curM) : "Sin gastos hoy", "Anota cada boleta o factura. Así sabrás si compras más de lo que usan tus recetas.", `<button class="b acc" data-act="newGasto">${ico("plus")}Registrar gasto</button>`)}</div>`;
@@ -2395,6 +2409,39 @@ function formPagoTarjeta(orig, tipo = "pago", base = {}){
     toast(orig ? "Movimiento actualizado" : c ? "Aumento de cupo guardado" : "Pago de la tarjeta guardado");
   };
 }
+// Retiro de efectivo: sale de la cuenta y entra al efectivo (o al revés si se deposita). No es gasto: el dinero
+// sigue siendo del negocio. Lo que se compre con ese efectivo se anota en Gastos pagado con "Efectivo".
+const TIPOS_RET = { retiro:"Retiro de efectivo", deposito:"Depósito de efectivo" };
+const esDeposito = x => x.tipo === "deposito";
+const retirosMes = m => S.retiros.filter(x => pKey(x.fecha) === m).sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.upd || 0) - (a.upd || 0));
+function formRetiro(orig){
+  const x = orig ? clone(orig) : { id:uid(), fecha: curM === curMonth() ? today() : pStart(curM), tipo:"retiro", monto:"", nota:"" };
+  const m = openModal(orig ? "Editar movimiento de efectivo" : "Retiro de efectivo", `
+    <label>Qué anotas</label>${chipsHTML("tipo", Object.values(TIPOS_RET), TIPOS_RET[esDeposito(x) ? "deposito" : "retiro"])}
+    <div class="f2">
+      <div><label for="rF">Fecha</label><input id="rF" type="date" value="${esc(x.fecha)}" required></div>
+      <div><label for="rM">Monto</label><div class="unit pre"><em>$</em><input id="rM" type="number" inputmode="numeric" min="0" step="1" value="${esc(x.monto)}" required></div></div>
+    </div>
+    <label for="rN">Para qué</label><input id="rN" value="${esc(x.nota || "")}">
+    <p class="hint" id="rHint"></p>`,
+    `${orig ? `<button class="b del" data-act="delRetiro" data-id="${esc(x.id)}">${ico("trash")}Eliminar</button>` : ""}<span class="sp"></span><button class="b" data-act="close">Cancelar</button><button class="b acc" id="rSave">Guardar</button>`);
+  const dep = () => chipVal(m, "tipo") === TIPOS_RET.deposito;
+  const sync = () => {
+    const d = dep();
+    m.querySelector("#rN").placeholder = d ? "Ej: depósito de la caja del fin de semana" : "Ej: pagar al proveedor de verduras";
+    m.querySelector("#rHint").textContent = d
+      ? "Resta del efectivo y suma a la cuenta (débito). No es venta ni ingreso: el total de tu dinero no cambia."
+      : "Resta de la cuenta (débito) y suma al efectivo. No es gasto: el total de tu dinero no cambia. Lo que pagues con ese efectivo anótalo en Gastos con pago \"Efectivo\".";
+  };
+  wireChips(m, sync); sync();
+  m.querySelector("#rSave").onclick = () => {
+    const t = { ...x, tipo: dep() ? "deposito" : "retiro", fecha:m.querySelector("#rF").value, monto:n0(m.querySelector("#rM").value), nota:m.querySelector("#rN").value.trim() };
+    if(!t.fecha) return toast("Elige la fecha", true);
+    if(!(t.monto > 0)) return toast("Escribe el monto", true);
+    put("retiros", t); closeModal(); curM = pKey(t.fecha); render();
+    toast(orig ? "Movimiento actualizado" : t.tipo === "deposito" ? "Depósito guardado" : "Retiro guardado");
+  };
+}
 function formDueno(orig, base = {}){
   const ult = S.duenos.slice().sort((a, b) => (b.upd || 0) - (a.upd || 0))[0];
   const x = orig ? clone(orig) : { id:uid(), fecha: curM === curMonth() ? today() : pStart(curM), dueno: ult ? ult.dueno : "", tipo:"prestamo", monto:"", medio:"Transferencia", nota:"", costo:true, ...base };
@@ -2830,6 +2877,9 @@ const A = {
   newGasto: () => formGasto(),
   editSaldo: () => formSaldo(),
   newPagoTar: () => formPagoTarjeta(),
+  newRetiro: () => formRetiro(),
+  editRetiro: d => formRetiro(S.retiros.find(x => x.id === d.id)),
+  delRetiro: async d => { if(await confirmDel("¿Eliminar este movimiento de efectivo?")){ del("retiros", d.id); closeModal(); render(); toast("Movimiento eliminado"); } },
   newCupoTar: () => formPagoTarjeta(null, "cupo"),
   editPagoTar: d => formPagoTarjeta(S.pagostarjeta.find(x => x.id === d.id)),
   delPagoTar: async d => { if(await confirmDel("¿Eliminar este movimiento de la tarjeta?")){ del("pagostarjeta", d.id); closeModal(); render(); toast("Movimiento eliminado"); } },
