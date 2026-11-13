@@ -808,10 +808,36 @@ function mes(m){
     compras, dif: compras - costo, difp: costo ? (compras - costo) / costo : 0,
     fijosPag: sum(gs.filter(g => g.tipo === "Costo fijo"), g => n0(g.monto)), gastosTot: sum(gs, g => n0(g.monto)) };
 }
+// Cada movimiento de dinero del mes, en la cuenta donde ocurre: debito, efectivo, tarjeta (cupo de crédito) o credito (deuda con proveedor).
+// v lleva el signo del efecto en esa cuenta; cat es la fila de "Dinero del mes" donde se suma. caja() y la vista Tarjetas leen de aquí.
+function movs(m){
+  const s = mes(m), L = [], enM = c => S[c].filter(x => pKey(x.fecha) === m);
+  const add = (x, cta, cat, v, tt, st, act) => L.push({ cta, cat, v, fecha:x.fecha, upd:x.upd || 0, tt, st, act, id:x.id });
+  const cta = medio => medio === "Efectivo" ? "efectivo" : "debito";
+  s.vs.forEach(v => { const t = vTot(v), ef = v.pago === "Efectivo";
+    // Ventas con tarjeta o transferencia entran a la cuenta descontando la comisión
+    add(v, ef ? "efectivo" : "debito", "ent", ef ? t.bruto : t.bruto - t.com, `Venta #${v.num}`, `${v.canal || ""} · ${v.pago}${!ef && t.com ? " · comisión " + fmt(t.com) : ""}`, "editVenta"); });
+  s.gs.forEach(g => add(g, g.pago === "Efectivo" ? "efectivo" : g.pago === "Tarjeta de crédito" ? "tarjeta" : g.pago === "Crédito proveedor" ? "credito" : "debito",
+    "sal", -n0(g.monto), g.desc || g.tipo, [g.tipo, g.proveedor, g.pago].filter(Boolean).join(" · "), "editGasto"));
+  // Lo que ponen o devuelven los dueños entra; lo que se les devuelve, paga o presta sale
+  enM("duenos").forEach(x => { const e = ENTRA_D.includes(x.tipo);
+    add(x, cta(x.medio), e ? "pres" : "pag", e ? n0(x.monto) : -n0(x.monto), TIPOS_D[x.tipo], x.dueno, "editDueno"); });
+  enM("sueldos").forEach(x => add(x, cta(x.medio), "sue", -n0(x.monto), "Pago a " + (trabById(x.trab)?.nombre || "trabajador"), x.nota || "", "editSueldo"));
+  // Pagar la tarjeta sale de la cuenta o del efectivo y libera cupo; no es un gasto nuevo (las compras ya se anotaron)
+  enM("pagostarjeta").forEach(x => { const v = n0(x.monto);
+    if(esCupo(x)) return add(x, "tarjeta", "aum", v, "Aumento de cupo", x.nota || "", "editPagoTar");   // el banco subió el cupo: no es dinero
+    add(x, cta(x.medio), "tar", -v, "Pago de la tarjeta de crédito", x.nota || "", "editPagoTar");
+    add(x, "tarjeta", "tar", v, "Pago de la tarjeta", `Desde ${x.medio === "Efectivo" ? "efectivo" : "la cuenta"}${x.nota ? " · " + x.nota : ""}`, "editPagoTar"); });
+  // Sacar efectivo de la cuenta (o depositarlo) solo cambia dónde está el dinero: no es gasto ni ingreso
+  enM("retiros").forEach(x => { const d = esDeposito(x), v = n0(x.monto), tt = TIPOS_RET[d ? "deposito" : "retiro"], st = x.nota || "";
+    add(x, "debito", "mov", d ? v : -v, tt, st, "editRetiro");
+    add(x, "efectivo", "mov", d ? -v : v, tt, st, "editRetiro"); });
+  return L.sort((a, b) => b.fecha.localeCompare(a.fecha) || b.upd - a.upd);
+}
 // Dinero del mes: saldo con que empieza + lo que entra − lo que sale, separado en débito (cuenta) y efectivo.
 // Ventas con tarjeta o transferencia entran a la cuenta descontando la comisión; las compras a crédito no salen aún.
 function caja(m){
-  const s = mes(m), rec = S.saldos.find(x => x.id === m);
+  const rec = S.saldos.find(x => x.id === m);
   // Sin saldo anotado, el mes empieza con el saldo final del mes anterior (desde el primer mes anotado)
   let ini = rec, traido = false;
   if(!rec && S.saldos.some(x => x.id < m)){
@@ -820,23 +846,7 @@ function caja(m){
   }
   const c0 = k => ({ ini:n0(ini && ini[k]), ent:0, sal:0, pres:0, pag:0, sue:0, tar:0, aum:0, mov:0 });
   const r = { ini, traido, debito:c0("debito"), efectivo:c0("efectivo"), tarjeta:c0("tarjeta"), credito:0 };
-  s.vs.forEach(v => { const t = vTot(v); if(v.pago === "Efectivo") r.efectivo.ent += t.bruto; else r.debito.ent += t.bruto - t.com; });
-  s.gs.forEach(g => { const x = n0(g.monto);
-    if(g.pago === "Efectivo") r.efectivo.sal += x;
-    else if(g.pago === "Tarjeta de crédito") r.tarjeta.sal += x;
-    else if(g.pago === "Crédito proveedor") r.credito += x;
-    else r.debito.sal += x; });
-  // Lo que ponen o devuelven los dueños entra; lo que se les devuelve, paga o presta sale
-  S.duenos.filter(x => pKey(x.fecha) === m).forEach(x => { const c = x.medio === "Efectivo" ? r.efectivo : r.debito;
-    if(ENTRA_D.includes(x.tipo)) c.pres += n0(x.monto); else c.pag += n0(x.monto); });
-  S.sueldos.filter(x => pKey(x.fecha) === m).forEach(x => (x.medio === "Efectivo" ? r.efectivo : r.debito).sue += n0(x.monto));
-  // Pagar la tarjeta sale de la cuenta o del efectivo y libera cupo; no es un gasto nuevo (las compras ya se anotaron)
-  S.pagostarjeta.filter(x => pKey(x.fecha) === m).forEach(x => { const v = n0(x.monto);
-    if(esCupo(x)){ r.tarjeta.aum += v; return; }   // el banco subió el cupo: no es dinero
-    (x.medio === "Efectivo" ? r.efectivo : r.debito).tar += v; r.tarjeta.tar += v; });
-  // Sacar efectivo de la cuenta (o depositarlo) solo cambia dónde está el dinero: no es gasto ni ingreso
-  S.retiros.filter(x => pKey(x.fecha) === m).forEach(x => { const v = esDeposito(x) ? -n0(x.monto) : n0(x.monto);
-    r.debito.mov -= v; r.efectivo.mov += v; });
+  movs(m).forEach(x => { if(x.cta === "credito") r.credito -= x.v; else r[x.cta][x.cat] += x.cat === "mov" ? x.v : Math.abs(x.v); });
   [r.debito, r.efectivo].forEach(c => c.fin = c.ini + c.ent - c.sal + c.pres - c.pag - c.sue - c.tar + c.mov);
   r.tarjeta.fin = r.tarjeta.ini - r.tarjeta.sal + r.tarjeta.tar + r.tarjeta.aum;
   return r;
@@ -892,6 +902,7 @@ const VIEWS = {
   pedidos:     { t:"Pedidos de la página", i:"bag",     grp:"Día a día" },
   ventas:      { t:"Ventas",               i:"cart",    month:true, grp:"Día a día" },
   gastos:      { t:"Gastos y compras",     i:"receipt", month:true, grp:"Día a día" },
+  tarjetas:    { t:"Tarjetas y efectivo",  i:"wallet",  month:true, grp:"Día a día" },
   apartar:     { t:"Dinero apartado",      i:"safe",    month:true, grp:"Día a día" },
   duenos:      { t:"Dueños",               i:"users",   month:true, grp:"Día a día" },
   trabajadores:{ t:"Trabajadores",         i:"clock",   month:true, grp:"Día a día" },
@@ -1052,13 +1063,13 @@ R.inicio = () => {
       ${cj.debito.pag + cj.efectivo.pag ? fila(`<a href="#duenos">Dinero a dueños</a>`, "pag", "− ") : ""}
       ${cj.debito.sue + cj.efectivo.sue ? fila(`<a href="#trabajadores">Pagos a trabajadores</a>`, "sue", "− ") : ""}
       ${cj.debito.tar + cj.efectivo.tar ? fila("Pago de la tarjeta de crédito", "tar", "− ") : ""}
-      ${retirosMes(curM).length ? fila(`<a href="#gastos">Retiros y depósitos de efectivo</a>`, "mov") : ""}
+      ${S.retiros.some(x => pKey(x.fecha) === curM) ? fila(`<a href="#tarjetas">Traspasos cuenta ↔ efectivo</a>`, "mov") : ""}
       <tr><td><b>Saldo actual</b></td>${[cj.debito.fin, cj.efectivo.fin, cj.debito.fin + cj.efectivo.fin].map(x => `<td class="n"><b class="${x < 0 ? "neg" : ""}">${fmt(x)}</b></td>`).join("")}</tr>
       ${ap.all.length ? `<tr><td>− <a href="#apartar">Apartado para pagos</a></td><td></td><td></td><td class="n">${fmt(ap.guardado)}</td></tr>
       <tr class="tot"><td>Libre para usar</td><td></td><td></td><td class="n"><span class="${libre < 0 ? "neg" : "pos"}">${fmt(libre)}</span></td></tr>` : ""}
     </tbody></table></div>
     ${ap.falta > 0 ? `<a class="alert" href="#apartar">${ico("safe")}<span>Te falta apartar <b>${fmt(ap.falta)}</b> para los pagos del mes.</span></a>` : ""}
-    ${cj.tarjeta.ini || cj.tarjeta.sal || cj.tarjeta.tar || cj.tarjeta.aum ? `<h2 class="mt" style="font-size:1rem">Tarjeta de crédito <a class="r" href="#gastos">Ver movimientos</a></h2>
+    ${cj.tarjeta.ini || cj.tarjeta.sal || cj.tarjeta.tar || cj.tarjeta.aum ? `<h2 class="mt" style="font-size:1rem">Tarjeta de crédito <a class="r" href="#tarjetas">Ver movimientos</a></h2>
     <div class="tw"><table><tbody>
       <tr><td>Cupo disponible al inicio</td><td class="n">${fmt(cj.tarjeta.ini)}</td></tr>
       <tr><td>− Compras con la tarjeta</td><td class="n">${fmt(cj.tarjeta.sal)}</td></tr>
@@ -1151,20 +1162,11 @@ R.gastos = () => {
   // Pagos y aumentos de cupo de la tarjeta: se listan aquí con los gastos, pero no suman al total (las compras ya están anotadas)
   const tar = adm && (UI.gastoTipo === "Todos" || UI.gastoTipo === TAR) ? pagosTar(curM) : [];
   if(UI.gastoTipo === TAR) gs = [];
-  const ret = adm && UI.gastoTipo === "Todos" ? retirosMes(curM) : [];
-  const lista = [...gs.map(g => ({ g })), ...tar.map(t => ({ t })), ...ret.map(e => ({ e }))]
-    .sort((a, b) => { const x = a.g || a.t || a.e, y = b.g || b.t || b.e; return y.fecha.localeCompare(x.fecha) || (y.upd || 0) - (x.upd || 0); });
+  const lista = [...gs.map(g => ({ g })), ...tar.map(t => ({ t }))]
+    .sort((a, b) => { const x = a.g || a.t, y = b.g || b.t; return y.fecha.localeCompare(x.fecha) || (y.upd || 0) - (x.upd || 0); });
   let h = "", day = "";
-  lista.forEach(({ g, t, e }) => {
-    const f = (g || t || e).fecha;
-    if(e){
-      if(f !== day){ day = f; h += `<div class="day"><span>${dName(day)}</span></div>`; }
-      h += `<button class="item" data-act="editRetiro" data-id="${esc(e.id)}">
-      <div class="main-t"><div class="tt">${TIPOS_RET[esDeposito(e) ? "deposito" : "retiro"]}</div>
-      <div class="st">No suma al total · ${esDeposito(e) ? "Efectivo → cuenta" : "Cuenta → efectivo"}${e.nota ? " · " + esc(e.nota) : ""}</div></div>
-      <div class="am num muted">${fmt(e.monto)}</div></button>`;
-      return;
-    }
+  lista.forEach(({ g, t }) => {
+    const f = (g || t).fecha;
     if(f !== day){ day = f; h += `<div class="day"><span>${dName(day)}</span></div>`; }
     h += g ? `<button class="item" data-act="editGasto" data-id="${esc(g.id)}">
       <div class="main-t"><div class="tt">${esc(g.desc || g.tipo)}</div>
@@ -1186,11 +1188,45 @@ R.gastos = () => {
     <div class="chips">${["Todos", ...TIPOS_G, ...(adm ? [TAR] : [])].map(t => `<button class="chip ${UI.gastoTipo === t ? "on" : ""}" data-act="gTipo" data-t="${t}">${t}${adm && t !== "Todos" && tipos[t] ? " · " + fmtK(tipos[t]) : ""}</button>`).join("")}</div>
     <span class="sp"></span>
     <button class="b acc" data-act="newGasto">${ico("plus")}Registrar gasto</button>
-    ${adm ? `<button class="b" data-act="newPagoTar">${ico("wallet")}Tarjeta de crédito</button>` : ""}
-    ${adm ? `<button class="b" data-act="newRetiro">${ico("wallet")}Retiro de efectivo</button>` : ""}
-    ${adm ? `<button class="b" data-act="csvGastos" title="Descargar para Excel">${ico("download")}<span>Excel</span></button>` : ""}
+    ${adm ? `<button class="b" data-act="newPagoTar">${ico("wallet")}Tarjeta de crédito</button>` : ""}    ${adm ? `<button class="b" data-act="csvGastos" title="Descargar para Excel">${ico("download")}<span>Excel</span></button>` : ""}
   </div>
   <div class="list" style="margin-top:6px">${h || (UI.gastoTipo === TAR ? empty("wallet", "Sin movimientos de la tarjeta en " + mName(curM), "Anota aquí cada pago de la tarjeta o aumento de cupo.", `<button class="b acc" data-act="newPagoTar">${ico("plus")}Anotar movimiento</button>`) : "") || empty("receipt", adm ? "Sin gastos en " + mName(curM) : "Sin gastos hoy", "Anota cada boleta o factura. Así sabrás si compras más de lo que usan tus recetas.", `<button class="b acc" data-act="newGasto">${ico("plus")}Registrar gasto</button>`)}</div>`;
+};
+
+// ---------- Tarjetas y efectivo: cada cuenta por separado, con todo lo que entra y sale ----------
+const CTAS = { debito:"Débito", tarjeta:"Crédito", efectivo:"Efectivo" };
+R.tarjetas = () => {
+  const k = CTAS[UI.cta] ? UI.cta : "debito", cj = caja(curM), c = cj[k], tc = k === "tarjeta";
+  const L = movs(curM).filter(x => x.cta === k), ent = sum(L.filter(x => x.v > 0), x => x.v), sal = sum(L.filter(x => x.v < 0), x => -x.v);
+  let h = "", day = "";
+  L.forEach(x => {
+    if(x.fecha !== day){ day = x.fecha; h += `<div class="day"><span>${dName(day)}</span></div>`; }
+    h += `<button class="item" data-act="${x.act}" data-id="${esc(x.id)}">
+      <div class="main-t"><div class="tt">${esc(x.tt)}</div>${x.st ? `<div class="st">${esc(x.st)}</div>` : ""}</div>
+      <div class="am num ${x.v < 0 ? "neg" : "pos"}">${x.v < 0 ? "−" : "+"}${fmt(Math.abs(x.v))}</div></button>`;
+  });
+  const saldo = (id, l) => kpi(l,`<span class="${cj[id].fin < 0 ? "neg" : ""}">${fmt(cj[id].fin)}</span>`, id === "tarjeta" ? "cupo disponible" : "saldo actual", id === k ? "hero" : "");
+  return `
+  <div class="kpis">${saldo("debito", "Débito (cuenta)")}${saldo("efectivo", "Efectivo")}${saldo("tarjeta", "Tarjeta de crédito")}</div>
+  <div class="row mt">
+    <div class="chips">${Object.entries(CTAS).map(([id, l]) => `<button class="chip ${id === k ? "on" : ""}" data-act="ctaSel" data-c="${id}">${l}</button>`).join("")}</div>
+    <span class="sp"></span>
+    <button class="b acc" data-act="newRetiro">${ico("plus")}Traspaso cuenta ↔ efectivo</button>
+    <button class="b" data-act="newPagoTar">${ico("wallet")}Pago o cupo de la tarjeta</button>
+    <button class="b" data-act="editSaldo">${ico("edit")}Saldo inicial</button>
+  </div>
+  <div class="card mt"><div class="tw"><table><tbody>
+    <tr><td>${tc ? "Cupo al inicio" : "Saldo inicial"}${cj.traido ? ` <span class="small muted">(del mes anterior)</span>` : ""}</td><td class="n">${fmt(c.ini)}</td></tr>
+    <tr><td>+ ${tc ? "Pagos y aumentos de cupo" : "Entradas"}</td><td class="n pos">${fmt(ent)}</td></tr>
+    <tr><td>− ${tc ? "Compras con la tarjeta" : "Salidas"}</td><td class="n neg">${fmt(sal)}</td></tr>
+    <tr class="tot"><td>${tc ? "Cupo disponible ahora" : "Saldo actual"}</td><td class="n"><span class="${c.fin < 0 ? "neg" : ""}">${fmt(c.fin)}</span></td></tr>
+  </tbody></table></div>
+  <p class="hint">${{ debito:"Ventas con tarjeta o transferencia entran aquí descontando la comisión. Gastos pagados con transferencia o tarjeta de débito salen de aquí.",
+    efectivo:"Ventas y gastos pagados en efectivo. Si sacas plata de la cuenta para pagar en efectivo, anótalo como traspaso: no es gasto.",
+    tarjeta:"El cupo no es dinero tuyo: es lo que aún puedes gastar con la tarjeta. Las compras lo bajan; los pagos y aumentos lo suben." }[k]}
+    ${cj.credito && !tc ? ` Compras a crédito de proveedor por pagar: <b>${fmt(cj.credito)}</b> (no salen de ninguna cuenta aún).` : ""}</p></div>
+  <h2 class="mt" style="font-size:1rem">Movimientos de ${CTAS[k].toLowerCase()} en ${mName(curM)}</h2>
+  <div class="list" style="margin-top:6px">${h || empty("wallet", "Sin movimientos en " + mName(curM), tc ? "Aquí verás las compras con la tarjeta, sus pagos y aumentos de cupo." : "Aquí verás cada venta, gasto, pago y traspaso de esta cuenta.")}</div>`;
 };
 
 // ---------- Carta ----------
@@ -1718,7 +1754,7 @@ R.borrados = () => {
 
 R.mas = () => `<div class="card" style="margin-bottom:12px"><div class="row"><div class="sync" style="color:var(--ink2);font-size:var(--t-md)" id="sync3"><i></i><span>${mode === "local" ? "Datos guardados solo en este dispositivo" : outbox.length ? `${outbox.length} cambio(s) por subir a la nube` : "Todo guardado en la nube"}</span></div><span class="sp"></span>${user ? `<span class="small muted">${esc(user.email)} · ${esAdmin() ? "Administrador" : "Colaborador"}</span><button class="b sm del" data-act="logout">Cerrar sesión</button>` : ""}</div></div><div class="tiles">${Object.entries(VIEWS).filter(([k, v]) => v.grp && !TABS.includes(k) && puede(k)).map(([k, v]) => `<a class="tile" href="#${k}">${ico(v.i)}<b>${v.t}</b><span>${{
   carta:"Precios, costos y márgenes", inventario:"Stock y lista de compras", recetas:"Gramos por producto", insumos:"Precios y costo real", resultados:"Mes a mes y mermas",
-  equilibrio:"Cuánto vender para no perder", fijos:"Gas, luz, sueldos…", proveedores:"Contactos y entregas", ajustes:"Parámetros y respaldos", duenos:"Préstamos y pagos", trabajadores:"Días, horas y pagos", misdias:"Tus días y pagos", ideas:"Planes con presupuesto y fecha", borrados:"Ventas y gastos borrados, con su motivo" }[k] || ""}</span></a>`).join("")}</div>`;
+  equilibrio:"Cuánto vender para no perder", fijos:"Gas, luz, sueldos…", proveedores:"Contactos y entregas", ajustes:"Parámetros y respaldos", duenos:"Préstamos y pagos", trabajadores:"Días, horas y pagos", misdias:"Tus días y pagos", ideas:"Planes con presupuesto y fecha", tarjetas:"Débito, crédito y efectivo, uno por uno", borrados:"Ventas y gastos borrados, con su motivo" }[k] || ""}</span></a>`).join("")}</div>`;
 
 // =====================================================================
 //  Modal
@@ -2413,10 +2449,9 @@ function formPagoTarjeta(orig, tipo = "pago", base = {}){
 // sigue siendo del negocio. Lo que se compre con ese efectivo se anota en Gastos pagado con "Efectivo".
 const TIPOS_RET = { retiro:"Retiro de efectivo", deposito:"Depósito de efectivo" };
 const esDeposito = x => x.tipo === "deposito";
-const retirosMes = m => S.retiros.filter(x => pKey(x.fecha) === m).sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.upd || 0) - (a.upd || 0));
 function formRetiro(orig){
   const x = orig ? clone(orig) : { id:uid(), fecha: curM === curMonth() ? today() : pStart(curM), tipo:"retiro", monto:"", nota:"" };
-  const m = openModal(orig ? "Editar movimiento de efectivo" : "Retiro de efectivo", `
+  const m = openModal(orig ? "Editar traspaso" : "Traspaso entre cuenta y efectivo", `
     <label>Qué anotas</label>${chipsHTML("tipo", Object.values(TIPOS_RET), TIPOS_RET[esDeposito(x) ? "deposito" : "retiro"])}
     <div class="f2">
       <div><label for="rF">Fecha</label><input id="rF" type="date" value="${esc(x.fecha)}" required></div>
@@ -2886,6 +2921,7 @@ const A = {
   editGasto: d => formGasto(S.gastos.find(g => g.id === d.id)),
   delGasto: async d => { const motivo = await pedirMotivo("¿Eliminar este gasto?"); if(motivo){ del("gastos", d.id, motivo); BOR.mes = null; closeModal(); render(); toast("Gasto eliminado"); } },
   gTipo: d => { UI.gastoTipo = d.t; render(); },
+  ctaSel: d => { UI.cta = d.c; render(); },
   cartaF: d => { UI.cartaF = d.f; render(); },
   detProd: d => detProd(d.id),
   newProd: () => formProd(),
